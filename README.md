@@ -141,7 +141,8 @@ The first M3 chain is now connected to the live stage through [`@ui-lib/post`](p
 - exposure / contrast / saturation grading;
 - vignette;
 - depth-aware cinematic focus blur and directional motion blur controls;
-- temporal accumulation with Halton sub-pixel jitter, reactive history rejection and explicit history reset on resize / teardown;
+- temporal accumulation with Halton sub-pixel jitter, world-object screen velocity, reactive history rejection and explicit history reset on resize / teardown;
+- multi-scale separable bloom kernel in the single TSL graph, with no extra scene render or canvas;
 - colour sampled from the already-composited canvas through `viewportTexture()`; focus and world reprojection also read the existing canvas depth through `viewportDepthTexture()`;
 - final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
 
@@ -150,8 +151,9 @@ without rebuilding the renderer or tearing down particles. The playground expose
 rejection. The history path uses conservative colour clamping and reactive rejection because the
 final framebuffer also contains stable DOM glass; it does not claim full depth-aware reprojection.
 
-The next M3 pass is a world-only velocity/depth pass and a true separable bloom pyramid; the current
-chain remains a small first-frame-safe graph that works with the same WebGPU/WebGL2 renderer path.
+The next M3 pass is a true world-only velocity/depth MRT and full multi-pass bloom pyramid; the
+current chain remains a first-frame-safe single-graph implementation that works with the same
+WebGPU/WebGL2 renderer path.
 
 ## Next
 

@@ -64,6 +64,8 @@ export interface PostProcessingOptions {
 	temporalReactive?: number;
 	/** Maximum linear colour excursion allowed when clamping history. */
 	temporalClamp?: number;
+	/** Screen-space world velocity in device pixels, supplied by the shared layer. */
+	worldVelocity?: [number, number];
 	/** Normalised linear depth at the focus plane. */
 	focusDepth?: number;
 	/** Screen-space focus blur radius in device pixels. 0 disables the DOF approximation. */
@@ -94,6 +96,7 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	temporalBlend: 0.08,
 	temporalReactive: 0.8,
 	temporalClamp: 0.18,
+	worldVelocity: [0, 0],
 	focusDepth: 0.62,
 	focusBlur: 2.5,
 	focusPoint: [0.5, 0.5],
@@ -125,6 +128,7 @@ export interface PostProcessingUniforms {
 	temporalReactive: ScalarUniform;
 	temporalClamp: ScalarUniform;
 	temporalJitter: VectorUniform;
+	worldVelocity: VectorUniform;
 	focusDepth: ScalarUniform;
 	focusBlur: ScalarUniform;
 	focusPoint: VectorUniform;
@@ -145,6 +149,8 @@ export interface PostProcessing {
 	resetHistory(): void;
 	/** Return the next 8-sample Halton jitter in device pixels for the world camera. */
 	nextJitter(): [number, number];
+	/** Update the aggregate world-object velocity in device pixels. */
+	setWorldVelocity(velocity: [number, number]): void;
 	update(options: Partial<PostProcessingOptions>): void;
 	/** Advance animated effects from the page scheduler's single clock. */
 	step(dt: number): void;
@@ -184,24 +190,17 @@ function halton(index: number, base: number): number {
 	return result;
 }
 
-const BLOOM_OFFSETS: readonly [number, number, number][] = [
-	[0, 0, 0.22],
-	[1, 0, 0.09],
-	[-1, 0, 0.09],
-	[0, 1, 0.09],
-	[0, -1, 0.09],
-	[Math.SQRT1_2, Math.SQRT1_2, 0.07],
-	[-Math.SQRT1_2, Math.SQRT1_2, 0.07],
-	[Math.SQRT1_2, -Math.SQRT1_2, 0.07],
-	[-Math.SQRT1_2, -Math.SQRT1_2, 0.07],
-	[2, 0, 0.045],
-	[-2, 0, 0.045],
-	[0, 2, 0.045],
-	[0, -2, 0.045],
-	[Math.SQRT2, Math.SQRT2, 0.035],
-	[-Math.SQRT2, Math.SQRT2, 0.035],
-	[Math.SQRT2, -Math.SQRT2, 0.035],
-	[-Math.SQRT2, -Math.SQRT2, 0.035],
+const BLOOM_PYRAMID_LEVELS: readonly [number, number][] = [
+	[1, 0.42],
+	[2, 0.28],
+	[4, 0.18],
+	[8, 0.12],
+];
+
+const SEPARABLE_TAPS: readonly [number, number][] = [
+	[-1, 0.25],
+	[0, 0.5],
+	[1, 0.25],
 ];
 
 /**
@@ -233,6 +232,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		temporalReactive: uniform(initial.temporalReactive),
 		temporalClamp: uniform(initial.temporalClamp),
 		temporalJitter: uniform(new Vector2()),
+		worldVelocity: uniform(new Vector2(...initial.worldVelocity)),
 		focusDepth: uniform(initial.focusDepth),
 		focusBlur: uniform(initial.focusBlur),
 		focusPoint: uniform(new Vector2(...initial.focusPoint)),
@@ -254,33 +254,41 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const baseSample = sample();
 	const base = baseSample.rgb;
 
-	// Bright-pass, multi-radius disc blur. The loop is deliberately unrolled
-	// here: post tap count is fixed at graph-build time, so the backend can
-	// optimise it to straight-line shader code.
-	let bloom: Node<"vec3"> = vec3(0);
-	for (const [x, y, weight] of BLOOM_OFFSETS) {
-		const colour = sample(vec2(x, y).mul(uniforms.bloomRadius).div(uniforms.resolution)).rgb;
-		const brightness = smoothstep(
+	// A fixed, multi-scale separable kernel. Each level samples one horizontal
+	// and one vertical 1D blur and averages them, which gives the visual shape of
+	// a bloom pyramid without allocating extra render targets or rendering the
+	// scene again. The levels are compile-time constants and stay backend-neutral.
+	const sampleSeparable = (radius: Node<"float">): Node<"vec3"> => {
+		let horizontal: Node<"vec3"> = vec3(0);
+		let vertical: Node<"vec3"> = vec3(0);
+		for (const [distance, weight] of SEPARABLE_TAPS) {
+			horizontal = horizontal.add(
+				sample(vec2(distance, 0).mul(radius).div(uniforms.resolution)).rgb.mul(weight),
+			);
+			vertical = vertical.add(
+				sample(vec2(0, distance).mul(radius).div(uniforms.resolution)).rgb.mul(weight),
+			);
+		}
+		return horizontal.add(vertical).mul(0.5);
+	};
+	const brightPass = (colour: Node<"vec3">): Node<"float"> =>
+		smoothstep(
 			uniforms.bloomThreshold.sub(uniforms.bloomKnee),
 			uniforms.bloomThreshold.add(uniforms.bloomKnee),
 			luminance(colour),
 		);
-		bloom = bloom.add(colour.mul(brightness).mul(weight));
+
+	let bloom: Node<"vec3"> = vec3(0);
+	for (const [radius, weight] of BLOOM_PYRAMID_LEVELS) {
+		const colour = sampleSeparable(uniforms.bloomRadius.mul(radius));
+		bloom = bloom.add(colour.mul(brightPass(colour)).mul(weight));
 	}
 
-	// A second, wider blur gives highlights a soft atmospheric halo instead of
-	// the small circular glow alone. It is still an unrolled fixed graph.
+	// A wider copy of the same separable levels creates the atmospheric halo.
 	let halo: Node<"vec3"> = vec3(0);
-	for (const [x, y, weight] of BLOOM_OFFSETS) {
-		const colour = sample(
-			vec2(x, y).mul(uniforms.bloomRadius.mul(3)).div(uniforms.resolution),
-		).rgb;
-		const brightness = smoothstep(
-			uniforms.bloomThreshold.sub(uniforms.bloomKnee),
-			uniforms.bloomThreshold.add(uniforms.bloomKnee),
-			luminance(colour),
-		);
-		halo = halo.add(colour.mul(brightness).mul(weight));
+	for (const [radius, weight] of BLOOM_PYRAMID_LEVELS) {
+		const colour = sampleSeparable(uniforms.bloomRadius.mul(radius * 3));
+		halo = halo.add(colour.mul(brightPass(colour)).mul(weight));
 	}
 
 	// A directional streak is the inexpensive lens-flare cue: it follows the
@@ -374,12 +382,12 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 
 	const effected = vec4(colour, baseSample.a);
 	const worldDepthMask = oneMinus(smoothstep(0.92, 0.998, sceneDepth));
-	// `temporalJitter` is the previous-minus-current Halton offset in device
+	// `temporalJitter` is the previous-minus-current Halton offset and
+	// `worldVelocity` is current-minus-previous object motion, both in device
 	// pixels. Reproject only depth-backed world fragments; the DOM glass and
 	// empty backdrop remain at their stable screen positions.
-	const historyUv = uv.add(
-		uniforms.temporalJitter.div(uniforms.resolution).mul(worldDepthMask),
-	);
+	const historyOffset = uniforms.temporalJitter.sub(uniforms.worldVelocity);
+	const historyUv = uv.add(historyOffset.div(uniforms.resolution).mul(worldDepthMask));
 	const historySample = texture(historyTexture, historyUv);
 
 	// History clamping and reactive rejection are the two pieces that keep a
@@ -441,6 +449,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			uniforms.temporalJitter.value.set(previous[0] - current[0], previous[1] - current[1]);
 			return current;
 		},
+		setWorldVelocity(velocity) {
+			uniforms.worldVelocity.value.set(...velocity);
+		},
 		update(patch) {
 			if (patch.enabled !== undefined) uniforms.enabled.value = patch.enabled ? 1 : 0;
 			if (patch.bloomStrength !== undefined) uniforms.bloomStrength.value = patch.bloomStrength;
@@ -464,6 +475,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			if (patch.temporalReactive !== undefined)
 				uniforms.temporalReactive.value = patch.temporalReactive;
 			if (patch.temporalClamp !== undefined) uniforms.temporalClamp.value = patch.temporalClamp;
+			if (patch.worldVelocity) uniforms.worldVelocity.value.set(...patch.worldVelocity);
 			if (patch.focusDepth !== undefined) uniforms.focusDepth.value = patch.focusDepth;
 			if (patch.focusBlur !== undefined) uniforms.focusBlur.value = patch.focusBlur;
 			if (patch.focusPoint) uniforms.focusPoint.value.set(...patch.focusPoint);

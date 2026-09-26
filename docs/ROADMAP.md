@@ -175,9 +175,9 @@
 - **验收**：1M 粒子 @60fps（WebGPU 基准机）+ 掉落帧 < 1% + dispose 后资源归零
 
 ### M3 · 后处理与相机 🚧 首个链路已完成
-- `@ui-lib/post`：TSL viewport chain 已交付 bloom / wide halo / lens streak / chromatic aberration / grain / exposure / contrast / saturation / vignette / depth-aware focus blur / directional motion blur / Halton temporal accumulation / reactive history rejection；可通过 `GlassStage post` 动态改 uniform 或关闭，不重建 renderer
+- `@ui-lib/post`：TSL viewport chain 已交付 multi-scale separable bloom / wide halo / lens streak / chromatic aberration / grain / exposure / contrast / saturation / vignette / depth-aware focus blur / directional motion blur / Halton temporal accumulation / world-object velocity / reactive history rejection；可通过 `GlassStage post` 动态改 uniform 或关闭，不重建 renderer
 - 现在的链路作用于 backdrop + particles + liquid glass 的**已经合成画面**，仍然只有一个 canvas；RenderPipeline 负责最后一次 tone mapping / sRGB；history 在 resize / dispose 时显式清理
-- **下一步**：world-only velocity/depth pass、separable bloom pyramid、完整 TAA reprojection、自定义 pass 插槽、路径相机与 **Glass Product Hero** demo
+- **下一步**：world-only velocity/depth MRT、真正的多 pass bloom pyramid、完整 TAA reprojection、自定义 pass 插槽、路径相机与 **Glass Product Hero** demo
 - **验收**：后处理链可拼装、可关闭；关闭前后不崩、不变色（色彩管线统一 sRGB）
 
 ### M4 · DOM 桥与滚动叙事
@@ -266,10 +266,11 @@
     chromatic aberration / grain / vignette，再由 three `RenderPipeline` 输出。这样仍是一个
     canvas，也不会破坏玻璃在前一 render call 里读取 `viewportSharedTexture()` 的折射语义。
     中间帧暂时切到 working-linear，最终只做一次 tone mapping / sRGB transform；当前已经加入
-    history texture、8-step Halton world-camera jitter、depth-aware focus blur、conservative history
-    clamp 与 reactive rejection；world-depth mask 只对 depth-backed world fragments 做 jitter
-    reprojection，避免把稳定的 DOM glass 整帧拖动。真正的 velocity MRT / depth-aware TAA 与
-    separable bloom pyramid 继续沿用这个插槽。
+    history texture、8-step Halton world-camera jitter、depth-aware focus blur、world-object
+    screen velocity、conservative history clamp 与 reactive rejection；world-depth mask 只对
+    depth-backed world fragments 做 jitter + velocity reprojection，避免把稳定的 DOM glass 整帧
+    拖动。真正的 velocity MRT / depth-aware TAA 与 full multi-pass bloom pyramid 继续沿用这个
+    插槽。
 
 11. **world object 也复用 particle scene 与统一 scheduler。** `GlassLayer.addWorldObject(object,
     onFrame)` 给 3D demo 一个受控插槽：对象在 backdrop 之后、glass 之前绘制，DOM 仍然保持真实

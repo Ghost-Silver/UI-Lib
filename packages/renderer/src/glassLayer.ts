@@ -33,6 +33,7 @@ import {
 	RenderPipeline,
 	Scene,
 	Vector2,
+	Vector3,
 } from "three/webgpu";
 import {
 	type BackdropInstance,
@@ -155,6 +156,11 @@ interface Panel {
 	onScreen: boolean;
 }
 
+interface WorldVelocitySample {
+	readonly screen: Vector2;
+	initialized: boolean;
+}
+
 const OFFSCREEN_MARGIN = 96;
 const STATS_INTERVAL = 0.25;
 
@@ -195,6 +201,9 @@ export class GlassLayer implements Disposable {
 	private readonly particleSystems = new Set<ParticleSystem>();
 	private readonly particleStops = new Map<ParticleSystem, () => void>();
 	private readonly worldStops = new Map<Object3D, () => void>();
+	private readonly worldVelocitySamples = new Map<Object3D, WorldVelocitySample>();
+	private readonly worldPosition = new Vector3();
+	private readonly projectedWorldPosition = new Vector3();
 	private readonly panels = new Set<Panel>();
 	private readonly resizeObserver: ResizeObserver;
 
@@ -283,6 +292,7 @@ export class GlassLayer implements Disposable {
 				this.particleScene.remove(object);
 			}
 			this.worldStops.clear();
+			this.worldVelocitySamples.clear();
 		});
 		this.disposer.add(() => {
 			for (const panel of [...this.panels]) this.destroyPanel(panel);
@@ -428,6 +438,10 @@ export class GlassLayer implements Disposable {
 	 */
 	addWorldObject(object: Object3D, onFrame?: (info: FrameInfo) => void): Disposable {
 		this.particleScene.add(object);
+		this.worldVelocitySamples.set(object, {
+			screen: new Vector2(),
+			initialized: false,
+		});
 		const stop = onFrame ? getScheduler().add(onFrame, "update") : () => {};
 		this.worldStops.set(object, stop);
 		let disposed = false;
@@ -437,6 +451,7 @@ export class GlassLayer implements Disposable {
 				disposed = true;
 				stop();
 				this.worldStops.delete(object);
+				this.worldVelocitySamples.delete(object);
 				this.particleScene.remove(object);
 			},
 		};
@@ -612,7 +627,9 @@ export class GlassLayer implements Disposable {
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
+		for (const sample of this.worldVelocitySamples.values()) sample.initialized = false;
 		this.postProcessing?.setSize(bufferWidth, bufferHeight);
+		this.postProcessing?.setWorldVelocity([0, 0]);
 
 		this.glassCamera.left = -bufferWidth / 2;
 		this.glassCamera.right = bufferWidth / 2;
@@ -710,6 +727,55 @@ export class GlassLayer implements Disposable {
 		}
 	};
 
+	private updateWorldVelocity(): void {
+		if (this.postProcessing === null || this.worldVelocitySamples.size === 0) {
+			this.postProcessing?.setWorldVelocity([0, 0]);
+			return;
+		}
+
+		const bufferWidth = Math.max(1, this.sharedResolution.value.x);
+		const bufferHeight = Math.max(1, this.sharedResolution.value.y);
+		let velocityX = 0;
+		let velocityY = 0;
+		let largestSpeed = 0;
+
+		for (const [object, sample] of this.worldVelocitySamples) {
+			object.updateMatrixWorld(true);
+			object.getWorldPosition(this.worldPosition);
+			this.projectedWorldPosition.copy(this.worldPosition).project(this.particleCamera);
+			const currentX = this.projectedWorldPosition.x * bufferWidth * 0.5;
+			const currentY = -this.projectedWorldPosition.y * bufferHeight * 0.5;
+
+			if (sample.initialized) {
+				const dx = currentX - sample.screen.x;
+				const dy = currentY - sample.screen.y;
+				const speed = dx * dx + dy * dy;
+				// A max-magnitude representative is more useful for a hero than an
+				// average that would cancel two objects travelling in opposite ways.
+				if (speed > largestSpeed) {
+					largestSpeed = speed;
+					velocityX = dx;
+					velocityY = dy;
+				}
+			}
+
+			sample.screen.set(currentX, currentY);
+			sample.initialized = true;
+		}
+
+		// Clamp extreme tab-resume / teleport jumps: reactive rejection handles
+		// the discontinuity, while a huge reprojection offset would sample outside
+		// the history texture and create a bright edge smear.
+		const maxVelocity = Math.max(bufferWidth, bufferHeight) * 0.18;
+		const speed = Math.hypot(velocityX, velocityY);
+		if (speed > maxVelocity) {
+			const scale = maxVelocity / speed;
+			velocityX *= scale;
+			velocityY *= scale;
+		}
+		this.postProcessing.setWorldVelocity([velocityX, velocityY]);
+	}
+
 	private renderFrame(): void {
 		const { renderer } = this.ui;
 		const previousToneMapping = renderer.toneMapping;
@@ -730,6 +796,11 @@ export class GlassLayer implements Disposable {
 
 		// 1. Backdrop first, straight to the screen.
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
+
+		// Update object motion before applying this frame's camera jitter. The
+		// velocity is measured in the unjittered camera and consumed only by the
+		// depth-backed world branch of the post history lookup.
+		if (usesPost) this.updateWorldVelocity();
 
 		// 2. World effects are jittered by a short Halton sequence when temporal
 		//    accumulation is active. The DOM-attached glass camera stays unjittered,

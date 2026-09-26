@@ -13,6 +13,8 @@ describe("post-processing", () => {
 		expect(post.uniforms.temporalBlend.value).toBe(POST_DEFAULTS.temporalBlend);
 		expect(post.uniforms.temporalReactive.value).toBe(POST_DEFAULTS.temporalReactive);
 		expect(post.uniforms.temporalClamp.value).toBe(POST_DEFAULTS.temporalClamp);
+		expect(post.uniforms.worldVelocity.value.x).toBe(POST_DEFAULTS.worldVelocity[0]);
+		expect(post.uniforms.worldVelocity.value.y).toBe(POST_DEFAULTS.worldVelocity[1]);
 		expect(post.uniforms.focusDepth.value).toBe(POST_DEFAULTS.focusDepth);
 		expect(post.uniforms.focusBlur.value).toBe(POST_DEFAULTS.focusBlur);
 		const jitter = post.nextJitter();
@@ -25,8 +27,11 @@ describe("post-processing", () => {
 		post.setSize(1280, 720);
 		post.step(1 / 60);
 		post.update({ enabled: false, chromaticAberration: 2 });
+		post.setWorldVelocity([3, -2]);
 		expect(post.uniforms.enabled.value).toBe(0);
 		expect(post.uniforms.chromaticAberration.value).toBe(2);
+		expect(post.uniforms.worldVelocity.value.x).toBe(3);
+		expect(post.uniforms.worldVelocity.value.y).toBe(-2);
 		post.dispose();
 	});
 });
