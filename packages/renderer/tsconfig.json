@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": [
+      "@types/three"
+    ],
+    "paths": {
+      "@ui-lib/core": [
+        "../core/src/index.ts"
+      ],
+      "@ui-lib/shaders": [
+        "../shaders/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src"
+  ]
+}

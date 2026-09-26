@@ -1,0 +1,25 @@
+{
+  "name": "ui-lib",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "GPU-first visual effects layer for the web: 3D, particles, refraction, post-processing, scroll cinema.",
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @ui-lib/docs dev",
+    "build": "pnpm -r --filter \"./packages/**\" run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.4",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

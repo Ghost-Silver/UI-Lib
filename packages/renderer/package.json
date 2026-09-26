@@ -1,0 +1,35 @@
+{
+	"name": "@ui-lib/renderer",
+	"version": "0.0.1",
+	"description": "three.js WebGPU/WebGL2 rendering runtime for UI-Lib: adaptive renderer bootstrap, backdrop passes and the DOM-attached glass layer.",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": ["dist", "src"],
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"peerDependencies": {
+		"three": ">=0.180.0"
+	},
+	"dependencies": {
+		"@ui-lib/core": "workspace:*",
+		"@ui-lib/shaders": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/three": "^0.186.0",
+		"three": "0.186.1",
+		"tsup": "^8.5.0",
+		"typescript": "^5.9.3"
+	}
+}
