@@ -170,7 +170,8 @@
 - `@ui-lib/particles`：SoA storage buffers、compute / transform-feedback 更新、Emitter、ForceField（noise flow / vortex / attractor）、球/盒碰撞、颜色-生命曲线、速度热色与软精灵
 - `@ui-lib/react`：`<ParticleField>`，粒子进入 `GlassStage` 的同一 canvas，DOM 玻璃可以折射粒子
 - Demo **Aurora Flow** 首版已在 playground：24k 粒子；WebGPU native compute / WebGL2 transform feedback 自动切换
-- **下一小步**：1M WebGPU 压测、动态 LOD、trail buffer 与真实 pointer→world ray
+- `<ParticleField count="auto">`（options 里的 `count: "auto"`）已按后端选择 WebGPU 1M / WebGL2 80k；
+  **下一小步**是基准机压测、动态 LOD、trail buffer 与真实 pointer→world ray
 - **验收**：1M 粒子 @60fps（WebGPU 基准机）+ 掉落帧 < 1% + dispose 后资源归零
 
 ### M3 · 后处理与相机

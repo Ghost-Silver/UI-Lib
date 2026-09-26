@@ -79,7 +79,8 @@ export interface ParticleForceOptions {
 }
 
 export interface ParticleSystemOptions {
-	count?: number;
+	/** Use the renderer adapter's backend budget when used through `<ParticleField>`. */
+	count?: number | "auto";
 	emitter?: ParticleEmitterOptions;
 	forces?: ParticleForceOptions;
 	/** `[min, max]` lifespan in seconds. */
@@ -181,7 +182,8 @@ type WithToAttribute = { toAttribute(): Node<"vec4"> };
  * `x` = age, `y` = lifespan, `z` = seed, `w` = size scale.
  */
 export function createParticleSystem(options: ParticleSystemOptions = {}): ParticleSystem {
-	const count = Math.max(1, Math.floor(options.count ?? PARTICLE_DEFAULTS.count));
+	const requestedCount = options.count === "auto" ? PARTICLE_DEFAULTS.count : options.count;
+	const count = Math.max(1, Math.floor(requestedCount ?? PARTICLE_DEFAULTS.count));
 	const emitter = { ...PARTICLE_DEFAULTS.emitter, ...options.emitter };
 	const forces = { ...PARTICLE_DEFAULTS.forces, ...options.forces };
 	const life = options.life ?? PARTICLE_DEFAULTS.life;

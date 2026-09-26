@@ -123,8 +123,10 @@ The first M2 slice is now live in the playground and in [`@ui-lib/particles`](pa
 - WebGPU native compute with three's WebGL 2 transform-feedback fallback;
 - one shared scheduler: compute runs before the render pass, and particles share the glass canvas.
 
-The docs scene uses 24,000 particles intentionally; the public default is 80,000 and the engine is
-structured for 1M+ once the next storage/LOD pass lands.
+The docs scene uses 24,000 particles intentionally. The public default is 80,000; pass
+`count: "auto"` to `<ParticleField>` and the adapter selects 1M on WebGPU or 80k on WebGL 2.
+The engine is structured for that budget; actual device-specific LOD and the benchmark gate remain
+part of the M2 acceptance pass.
 
 ## Next
 

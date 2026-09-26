@@ -40,7 +40,14 @@ export function ParticleField({
 	useEffect(() => {
 		if (!layer || !enabled) return;
 
-		const system = createParticleSystem(optionsRef.current);
+		const requestedOptions = optionsRef.current;
+		const count =
+			requestedOptions.count === "auto"
+				? layer.backend === "webgpu"
+					? 1_000_000
+					: 80_000
+				: requestedOptions.count;
+		const system = createParticleSystem({ ...requestedOptions, count });
 		const attachment = layer.addParticles(system, cameraRef.current);
 		if (!pointer) return () => attachment.dispose();
 
