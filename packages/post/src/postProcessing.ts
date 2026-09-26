@@ -31,6 +31,7 @@ import {
 	Vector2,
 	type WebGPURenderer,
 } from "three/webgpu";
+import { mergeDefined } from "@ui-lib/core";
 
 export interface PostProcessingOptions {
 	enabled?: boolean;
@@ -231,7 +232,7 @@ const TAA_NEIGHBOUR_OFFSETS: readonly [number, number][] = [
  * renderer. A single graph emits WGSL or GLSL through three's backend.
  */
 export function createPostProcessing(options: PostProcessingOptions = {}): PostProcessing {
-	const initial = { ...POST_DEFAULTS, ...options };
+	const initial = mergeDefined(POST_DEFAULTS, options);
 	const quality = initial.quality;
 	const bloomLevels = BLOOM_PYRAMID_LEVELS.slice(0, quality === 1 ? 2 : quality === 2 ? 3 : 4);
 	const separableTaps = quality === 1 ? ([[0, 1]] as const) : SEPARABLE_TAPS;

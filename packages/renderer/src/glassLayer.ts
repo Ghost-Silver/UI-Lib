@@ -25,6 +25,7 @@ import {
 	type LiquidGlassMaterial,
 	type SharedUniforms,
 } from "@ui-lib/shaders";
+import { mergeDefined } from "@ui-lib/core";
 import { uniform } from "three/tsl";
 import {
 	LinearSRGBColorSpace,
@@ -420,7 +421,7 @@ export class GlassLayer implements Disposable {
 			);
 		}
 
-		const panel = this.createPanel(element, { ...GLASS_PANEL_DEFAULTS, ...options });
+		const panel = this.createPanel(element, mergeDefined(GLASS_PANEL_DEFAULTS, options));
 		this.panels.add(panel);
 		this.resizeObserver.observe(element);
 		this.markDirty();
@@ -431,7 +432,7 @@ export class GlassLayer implements Disposable {
 				return panel.userVisible;
 			},
 			update: (patch) => {
-				Object.assign(panel.options, patch);
+				panel.options = mergeDefined(panel.options, patch);
 				this.applyPanelOptions(panel);
 				this.markDirty();
 			},
