@@ -3,12 +3,12 @@ import {
 	dot,
 	float,
 	fract,
-	linearDepth,
 	luminance,
 	max,
 	min,
 	mix,
 	oneMinus,
+	perspectiveDepthToViewZ,
 	pow,
 	saturate,
 	screenUV,
@@ -21,8 +21,10 @@ import {
 	vec4,
 	viewportDepthTexture,
 	viewportTexture,
+	viewZToOrthographicDepth,
 } from "three/tsl";
 import {
+	DepthTexture,
 	FramebufferTexture,
 	type Node,
 	SRGBColorSpace,
@@ -58,7 +60,7 @@ export interface PostProcessingOptions {
 	contrast?: number;
 	/** Colour intensity around luminance 1. */
 	saturation?: number;
-	/** Previous-frame blend. Small values stabilise shimmer without visible trails. */
+	/** Previous-frame feedback in [0, 1]. TAA defaults high and rejects history reactively. */
 	temporalBlend?: number;
 	/** Reactive history rejection for high-contrast changes. 0 disables it. */
 	temporalReactive?: number;
@@ -93,7 +95,7 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	exposure: 0.04,
 	contrast: 1.03,
 	saturation: 1.08,
-	temporalBlend: 0.08,
+	temporalBlend: 0.88,
 	temporalReactive: 0.8,
 	temporalClamp: 0.18,
 	worldVelocity: [0, 0],
@@ -129,6 +131,7 @@ export interface PostProcessingUniforms {
 	temporalClamp: ScalarUniform;
 	temporalJitter: VectorUniform;
 	worldVelocity: VectorUniform;
+	depthRange: VectorUniform;
 	focusDepth: ScalarUniform;
 	focusBlur: ScalarUniform;
 	focusPoint: VectorUniform;
@@ -147,10 +150,12 @@ export interface PostProcessing {
 	/** Copy the just-finished output into the next frame's temporal history. */
 	commit(renderer: WebGPURenderer): void;
 	resetHistory(): void;
-	/** Return the next 8-sample Halton jitter in device pixels for the world camera. */
+	/** Return the next 16-sample Halton jitter in device pixels for the world camera. */
 	nextJitter(): [number, number];
 	/** Update the aggregate world-object velocity in device pixels. */
 	setWorldVelocity(velocity: [number, number]): void;
+	/** Tell depth reprojection which perspective camera produced the viewport depth. */
+	setDepthRange(near: number, far: number): void;
 	update(options: Partial<PostProcessingOptions>): void;
 	/** Advance animated effects from the page scheduler's single clock. */
 	step(dt: number): void;
@@ -203,6 +208,17 @@ const SEPARABLE_TAPS: readonly [number, number][] = [
 	[1, 0.25],
 ];
 
+const TAA_NEIGHBOUR_OFFSETS: readonly [number, number][] = [
+	[-1, -1],
+	[-1, 0],
+	[-1, 1],
+	[0, -1],
+	[0, 1],
+	[1, -1],
+	[1, 0],
+	[1, 1],
+];
+
 /**
  * Build a small, composable post chain from TSL nodes.
  *
@@ -233,6 +249,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		temporalClamp: uniform(initial.temporalClamp),
 		temporalJitter: uniform(new Vector2()),
 		worldVelocity: uniform(new Vector2(...initial.worldVelocity)),
+		depthRange: uniform(new Vector2(0.1, 100)),
 		focusDepth: uniform(initial.focusDepth),
 		focusBlur: uniform(initial.focusBlur),
 		focusPoint: uniform(new Vector2(...initial.focusPoint)),
@@ -245,6 +262,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const historyTexture = new FramebufferTexture(1, 1);
 	historyTexture.colorSpace = SRGBColorSpace;
 	historyTexture.name = "ui-lib:post-history";
+	const historyDepthTexture = new DepthTexture(1, 1);
+	historyDepthTexture.name = "ui-lib:post-depth-history";
 	let jitterIndex = 0;
 
 	const source = viewportTexture();
@@ -329,8 +348,16 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 
 	// The canvas target owns a depth texture even though the backdrop and glass
 	// materials do not write depth. World particles / hero objects therefore
-	// provide a useful mask for both focus and jitter reprojection.
-	const sceneDepth = linearDepth(viewportDepthTexture(uv));
+	// provide a useful mask for both focus and jitter reprojection. The depth
+	// buffer was produced by the perspective particle camera, not the post quad,
+	// so linearise it explicitly with that camera's near/far range.
+	const lineariseDepth = (depth: Node<"float">): Node<"float"> =>
+		viewZToOrthographicDepth(
+			perspectiveDepthToViewZ(depth, uniforms.depthRange.x, uniforms.depthRange.y),
+			uniforms.depthRange.x,
+			uniforms.depthRange.y,
+		);
+	const sceneDepth = lineariseDepth(viewportDepthTexture(uv).r);
 
 	// Depth-aware screen-space focus blur. The UV falloff keeps the composition's
 	// centre slightly more restrained when the background is the only depth sample.
@@ -389,21 +416,48 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const historyOffset = uniforms.temporalJitter.sub(uniforms.worldVelocity);
 	const historyUv = uv.add(historyOffset.div(uniforms.resolution).mul(worldDepthMask));
 	const historySample = texture(historyTexture, historyUv);
+	const historyDepth = lineariseDepth(texture(historyDepthTexture, historyUv).r);
 
-	// History clamping and reactive rejection are the two pieces that keep a
-	// jittered accumulation from turning a moving crystal into a ghost trail.
-	// This is deliberately conservative: the final framebuffer also contains
-	// stable DOM glass, so we do not reproject the whole canvas with a guessed
-	// motion vector. A future world-only MRT can replace this without changing
-	// the public output node.
-	const historyFloor = effected.rgb.sub(uniforms.temporalClamp);
-	const historyCeiling = effected.rgb.add(uniforms.temporalClamp);
-	const clampedHistory = min(max(historySample.rgb, historyFloor), historyCeiling);
+	// Full TAA resolve: reproject, reject disocclusions, variance-clip an 3x3
+	// current neighbourhood, then apply reactive history feedback. The depth
+	// history is copied from the same canvas target as the colour history, so a
+	// moving object cannot borrow colour from a newly exposed background pixel.
+	const depthDifference = abs(historyDepth.sub(sceneDepth));
+	const depthAgreement = oneMinus(smoothstep(0.0015, 0.035, depthDifference));
+	const depthConfidence = mix(float(1), depthAgreement, worldDepthMask);
+
+	let moment1: Node<"vec3"> = effected.rgb;
+	let moment2: Node<"vec3"> = effected.rgb.pow(2);
+	for (const [x, y] of TAA_NEIGHBOUR_OFFSETS) {
+		const neighbour = sample(vec2(x, y).div(uniforms.resolution)).rgb;
+		moment1 = moment1.add(neighbour);
+		moment2 = moment2.add(neighbour.pow(2));
+	}
+	const sampleCount = TAA_NEIGHBOUR_OFFSETS.length + 1;
+	const mean = moment1.div(sampleCount);
+	const standardDeviation = moment2.div(sampleCount).sub(mean.pow(2)).max(0).sqrt();
+	const motionFactor = saturate(historyOffset.length().div(64));
+	const varianceGamma = mix(float(1.5), float(0.75), motionFactor);
+	const varianceMin = mean.sub(standardDeviation.mul(varianceGamma));
+	const varianceMax = mean.add(standardDeviation.mul(varianceGamma));
+	const clampedHistory = min(max(historySample.rgb, varianceMin), varianceMax);
 	const historyColour = vec4(clampedHistory, historySample.a);
+
+	// Keep history UVs inside the valid texture domain. This also handles the
+	// first frame after a camera movement where reprojection reaches an edge.
+	const historyBorder = min(
+		min(historyUv.x, historyUv.y),
+		min(oneMinus(historyUv.x), oneMinus(historyUv.y)),
+	);
+	const uvConfidence = smoothstep(0, 0.015, historyBorder);
 	const luminanceDelta = abs(luminance(clampedHistory).sub(luminance(effected.rgb)));
 	const rejection = oneMinus(saturate(luminanceDelta.mul(4)));
 	const reactiveFactor = mix(float(1), rejection, saturate(uniforms.temporalReactive));
-	const temporalWeight = uniforms.temporalBlend.mul(uniforms.historyValid).mul(reactiveFactor);
+	const temporalWeight = uniforms.temporalBlend
+		.mul(uniforms.historyValid)
+		.mul(depthConfidence)
+		.mul(uvConfidence)
+		.mul(reactiveFactor);
 	const temporal = mix(effected, historyColour, temporalWeight);
 	const outputNode = mix(baseSample, temporal, uniforms.enabled);
 
@@ -421,6 +475,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 				historyTexture.image.width = nextWidth;
 				historyTexture.image.height = nextHeight;
 				historyTexture.needsUpdate = true;
+				historyDepthTexture.image.width = nextWidth;
+				historyDepthTexture.image.height = nextHeight;
+				historyDepthTexture.needsUpdate = true;
 				uniforms.historyValid.value = 0;
 				jitterIndex = 0;
 				uniforms.temporalJitter.value.set(0, 0);
@@ -428,6 +485,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		},
 		commit(renderer) {
 			renderer.copyFramebufferToTexture(historyTexture);
+			// A depth FramebufferTexture makes three copy the currently bound depth
+			// attachment rather than the colour attachment. This keeps the history
+			// depth in lockstep with the final colour before the next frame begins.
+			renderer.copyFramebufferToTexture(historyDepthTexture as unknown as FramebufferTexture);
 			uniforms.historyValid.value = 1;
 		},
 		resetHistory() {
@@ -436,8 +497,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			uniforms.temporalJitter.value.set(0, 0);
 		},
 		nextJitter() {
-			const previousIndex = jitterIndex === 0 ? 8 : jitterIndex;
-			jitterIndex = (jitterIndex % 8) + 1;
+			const previousIndex = jitterIndex === 0 ? 16 : jitterIndex;
+			jitterIndex = (jitterIndex % 16) + 1;
 			const current: [number, number] = [
 				halton(jitterIndex, 2) - 0.5,
 				halton(jitterIndex, 3) - 0.5,
@@ -451,6 +512,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		},
 		setWorldVelocity(velocity) {
 			uniforms.worldVelocity.value.set(...velocity);
+		},
+		setDepthRange(near, far) {
+			uniforms.depthRange.value.set(Math.max(0.0001, near), Math.max(near + 0.0001, far));
 		},
 		update(patch) {
 			if (patch.enabled !== undefined) uniforms.enabled.value = patch.enabled ? 1 : 0;
@@ -490,6 +554,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			// intentionally shared with any other viewport texture nodes. History is
 			// ours, so release it explicitly.
 			historyTexture.dispose();
+			historyDepthTexture.dispose();
 		},
 	};
 }

@@ -255,6 +255,7 @@ export class GlassLayer implements Disposable {
 
 		this.particleCamera.position.set(0, 0, 14);
 		this.particleCamera.lookAt(0, 0, 0);
+		this.postProcessing?.setDepthRange(this.particleCamera.near, this.particleCamera.far);
 
 		this.applyCanvasStyles(options);
 		const parent = options.parent ?? document.body;
@@ -407,6 +408,7 @@ export class GlassLayer implements Disposable {
 		this.particleCamera.fov = options.fov ?? 52;
 		this.particleCamera.lookAt(...target);
 		this.particleCamera.updateProjectionMatrix();
+		this.postProcessing?.setDepthRange(this.particleCamera.near, this.particleCamera.far);
 
 		this.particleScene.add(system.object);
 		this.particleSystems.add(system);
@@ -476,6 +478,7 @@ export class GlassLayer implements Disposable {
 			pipeline.needsUpdate = true;
 			this.postProcessing = post;
 			this.postPipeline = pipeline;
+			post.setDepthRange(this.particleCamera.near, this.particleCamera.far);
 			post.setSize(Math.max(1, this.width * this.dpr), Math.max(1, this.height * this.dpr));
 		}
 		this.markDirty();

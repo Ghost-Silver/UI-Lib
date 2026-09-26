@@ -15,6 +15,8 @@ describe("post-processing", () => {
 		expect(post.uniforms.temporalClamp.value).toBe(POST_DEFAULTS.temporalClamp);
 		expect(post.uniforms.worldVelocity.value.x).toBe(POST_DEFAULTS.worldVelocity[0]);
 		expect(post.uniforms.worldVelocity.value.y).toBe(POST_DEFAULTS.worldVelocity[1]);
+		expect(post.uniforms.depthRange.value.x).toBe(0.1);
+		expect(post.uniforms.depthRange.value.y).toBe(100);
 		expect(post.uniforms.focusDepth.value).toBe(POST_DEFAULTS.focusDepth);
 		expect(post.uniforms.focusBlur.value).toBe(POST_DEFAULTS.focusBlur);
 		const jitter = post.nextJitter();
@@ -28,10 +30,13 @@ describe("post-processing", () => {
 		post.step(1 / 60);
 		post.update({ enabled: false, chromaticAberration: 2 });
 		post.setWorldVelocity([3, -2]);
+		post.setDepthRange(0.2, 80);
 		expect(post.uniforms.enabled.value).toBe(0);
 		expect(post.uniforms.chromaticAberration.value).toBe(2);
 		expect(post.uniforms.worldVelocity.value.x).toBe(3);
 		expect(post.uniforms.worldVelocity.value.y).toBe(-2);
+		expect(post.uniforms.depthRange.value.x).toBe(0.2);
+		expect(post.uniforms.depthRange.value.y).toBe(80);
 		post.dispose();
 	});
 });
