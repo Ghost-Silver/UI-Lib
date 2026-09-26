@@ -9,13 +9,20 @@ import {
 	screenUV,
 	sin,
 	smoothstep,
+	texture,
 	uniform,
 	vec2,
 	vec3,
 	vec4,
 	viewportTexture,
 } from "three/tsl";
-import { type Node, Vector2 } from "three/webgpu";
+import {
+	FramebufferTexture,
+	type Node,
+	SRGBColorSpace,
+	Vector2,
+	type WebGPURenderer,
+} from "three/webgpu";
 
 export interface PostProcessingOptions {
 	enabled?: boolean;
@@ -45,6 +52,8 @@ export interface PostProcessingOptions {
 	contrast?: number;
 	/** Colour intensity around luminance 1. */
 	saturation?: number;
+	/** Previous-frame blend. Small values stabilise shimmer without visible trails. */
+	temporalBlend?: number;
 }
 
 export const POST_DEFAULTS: Required<PostProcessingOptions> = {
@@ -62,6 +71,7 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	exposure: 0.04,
 	contrast: 1.03,
 	saturation: 1.08,
+	temporalBlend: 0.08,
 };
 
 const _floatUniform = uniform(0);
@@ -84,6 +94,8 @@ export interface PostProcessingUniforms {
 	exposure: ScalarUniform;
 	contrast: ScalarUniform;
 	saturation: ScalarUniform;
+	temporalBlend: ScalarUniform;
+	historyValid: ScalarUniform;
 	resolution: VectorUniform;
 	time: ScalarUniform;
 }
@@ -93,6 +105,9 @@ export interface PostProcessing {
 	readonly outputNode: Node<"vec4">;
 	readonly uniforms: PostProcessingUniforms;
 	setSize(width: number, height: number): void;
+	/** Copy the just-finished output into the next frame's temporal history. */
+	commit(renderer: WebGPURenderer): void;
+	resetHistory(): void;
 	update(options: Partial<PostProcessingOptions>): void;
 	/** Advance animated effects from the page scheduler's single clock. */
 	step(dt: number): void;
@@ -154,9 +169,14 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		exposure: uniform(initial.exposure),
 		contrast: uniform(initial.contrast),
 		saturation: uniform(initial.saturation),
+		temporalBlend: uniform(initial.temporalBlend),
+		historyValid: uniform(0),
 		resolution: uniform(new Vector2(1, 1)),
 		time: uniform(0),
 	};
+	const historyTexture = new FramebufferTexture(1, 1);
+	historyTexture.colorSpace = SRGBColorSpace;
+	historyTexture.name = "ui-lib:post-history";
 
 	const source = viewportTexture();
 	const uv = screenUV;
@@ -244,13 +264,37 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	colour = colour.mul(mix(float(1), edgeDarkening, uniforms.vignette));
 
 	const effected = vec4(colour, baseSample.a);
-	const outputNode = mix(baseSample, effected, uniforms.enabled);
+	const historySample = texture(historyTexture, uv);
+	const temporal = mix(
+		effected,
+		historySample,
+		uniforms.temporalBlend.mul(uniforms.historyValid),
+	);
+	const outputNode = mix(baseSample, temporal, uniforms.enabled);
 
 	return {
 		outputNode,
 		uniforms,
 		setSize(width, height) {
-			uniforms.resolution.value.set(Math.max(1, width), Math.max(1, height));
+			const nextWidth = Math.max(1, Math.round(width));
+			const nextHeight = Math.max(1, Math.round(height));
+			uniforms.resolution.value.set(nextWidth, nextHeight);
+			if (
+				historyTexture.image.width !== nextWidth ||
+				historyTexture.image.height !== nextHeight
+			) {
+				historyTexture.image.width = nextWidth;
+				historyTexture.image.height = nextHeight;
+				historyTexture.needsUpdate = true;
+				uniforms.historyValid.value = 0;
+			}
+		},
+		commit(renderer) {
+			renderer.copyFramebufferToTexture(historyTexture);
+			uniforms.historyValid.value = 1;
+		},
+		resetHistory() {
+			uniforms.historyValid.value = 0;
 		},
 		update(patch) {
 			if (patch.enabled !== undefined) uniforms.enabled.value = patch.enabled ? 1 : 0;
@@ -271,13 +315,16 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			if (patch.exposure !== undefined) uniforms.exposure.value = patch.exposure;
 			if (patch.contrast !== undefined) uniforms.contrast.value = patch.contrast;
 			if (patch.saturation !== undefined) uniforms.saturation.value = patch.saturation;
+			if (patch.temporalBlend !== undefined) uniforms.temporalBlend.value = patch.temporalBlend;
 		},
 		step(dt) {
 			uniforms.time.value += Math.max(0, Math.min(dt, 1 / 15));
 		},
 		dispose() {
 			// The viewport framebuffer is owned by three's node renderer and is
-			// intentionally shared with any other viewport texture nodes.
+			// intentionally shared with any other viewport texture nodes. History is
+			// ours, so release it explicitly.
+			historyTexture.dispose();
 		},
 	};
 }

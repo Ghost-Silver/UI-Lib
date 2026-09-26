@@ -750,6 +750,7 @@ export class GlassLayer implements Disposable {
 			renderer.toneMapping = previousToneMapping;
 			renderer.outputColorSpace = previousColorSpace;
 			this.postPipeline?.render();
+			this.postProcessing?.commit(renderer);
 		}
 
 		renderer.toneMapping = previousToneMapping;
