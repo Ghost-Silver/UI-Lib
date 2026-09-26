@@ -3,11 +3,15 @@ import {
 	Disposer,
 	type FrameInfo,
 	type GpuBackend,
+	getResourceSnapshot,
 	getScheduler,
 	onReducedMotionChange,
 	PointerTracker,
 	QualityManager,
 	type QualityTier,
+	type ResourceHandle,
+	type ResourceSnapshot,
+	resourceRegistry,
 } from "@ui-lib/core";
 import type { ParticleSystem } from "@ui-lib/particles";
 import {
@@ -123,6 +127,9 @@ export interface GlassLayerOptions {
 	/** Re-read element rects every frame instead of on layout/scroll changes. */
 	alwaysSyncLayout?: boolean;
 	onStats?: (stats: GlassLayerStats) => void;
+	/** Called after a GPU device/context loss; the owner should recreate the layer. */
+	onDeviceLost?: (error: Error) => void;
+	onContextRestored?: () => void;
 }
 
 export interface ParticleLayerOptions {
@@ -137,6 +144,8 @@ export interface GlassLayerStats {
 	backend: GpuBackend;
 	tier: QualityTier;
 	fps: number;
+	droppedFrames: number;
+	longFrames: number;
 	dpr: number;
 	panels: number;
 	visiblePanels: number;
@@ -145,12 +154,15 @@ export interface GlassLayerStats {
 	bufferWidth: number;
 	bufferHeight: number;
 	reducedMotion: boolean;
+	/** Logical owned-resource counts; this is not a VRAM estimate. */
+	resources: ResourceSnapshot;
 }
 
 interface Panel {
 	element: HTMLElement;
 	mesh: Mesh;
 	material: LiquidGlassMaterial;
+	resource: ResourceHandle;
 	options: Required<GlassPanelOptions>;
 	userVisible: boolean;
 	onScreen: boolean;
@@ -185,6 +197,7 @@ export class GlassLayer implements Disposable {
 
 	private readonly ui: UiRenderer;
 	private readonly disposer = new Disposer();
+	private readonly resource = resourceRegistry.track("layer");
 	private readonly quality: QualityManager;
 
 	private readonly sharedTime = uniform(0);
@@ -200,7 +213,9 @@ export class GlassLayer implements Disposable {
 	private readonly panelGeometry = new PlaneGeometry(1, 1);
 	private readonly particleSystems = new Set<ParticleSystem>();
 	private readonly particleStops = new Map<ParticleSystem, () => void>();
+	private readonly particleResources = new Map<ParticleSystem, ResourceHandle>();
 	private readonly worldStops = new Map<Object3D, () => void>();
+	private readonly worldResources = new Map<Object3D, ResourceHandle>();
 	private readonly worldAnimations = new Set<Object3D>();
 	private readonly worldVelocitySamples = new Map<Object3D, WorldVelocitySample>();
 	private readonly worldPosition = new Vector3();
@@ -209,10 +224,12 @@ export class GlassLayer implements Disposable {
 	private readonly resizeObserver: ResizeObserver;
 
 	private backdrop: BackdropInstance;
+	private backdropResource: ResourceHandle | null = null;
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
 	private postOptions: PostProcessingOptions | false = {};
 	private postProcessing: PostProcessing | null = null;
 	private postPipeline: RenderPipeline | null = null;
+	private postResource: ResourceHandle | null = null;
 	private pointer: PointerTracker | null = null;
 
 	private width = 0;
@@ -254,6 +271,7 @@ export class GlassLayer implements Disposable {
 		};
 
 		this.backdrop = createBackdrop(options.backdrop ?? DEFAULT_BACKDROP, this.shared);
+		this.backdropResource = resourceRegistry.track("backdrop");
 		this.backdropQuad = createFullscreenQuad(this.backdrop.material);
 		this.backdropScene.add(this.backdropQuad.mesh);
 		this.setPostProcessing(options.post ?? {});
@@ -290,14 +308,18 @@ export class GlassLayer implements Disposable {
 			for (const [system, stop] of this.particleStops) {
 				stop();
 				system.dispose();
+				this.particleResources.get(system)?.dispose();
 			}
 			this.particleStops.clear();
+			this.particleResources.clear();
 			this.particleSystems.clear();
 			for (const [object, stop] of this.worldStops) {
 				stop();
 				this.particleScene.remove(object);
+				this.worldResources.get(object)?.dispose();
 			}
 			this.worldStops.clear();
+			this.worldResources.clear();
 			this.worldAnimations.clear();
 			this.worldVelocitySamples.clear();
 		});
@@ -306,10 +328,13 @@ export class GlassLayer implements Disposable {
 			this.panels.clear();
 		});
 		this.disposer.add(() => this.backdrop.dispose());
+		this.disposer.add(() => this.backdropResource?.dispose());
 		this.disposer.add(() => this.backdropQuad.dispose());
 		this.disposer.add(() => this.postPipeline?.dispose());
 		this.disposer.add(() => this.postProcessing?.dispose());
+		this.disposer.add(() => this.postResource?.dispose());
 		this.disposer.add(() => this.panelGeometry.dispose());
+		this.disposer.add(() => this.resource.dispose());
 		this.disposer.add(() => this.ui.dispose());
 
 		this.syncViewport(true);
@@ -320,6 +345,11 @@ export class GlassLayer implements Disposable {
 		const ui = await createRenderer({
 			antialias: options.antialias,
 			forceWebGL: options.forceWebGL,
+			onDeviceLost: (info) => {
+				const message = `${info.api} device/context lost: ${info.message}`;
+				options.onDeviceLost?.(new Error(message));
+			},
+			onContextRestored: options.onContextRestored,
 		});
 		return new GlassLayer(ui, options);
 	}
@@ -351,10 +381,13 @@ export class GlassLayer implements Disposable {
 	getStats(): GlassLayerStats {
 		let onScreen = 0;
 		for (const panel of this.panels) if (panel.mesh.visible) onScreen++;
+		const scheduler = getScheduler();
 		return {
 			backend: this.ui.backend,
 			tier: this.quality.tier,
-			fps: getScheduler().fps,
+			fps: scheduler.fps,
+			droppedFrames: scheduler.droppedFrames,
+			longFrames: scheduler.longFrames,
 			dpr: this.dpr,
 			panels: this.panels.size,
 			visiblePanels: onScreen,
@@ -363,6 +396,7 @@ export class GlassLayer implements Disposable {
 			bufferWidth: Math.round(this.width * this.dpr),
 			bufferHeight: Math.round(this.height * this.dpr),
 			reducedMotion: this.reducedMotion,
+			resources: getResourceSnapshot(),
 		};
 	}
 
@@ -424,6 +458,7 @@ export class GlassLayer implements Disposable {
 			if (!this.reducedMotion && this.quality.tier > 0) system.step(this.ui.renderer, info.dt);
 		}, "compute");
 		this.particleStops.set(system, stop);
+		this.particleResources.set(system, resourceRegistry.track("particle-system"));
 
 		let disposed = false;
 		return {
@@ -435,6 +470,8 @@ export class GlassLayer implements Disposable {
 				this.particleSystems.delete(system);
 				this.particleScene.remove(system.object);
 				system.dispose();
+				this.particleResources.get(system)?.dispose();
+				this.particleResources.delete(system);
 			},
 		};
 	}
@@ -453,6 +490,7 @@ export class GlassLayer implements Disposable {
 		if (onFrame) this.worldAnimations.add(object);
 		const stop = onFrame ? getScheduler().add(onFrame, "update") : () => {};
 		this.worldStops.set(object, stop);
+		this.worldResources.set(object, resourceRegistry.track("world-object"));
 		let disposed = false;
 		return {
 			dispose: () => {
@@ -463,6 +501,8 @@ export class GlassLayer implements Disposable {
 				this.worldAnimations.delete(object);
 				this.worldVelocitySamples.delete(object);
 				this.particleScene.remove(object);
+				this.worldResources.get(object)?.dispose();
+				this.worldResources.delete(object);
 			},
 		};
 	}
@@ -485,8 +525,10 @@ export class GlassLayer implements Disposable {
 	private rebuildPostProcessing(): void {
 		this.postPipeline?.dispose();
 		this.postProcessing?.dispose();
+		this.postResource?.dispose();
 		this.postPipeline = null;
 		this.postProcessing = null;
+		this.postResource = null;
 
 		if (this.postOptions !== false && this.quality.settings.allowPostFx) {
 			const post = createPostProcessing({
@@ -498,6 +540,7 @@ export class GlassLayer implements Disposable {
 			pipeline.needsUpdate = true;
 			this.postProcessing = post;
 			this.postPipeline = pipeline;
+			this.postResource = resourceRegistry.track("post-graph");
 			post.setDepthRange(this.particleCamera.near, this.particleCamera.far);
 			post.setSize(Math.max(1, this.width * this.dpr), Math.max(1, this.height * this.dpr));
 		}
@@ -506,7 +549,9 @@ export class GlassLayer implements Disposable {
 
 	setBackdrop(spec: BackdropSpec): void {
 		const previous = this.backdrop;
+		const previousResource = this.backdropResource;
 		this.backdrop = createBackdrop(spec, this.shared);
+		this.backdropResource = resourceRegistry.track("backdrop");
 		this.backdropQuad.mesh.material = this.backdrop.material;
 		if (spec.type === "texture") {
 			const material = this.backdrop.material as unknown as {
@@ -520,6 +565,7 @@ export class GlassLayer implements Disposable {
 			}
 		}
 		previous.dispose();
+		previousResource?.dispose();
 		this.markDirty();
 	}
 
@@ -545,6 +591,7 @@ export class GlassLayer implements Disposable {
 			element,
 			mesh,
 			material,
+			resource: resourceRegistry.track("panel"),
 			options,
 			userVisible: true,
 			onScreen: false,
@@ -630,6 +677,7 @@ export class GlassLayer implements Disposable {
 	private destroyPanel(panel: Panel): void {
 		this.glassScene.remove(panel.mesh);
 		panel.material.dispose();
+		panel.resource.dispose();
 	}
 
 	private syncViewport(force = false): void {

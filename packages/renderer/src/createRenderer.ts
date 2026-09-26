@@ -1,6 +1,13 @@
 import type { DeviceCapabilities, GpuBackend } from "@ui-lib/core";
-import { detectCapabilities, hasDom } from "@ui-lib/core";
+import { detectCapabilities, hasDom, resourceRegistry } from "@ui-lib/core";
 import { WebGPURenderer } from "three/webgpu";
+
+export interface RendererLossInfo {
+	api: "WebGPU" | "WebGL";
+	message: string;
+	reason: string | null;
+	originalEvent?: unknown;
+}
 
 export interface CreateRendererOptions {
 	canvas?: HTMLCanvasElement;
@@ -10,6 +17,10 @@ export interface CreateRendererOptions {
 	/** Skip WebGPU entirely (useful for A/B testing the fallback path). */
 	forceWebGL?: boolean;
 	powerPreference?: "high-performance" | "low-power";
+	/** Called when the backend can no longer render. The owner should recreate the layer. */
+	onDeviceLost?: (info: RendererLossInfo) => void;
+	/** Called for a browser WebGL context restoration event. */
+	onContextRestored?: () => void;
 }
 
 export interface UiRenderer {
@@ -18,6 +29,7 @@ export interface UiRenderer {
 	readonly capabilities: DeviceCapabilities;
 	readonly canvas: HTMLCanvasElement;
 	dpr: number;
+	readonly lost: boolean;
 	/** Resize the drawing buffer. `dprCap` bounds the effective pixel ratio. */
 	setSize(width: number, height: number, dprCap: number): void;
 	dispose(): void;
@@ -64,12 +76,34 @@ export async function createRenderer(options: CreateRendererOptions = {}): Promi
 	renderer.autoClear = false;
 
 	let currentDpr = 1;
+	let lost = false;
+	const resource = resourceRegistry.track("renderer");
+	const canvas = renderer.domElement;
+	const rendererWithLoss = renderer as unknown as {
+		onDeviceLost?: (info: RendererLossInfo) => void;
+	};
+	const previousOnDeviceLost = rendererWithLoss.onDeviceLost;
+	const onDeviceLost = (info: RendererLossInfo) => {
+		lost = true;
+		previousOnDeviceLost?.call(renderer, info);
+		options.onDeviceLost?.(info);
+	};
+	rendererWithLoss.onDeviceLost = onDeviceLost;
 
+	const onContextRestored = () => {
+		options.onContextRestored?.();
+	};
+	canvas.addEventListener("webglcontextrestored", onContextRestored);
+
+	let disposed = false;
 	return {
 		renderer,
 		backend: backendOf(renderer),
 		capabilities,
-		canvas: renderer.domElement,
+		canvas,
+		get lost() {
+			return lost;
+		},
 		get dpr() {
 			return currentDpr;
 		},
@@ -79,7 +113,11 @@ export async function createRenderer(options: CreateRendererOptions = {}): Promi
 			renderer.setSize(width, height, false);
 		},
 		dispose() {
-			renderer.dispose();
+			if (disposed) return;
+			disposed = true;
+			canvas.removeEventListener("webglcontextrestored", onContextRestored);
+			resource.dispose();
+			void renderer.dispose();
 		},
 	};
 }

@@ -29,6 +29,10 @@ export function StatusHud({ stats, status, forceFallback }: StatusHudProps) {
 					<dd>{stats ? stats.fps.toFixed(0) : "—"}</dd>
 				</div>
 				<div>
+					<dt>Dropped</dt>
+					<dd>{stats ? stats.droppedFrames : "—"}</dd>
+				</div>
+				<div>
 					<dt>Tier</dt>
 					<dd>{stats ? stats.tier : "—"}</dd>
 				</div>

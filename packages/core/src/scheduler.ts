@@ -22,6 +22,10 @@ export interface FrameInfo {
 	frame: number;
 	/** Smoothed frames per second. */
 	fps: number;
+	/** Frames missed relative to a 60 Hz budget since the scheduler started. */
+	droppedFrames: number;
+	/** Number of frames whose raw interval exceeded 50 ms. */
+	longFrames: number;
 	/** `performance.now()` at the start of this frame. */
 	time: number;
 }
@@ -51,6 +55,8 @@ export class FrameScheduler {
 	private frameValue = 0;
 	private elapsedValue = 0;
 	private fpsValue = 0;
+	private droppedFramesValue = 0;
+	private longFramesValue = 0;
 	private order = 0;
 	private readonly onVisibility: () => void;
 
@@ -97,6 +103,14 @@ export class FrameScheduler {
 		return this.elapsedValue;
 	}
 
+	get droppedFrames(): number {
+		return this.droppedFramesValue;
+	}
+
+	get longFrames(): number {
+		return this.longFramesValue;
+	}
+
 	/** Start (or restart) the loop. Idempotent. */
 	resume(): void {
 		if (this.rafId !== null || !hasDom() || this.tasks.length === 0) return;
@@ -106,6 +120,9 @@ export class FrameScheduler {
 			const raw = (now - this.last) / 1000;
 			this.last = now;
 			const dt = Math.min(Math.max(raw, 0), MAX_DT);
+			const expectedFrames = raw > 0 ? Math.max(1, Math.round(raw * 60)) : 1;
+			this.droppedFramesValue += Math.max(0, expectedFrames - 1);
+			if (raw > 0.05) this.longFramesValue++;
 
 			this.frameValue++;
 			this.elapsedValue += dt;
@@ -117,6 +134,8 @@ export class FrameScheduler {
 				elapsed: this.elapsedValue,
 				frame: this.frameValue,
 				fps: this.fpsValue,
+				droppedFrames: this.droppedFramesValue,
+				longFrames: this.longFramesValue,
 				time: now,
 			};
 

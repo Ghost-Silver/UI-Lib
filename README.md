@@ -1,96 +1,112 @@
 # UI-Lib
 
-**A GPU-first motion and visual-effects runtime for the web.**
+**面向 Web 的 GPU 优先动效与视觉效果运行时。**
 
-UI-Lib brings real-time liquid glass, GPU particles, 3D composition and TSL post-processing to ordinary web interfaces. It is designed for product heroes, scroll narratives and interactive surfaces—not for replacing semantic HTML with a canvas.
+UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **Status: experimental `0.0.1`.** The rendering spine and the first Liquid Glass / particles / post-processing slices are implemented. Browser-level visual regression, production SSR APIs, DOM/motion packages and the flagship demos are still in progress. This README deliberately separates implemented behavior from roadmap claims.
+> **状态：实验性 `0.0.1`。** 当前已经实现渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、运行时质量降级、资源诊断、SSR smoke test 和五个浏览器验收入口。真实 WebGPU/WebGL2 截图、FPS、掉帧和 GPU 设备矩阵仍需要在具备浏览器与 GPU 的环境中运行，不能把 Node 侧 typecheck 当成视觉完成。
 
-[Roadmap](docs/ROADMAP.md) · [Interactive playground](apps/docs) · [Packages](#packages)
+[路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
 
 ---
 
-## Why UI-Lib exists
+## 为什么需要 UI-Lib
 
-Most web visual effects make one of two compromises:
+Web 动效通常会在两种方案之间取舍：
 
-- CSS is accessible and easy to integrate, but `backdrop-filter` is only an approximation of glass and cannot provide a shared 3D world or GPU simulation.
-- A canvas demo can look impressive, but it often introduces another renderer, another animation loop, inaccessible content and no reliable teardown path.
+- CSS 容易接入且保留可访问性，但 `backdrop-filter` 主要是模糊近似，无法提供真正的屏幕空间折射、共享 3D 世界或 GPU 粒子模拟。
+- canvas demo 可以很漂亮，但经常带来多个 renderer、多个动画循环、不可访问的文本和不可靠的销毁路径。
 
-UI-Lib takes a third approach:
+UI-Lib 的取舍是：
 
-- **DOM stays DOM.** Text, links, forms and layout remain semantic HTML.
-- **One shared rendering runtime.** A page uses one canvas, one renderer and one scheduler for all UI-Lib effects.
-- **Progressive enhancement.** WebGPU is preferred, WebGL2 is the automatic GPU fallback, and CSS/static states remain available when no GPU is usable.
-- **TSL only.** Materials and post effects are expressed as Three Shading Language node graphs so the same graph can compile to WGSL or GLSL. UI-Lib does not require raw GLSL/WGSL effect code.
-- **Deterministic lifecycle.** Every renderer, particle system, material, geometry and subscription has an explicit disposal path.
+- **DOM 仍然是 DOM。** 文本、链接、表单、焦点和布局留在语义化 HTML 中。
+- **一个共享渲染运行时。** 一个页面使用一个 canvas、一个 renderer 和一个 scheduler 承载 UI-Lib 效果。
+- **渐进增强。** 优先尝试 WebGPU，自动回退 WebGL2；没有可用 GPU、主动禁用 GPU 或用户要求 reduced motion 时，仍然保留 CSS / 静态形态。
+- **只使用 TSL。** 材质和后处理使用 Three Shading Language 节点图，同一套 graph 编译为 WGSL 或 GLSL；不使用 raw GLSL/WGSL 绕开跨后端约束。
+- **可确定的生命周期。** renderer、粒子系统、材质、几何体、监听器和 scheduler subscription 都有明确的 dispose 路径。
 
-UI-Lib is **not** a component library for buttons, cards or layout primitives. It is the visual runtime underneath those interfaces.
+UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面下面的视觉运行时。
 
-## Current status
+## 当前能力
 
-### Implemented rendering slices
+### 已实现的渲染切片
 
-- Liquid Glass attached to real DOM elements
-  - rounded-rectangle SDF silhouette and bevel shading
-  - screen-space refraction
-  - chromatic dispersion
-  - frost / roughness blur
-  - edge highlight, fresnel and tint controls
-- GPU particles
-  - WebGPU compute path
-  - WebGL2 transform-feedback fallback
-  - emitters, gravity, drag, turbulence, vortex, attractor and bounds
-  - color-over-life, speed heat, soft sprites and additive blending
-- TSL post-processing
-  - bloom, atmospheric halo and lens streak
-  - chromatic aberration, grain, exposure, contrast and saturation
-  - vignette, focus blur and directional motion blur controls
-  - Halton-jittered temporal accumulation
-  - depth history, disocclusion rejection, variance clipping and reactive rejection
-  - compile-time quality budgets (`quality: 1 | 2 | 3`)
-- Runtime behavior
-  - WebGPU-first renderer selection with WebGL2 fallback
-  - adaptive quality tiers and measured-FPS degradation
-  - reduced-motion handling
-  - hidden-tab scheduler pause
-  - static-frame redraw and TAA-history skipping when the scene is stable
-  - CSS fallback when the GPU path is unavailable or explicitly disabled
-  - shared renderer, canvas and scheduler for the stage
+#### Liquid Glass
 
-### Not yet production-ready
+- 真实 DOM 元素上的 Liquid Glass
+- rounded-rectangle SDF 轮廓与 bevel shading
+- 屏幕空间折射
+- RGB chromatic dispersion
+- frost / roughness 模糊
+- edge highlight、fresnel、tint、specular
+- pointer 高光
 
-The following are intentionally **not** presented as finished capabilities:
+#### GPU 粒子
 
-- real browser screenshot and FPS regression gates
-- GPU resource leak tests across repeated mount/unmount cycles
+- WebGPU compute 路径
+- WebGL2 transform-feedback 回退路径
+- point、sphere、box、disc、ring、cone emitter
+- gravity、drag、turbulence、vortex、attractor、bounds
+- color-over-life、speed heat、soft sprite、additive blending
+- 与 Liquid Glass 共享同一个 stage、renderer 和 scheduler
+
+#### TSL 后处理
+
+- bloom、atmospheric halo、lens streak
+- chromatic aberration、grain、exposure、contrast、saturation
+- vignette、focus blur、directional motion blur
+- Halton jitter temporal accumulation
+- depth history、disocclusion rejection、variance clipping、reactive rejection
+- `quality: 1 | 2 | 3` 编译期后处理预算
+- 静态场景跳过重复 redraw 与 TAA history copy
+
+#### 运行时
+
+- WebGPU 优先、WebGL2 自动 fallback
+- adaptive quality tier 与 FPS 采样降级
+- 帧耗时、long frame、dropped frame 统计
+- hidden tab 暂停共享 scheduler
+- `prefers-reduced-motion` 支持
+- 无 GPU 或显式关闭时的 CSS fallback
+- WebGL context / WebGPU device loss 通知与 React stage 重建路径
+- 逻辑资源登记表，可验证 renderer、layer、panel、particle、world object 和 post graph 是否释放
+
+### 目前还不能宣称完成的能力
+
+下面这些仍然是待完成项，而不是 README 中的营销承诺：
+
+- 真机 WebGPU / WebGL2 视觉回归基线
+- 跨浏览器 FPS、掉帧和交互延迟门禁
+- 真实 GPU VRAM 统计与 device-specific benchmark
 - world-only per-pixel velocity MRT
-- reusable multi-pass bloom pyramid and custom post-pass slots
-- DOM ↔ GPU bridge and scroll-linked motion package
+- 可复用的真正 multi-pass bloom pyramid
+- 自定义 post-pass 插槽
+- DOM ↔ GPU bridge 与 scroll-linked motion package
 - MSDF text
-- dynamic particle LOD, trails and validated pointer-to-world ray casting
-- complete imperative `createEffect()` API
-- R3F, Vue and Svelte adapters
-- SSR/hydration examples and release automation
+- 动态 particle LOD、trail buffer 和稳定 pointer-to-world ray
+- 最终版 imperative `createEffect()` API
+- R3F、Vue、Svelte adapter
+- Next.js / Nuxt / SvelteKit SSR 与 hydration example
+- Changesets、size budget、CI browser matrix 和 npm 发布流程
 
-The playground is a technical showcase, not evidence of a guaranteed performance number. In particular, UI-Lib does **not** currently claim that one million particles run at 60 FPS on all WebGPU devices.
+Playground 中的粒子数量是为了保证展示稳定而选择的工作负载。UI-Lib **不会**在没有真实设备基准的情况下宣称“百万粒子在所有 WebGPU 设备上 60 FPS”。
 
-## Quick start
+## 快速开始
 
-Requirements:
+要求：
 
 - Node.js `>=20.19`
 - pnpm `12.x`
-- a browser with WebGPU or WebGL2 for the accelerated path
+- 加速路径需要支持 WebGPU 或 WebGL2 的浏览器
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open the playground at `http://localhost:5173`.
+打开 `http://localhost:5173`。
 
-Build and validate the workspace:
+执行仓库级验证：
 
 ```bash
 pnpm typecheck
@@ -99,11 +115,18 @@ pnpm lint
 pnpm build
 ```
 
-The current repository has Node-side tests and TSL graph smoke tests. Full browser visual/performance validation requires a Playwright-capable environment with the relevant browser and GPU support; it is a planned P0 gate, not something this package currently fakes with a typecheck.
+执行浏览器验收：
 
-## React usage
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
 
-`@ui-lib/react` is the first adapter. The content remains normal DOM while the stage owns the shared GPU layer.
+在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件和 five-demo acceptance surface 已经加入仓库，但截图 baseline、WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
+
+## React 用法
+
+`@ui-lib/react` 是第一个适配层。内容保持普通 DOM，stage 负责共享 GPU layer：
 
 ```tsx
 import { GlassPanel, GlassStage, ParticleField } from "@ui-lib/react";
@@ -136,19 +159,19 @@ export function ProductHero() {
         roughness={0.2}
         className="product-card"
       >
-        <h2>Semantic content stays on the page.</h2>
-        <p>The GPU layer changes the surface, not the document.</p>
+        <h2>语义化内容仍然在页面上。</h2>
+        <p>GPU layer 改变的是表面，而不是文档结构。</p>
       </GlassPanel>
     </GlassStage>
   );
 }
 ```
 
-`ParticleField` is simulated and rendered inside the same stage as the glass. The glass therefore refracts the backdrop and the particle layer without creating a second canvas or renderer.
+`ParticleField` 在同一个 stage 内模拟并渲染，玻璃可以同时折射 backdrop 与粒子层，不会为每个效果创建第二个 canvas 或 renderer。
 
-### Imperative escape hatch
+### 非 React 的 imperative 入口
 
-The renderer can also be used without React:
+目前 renderer 可以脱离 React 使用：
 
 ```ts
 import { createGlassLayer } from "@ui-lib/renderer";
@@ -166,176 +189,282 @@ if (card) {
   });
 
   handle.update({ roughness: 0.6 });
-  // handle.dispose() when the element or route is removed
+  // handle.dispose()：元素或路由被移除时调用
 }
 
-// layer.dispose() when the owner is destroyed
+// layer.dispose()：拥有该 layer 的页面销毁时调用
 ```
 
-The standalone effect factory, richer command surface and external-store integration are planned API work. The current imperative API is useful, but should not yet be treated as the final cross-framework contract.
+更完整的 standalone `createEffect()`、统一 external store 和跨框架命令式 API 仍在设计中。当前 imperative API 可用，但不应当被视为最终稳定契约。
 
-## Architecture
+## P0：浏览器验收与运行时可靠性
+
+本轮 P0 已加入以下工程切片：
+
+### 1. 五个验收页面
+
+通过 query 参数访问：
 
 ```text
-semantic DOM / React adapter
+/?demo=liquid-glass
+/?demo=aurora-flow
+/?demo=product-hero
+/?demo=scroll-cinema
+/?demo=cursor-field
+```
+
+每个页面都使用一个 `GlassStage`，保留真实 DOM 内容，并可使用：
+
+```text
+?fallback=1       强制 CSS fallback
+?backend=webgl    强制 WebGL2 路径
+```
+
+这五个页面目前用于建立真实浏览器截图和交互基线：
+
+1. **Liquid Glass Pro**：DOM-attached refraction、dispersion、frost。
+2. **Aurora Flow**：GPU particles、force field、glass compositing。
+3. **Glass Product Hero**：world object、camera、post graph 基础路径。
+4. **Scroll Cinema**：布局 invalidation、offscreen culling、可滚动 DOM 内容。
+5. **Cursor Field**：pointer activity、粒子 attractor、glass highlight。
+
+它们是 P0 验收 surface，不代表 Scroll Cinema、MSDF 或 motion timeline 已经全部完成。
+
+### 2. Playwright 视觉与交互测试
+
+测试位于 [`tests/e2e/acceptance.spec.ts`](tests/e2e/acceptance.spec.ts)，覆盖：
+
+- 五个页面的 CSS fallback screenshot
+- accelerated / WebGL route smoke
+- scroll 后 DOM 内容仍可见
+- 语义化标题存在
+- fallback 状态下没有 canvas
+- stage、backend、FPS、dropped frames 等数据属性
+
+截图按浏览器和 GPU 桶管理，不能跨 GPU 直接混用 baseline。首次在可信浏览器环境中生成 baseline：
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e:update
+```
+
+### 3. FPS 与掉帧统计
+
+`FrameScheduler` 会记录：
+
+- smoothed FPS
+- 累计 dropped frames（相对于 60Hz frame budget）
+- 50ms 以上 long frames
+
+`GlassLayerStats` 和 React stage DOM 属性会暴露这些数据，便于浏览器测试或应用自己的 telemetry 使用。统计是运行时观测数据，不是预先写死的性能承诺。
+
+### 4. 资源释放诊断
+
+`@ui-lib/core` 提供逻辑资源登记表：
+
+```ts
+import { getResourceSnapshot } from "@ui-lib/core";
+
+const before = getResourceSnapshot();
+// mount / register / addParticles / addWorldObject ...
+// dispose everything
+const after = getResourceSnapshot();
+
+console.log(before, after);
+```
+
+登记的资源种类包括：
+
+```text
+renderer · layer · backdrop · panel · particle-system · world-object · post-graph
+```
+
+这不是浏览器 VRAM 计数器。浏览器没有跨后端、跨驱动的通用 VRAM API；它用于在 mount/unmount 50 次、路由切换和 StrictMode 场景中验证 UI-Lib 是否还持有逻辑资源引用。Three.js backend 的真实显存仍需要浏览器开发工具或 GPU profiling 工具验证。
+
+### 5. Device/context loss
+
+renderer 会监听 Three.js 的 WebGPU device loss / WebGL context loss，并通过 `GlassStage` 触发 layer 重建。重建时 React children 重新绑定到新的 layer；第一次恢复尝试会切换到 WebGL2，避免持续使用已经失效的 WebGPU device。
+
+这条路径仍需要在真实浏览器中注入 device loss、context loss 和恢复事件进行最终验收。
+
+### 6. SSR / hydration smoke test
+
+[`packages/react/test/ssr.test.ts`](packages/react/test/ssr.test.ts) 使用 `react-dom/server` 验证：
+
+- module evaluation 不要求 `window` / `document`
+- `GlassStage` 可以输出语义化 HTML
+- GPU 尚未启动时输出 fallback 标记
+- `GlassPanel` 的 DOM props 和 accessible name 保留
+
+这不是完整 Next.js hydration 测试；Next、Nuxt、SvelteKit example 属于后续发布工作。
+
+## 架构
+
+```text
+语义化 DOM / React adapter
               │
               ▼
        @ui-lib/renderer
-   one canvas · one renderer
+   一个 canvas · 一个 renderer
               │
        ┌──────┼────────┐
        ▼      ▼        ▼
-  backdrop particles  glass DOM surfaces
+   backdrop  particles  glass DOM surfaces
               │
               ▼
         @ui-lib/post
-     TSL post graph + history
+       TSL post graph + history
               │
-       WebGPU or WebGL2
+       WebGPU 或 WebGL2
 ```
 
-The frame order is intentionally shared:
+共享 frame 顺序：
 
 ```text
 input → GPU compute → DOM/state update → backdrop → particles → glass → post resolve
 ```
 
-A stable color/texture backdrop with no active world objects, pointer changes or layout changes can skip the complete redraw and history copy. Quality changes rebuild compile-time graph budgets rather than pretending that an already-expanded shader loop can be changed with a uniform.
+当 backdrop 是静态颜色/纹理，且没有 world object、pointer 或 layout 变化时，layer 可以跳过整帧 redraw 和 history copy。质量变化会重建编译期 graph budget，而不是用 uniform 假装改变已经展开的 shader loop。
 
-## Packages
+## 包结构
 
-| Package | Three.js | Responsibility | Status |
+| 包 | Three.js | 职责 | 状态 |
 | --- | --- | --- | --- |
-| [`@ui-lib/core`](packages/core) | no | device capabilities, quality tiers, scheduler, pointer, math and lifecycle primitives | implemented |
-| [`@ui-lib/shaders`](packages/shaders) | peer | TSL node materials for Liquid Glass and backdrops | implemented slice |
-| [`@ui-lib/particles`](packages/particles) | peer | GPU simulation, emitters, forces, bounds and particle rendering | implemented slice |
-| [`@ui-lib/post`](packages/post) | peer | TSL post graph, quality budgets, temporal history and color processing | implemented slice |
-| [`@ui-lib/renderer`](packages/renderer) | peer | WebGPU/WebGL2 bootstrap, stage orchestration and DOM-attached glass | implemented slice |
-| [`@ui-lib/react`](packages/react) | peer | React `GlassStage`, `GlassPanel`, `ParticleField` and fallback styles | first adapter |
-| `@ui-lib/motion` | — | timeline, spring orchestration, gestures and scroll-linked motion | planned |
-| `@ui-lib/dom` | — | DOM ↔ GPU tracking, snapshots and transitions | planned |
-| `@ui-lib/vue` / `@ui-lib/svelte` | — | additional framework adapters | planned |
+| [`@ui-lib/core`](packages/core) | 无 | device、quality、scheduler、pointer、math、lifecycle、resource registry | 已实现 |
+| [`@ui-lib/shaders`](packages/shaders) | peer | Liquid Glass、backdrop 和通用 TSL node material | 已实现切片 |
+| [`@ui-lib/particles`](packages/particles) | peer | GPU simulation、emitter、force、bounds、particle rendering | 已实现切片 |
+| [`@ui-lib/post`](packages/post) | peer | TSL post graph、quality budget、temporal history、color processing | 已实现切片 |
+| [`@ui-lib/renderer`](packages/renderer) | peer | WebGPU/WebGL2 bootstrap、stage orchestration、DOM-attached glass | 已实现切片 |
+| [`@ui-lib/react`](packages/react) | peer | `GlassStage`、`GlassPanel`、`ParticleField`、CSS fallback、SSR-safe adapter | 第一适配层 |
+| `@ui-lib/motion` | — | timeline、spring orchestration、gesture、scroll-linked motion | 规划中 |
+| `@ui-lib/dom` | — | DOM ↔ GPU tracking、snapshot、transition | 规划中 |
+| `@ui-lib/vue` / `@ui-lib/svelte` | — | 额外框架 adapter | 规划中 |
 
-`three` is a **peer dependency** of the rendering packages. UI-Lib does not bundle a private copy of Three.js into those packages. `@ui-lib/core` remains framework-agnostic and Three-free.
+渲染相关包把 `three` 声明为 **peer dependency**，不会在包内捆绑私有 Three.js。`@ui-lib/core` 保持框架无关且不依赖 Three.js。
 
-## Rendering and fallback policy
+## 渲染与降级策略
 
-### Backend selection
+### 后端选择
 
-1. Request a usable WebGPU adapter.
-2. Fall back to WebGL2 using the same TSL source graph where the feature is supported.
-3. Use the CSS/static fallback when neither GPU backend is available, when reduced motion requires it, or when the application opts out.
+1. 请求一个实际可用的 WebGPU adapter。
+2. 使用同一套 TSL source graph 回退到 WebGL2。
+3. 两个 GPU 后端都不可用、显式关闭或 reduced-motion 时使用 CSS / 静态 fallback。
 
-The exact backend depends on the browser, OS, driver, device policy and context availability. UI-Lib does not promise a browser version table without running its browser matrix.
+最终 backend 取决于浏览器、操作系统、驱动、设备策略和 context 是否可创建。UI-Lib 不会在没有运行 browser matrix 的情况下写死浏览器版本承诺。
 
-### Quality tiers
+### 质量等级
 
-Post-processing tap counts and expensive graph branches are selected at compile time:
+后处理采样数和昂贵 graph 分支通过编译期预算选择：
 
-| Quality | Intended use | Post budget |
+| Quality | 适用场景 | 当前策略 |
 | --- | --- | --- |
-| `1` | constrained devices | minimal graph; may disable post FX through the quality manager |
-| `2` | balanced default | medium bloom/TAA budget |
-| `3` | high-end / cinematic | full current bloom/TAA budget |
+| `1` | 低端设备 | 最小 graph；QualityManager 可以关闭 post FX |
+| `2` | 平衡默认值 | 中等 bloom / TAA budget |
+| `3` | 高端 / cinematic | 当前完整 bloom / TAA budget |
 
-Runtime FPS monitoring can move between quality tiers. Rebuilding a graph is deliberate: loop and tap counts are compile-time decisions in TSL.
+运行时 FPS 采样可以在 tier 之间降级。重建 graph 是有意为之，因为 TSL 中的 loop 和 tap 数是编译期决定的。
 
-### Accessibility
+### 可访问性
 
-UI-Lib is decorative enhancement around real HTML:
+UI-Lib 是真实 HTML 外面的装饰增强层：
 
-- content should remain available without the GPU canvas;
-- `prefers-reduced-motion` must settle effects into a readable, low-motion state;
-- canvas layers should be decorative and must not intercept keyboard focus;
-- application-owned semantics, focus order and controls remain in the DOM.
+- 没有 GPU 时内容仍然存在；
+- `prefers-reduced-motion` 应该收敛到可阅读的低运动状态；
+- canvas 是装饰层，不应劫持键盘焦点；
+- 语义、焦点顺序和控件行为由应用自己的 DOM 负责；
+- canvas 会标记 `aria-hidden="true"`。
 
-Accessibility browser tests and a documented reduced-motion contract are part of the production acceptance work.
+可访问性浏览器回归和完整 reduced-motion contract 是发布前的 P0/P1 验收内容。
 
-## Performance principles
+## 性能原则
 
-UI-Lib is built around constraints rather than marketing numbers:
+UI-Lib 以约束而不是营销数字为中心：
 
-- one canvas, one renderer and one scheduler per stage/application;
-- no extra renderer to implement particles or post effects;
-- no second animation loop for motion or DOM synchronization;
-- hidden tabs pause the shared scheduler;
-- static scenes avoid unnecessary redraw and TAA history copies;
-- lower tiers reduce DPR, particle work and post graph complexity;
-- every owned GPU resource has an explicit disposal path.
+- 一个 stage / 页面使用一个 canvas、一个 renderer 和一个 scheduler；
+- 粒子和后处理不创建额外 renderer；
+- motion、DOM 同步和 GPU simulation 不各自启动第二套 rAF；
+- hidden tab 暂停共享 scheduler；
+- 静态场景避免重复 redraw 与 history copy；
+- 低 tier 限制 DPR、粒子计算和 post graph 复杂度；
+- 所有自有 GPU 资源都有明确 disposal 路径；
+- 性能结论必须来自真实浏览器和真实设备测量。
 
-The docs playground intentionally uses 24,000 particles so the visual demo is usable while the benchmark matrix is unfinished. Device-specific particle LOD and public performance budgets will only be documented after real browser/GPU measurements.
+## 路线图
 
-## Roadmap
+### P0：证明 runtime 可靠
 
-### P0 — prove the runtime
+- [x] 五个浏览器验收页面
+- [x] Playwright 测试骨架、CSS fallback screenshot 和交互 smoke
+- [x] FPS、掉帧、long frame 统计
+- [x] 逻辑资源 registry 与 dispose 断言基础
+- [x] WebGPU/WebGL2 loss 通知与 React stage 重建入口
+- [x] React SSR smoke test
+- [ ] 在真实 WebGPU/WebGL2 浏览器生成 screenshot baseline
+- [ ] GPU 设备矩阵、真实 FPS 与 GPU memory profiling
+- [ ] device lost / context lost 的真实注入与恢复回归
 
-- Playwright visual regression for WebGPU and WebGL2 smoke paths
-- FPS, dropped-frame and interaction benchmarks
-- GPU resource/dispose tests
-- device-lost and context-lost recovery
-- SSR and hydration validation
-- five browser-facing acceptance pages with reproducible baselines
+### P1：提高视觉上限
 
-### P1 — raise the visual ceiling
+- [ ] world-only per-pixel velocity MRT
+- [ ] 真正 multi-pass bloom pyramid
+- [ ] custom post-pass 插槽
+- [ ] environment reflection 与更完整的 glass material composition
+- [ ] dynamic particle LOD 与 trail buffer
+- [ ] 稳定 pointer-to-world ray
+- [ ] camera path 与完整 Glass Product Hero
 
-- world-only per-pixel velocity MRT
-- real multi-pass bloom pyramid
-- custom post-pass insertion API
-- environment reflection and stronger glass material composition
-- dynamic particle LOD and trail buffers
-- stable pointer-to-world ray mapping
-- camera paths and a complete Glass Product Hero
+### P1：补齐动效叙事层
 
-### P1 — add the motion narrative layer
+- [ ] `@ui-lib/dom`：element-to-texture、DOM/3D tracking
+- [ ] `@ui-lib/motion`：timeline、gesture、spring、scroll-linked choreography
+- [ ] cursor field 与 magnetic interaction
+- [ ] MSDF text 与 character / word / line animation
+- [ ] 完整 Scroll Cinema demo
 
-- `@ui-lib/dom`: element-to-texture and DOM/3D tracking
-- `@ui-lib/motion`: timelines, gestures, springs and scroll-linked choreography
-- cursor field and magnetic interactions
-- MSDF text with character/word/line animation
-- Scroll Cinema demo
+### P2：生态与发布
 
-### P2 — ecosystem and distribution
+- [ ] R3F adapter 与最终 imperative API
+- [ ] Vue / Svelte adapter
+- [ ] Next.js、Nuxt、SvelteKit example
+- [ ] Changesets、size budgets、CI browser matrix、npm provenance
+- [ ] recipes、API reference、copy-ready 文档
 
-- R3F adapter and production imperative API
-- Vue and Svelte adapters
-- Next.js, Nuxt and SvelteKit examples
-- Changesets, size budgets, CI browser matrix and npm provenance
-- recipes, API reference and copy-ready documentation
+## 五个旗舰 Demo
 
-### Flagship demos
+目标产品面不是一个参数 Playground，而是五个可单独回归的真实页面：
 
-The target product surface is five real pages, not one parameter playground:
+1. **LiquidGlass Pro**：折射、色散、frost 和 DOM 内容。
+2. **Aurora Flow**：GPU 粒子、flow field、cursor force、dynamic LOD。
+3. **Glass Product Hero**：product object、camera path、environment lighting、post graph。
+4. **Scroll Cinema**：scroll-linked DOM/3D choreography 和 MSDF text。
+5. **Cursor Field**：pointer field、trail、magnetic UI 和 motion-aware glass。
 
-1. **LiquidGlass Pro** — refraction, dispersion, frost and DOM content.
-2. **Aurora Flow** — GPU particles, flow fields, cursor forces and adaptive LOD.
-3. **Glass Product Hero** — product object, camera path, environment lighting and post graph.
-4. **Scroll Cinema** — scroll-linked DOM/3D choreography and MSDF text.
-5. **Cursor Field** — pointer field, trails, magnetic UI and motion-aware glass.
+当前五个 acceptance surface 已经接入文档站，完整的 scroll timeline、MSDF、trail 和 environment reflection 仍按路线图实现。
 
-Only the first technical slices currently exist in the playground. These demos become complete when they also have browser screenshots, interaction checks, accessibility checks and performance data.
+## 不可妥协的设计规则
 
-## Non-negotiable design rules
+- core 不依赖 React、Three.js 或其他框架。
+- Three.js 始终是 peer dependency，UI-Lib 包不捆绑 Three.js。
+- 所有 shader 与 post 使用 TSL，不用 raw GLSL/WGSL 绕过跨后端契约。
+- 功能不能通过额外 canvas、renderer 或 scheduler 逃避架构约束。
+- 每个效果必须有显式 lifecycle 和 dispose。
+- reduced motion、无 GPU、WebGL2 都是一等产品状态。
+- TSL graph 能构建不等于功能完成；完成标准必须同时包含视觉、交互、性能、可访问性和兼容性证据。
 
-- Core does not import React, Three.js or another framework.
-- Three.js remains a peer dependency and is never bundled by the library packages.
-- All shader and post work uses TSL; no raw GLSL/WGSL shortcut is used to bypass the cross-backend contract.
-- No extra canvas, renderer or scheduler is introduced for a feature.
-- Every effect supports an explicit lifecycle and disposal path.
-- Reduced motion, no-GPU and WebGL2 states are first-class product states.
-- A feature is not “done” because its TSL graph builds: it needs visual, interaction, performance, accessibility and compatibility evidence.
-
-## Development
+## 开发命令
 
 ```bash
 pnpm install
-pnpm dev          # Vite playground
-pnpm typecheck    # TypeScript across the workspace
-pnpm test         # Vitest
-pnpm lint         # Biome check
-pnpm build        # package builds
+pnpm dev              # Vite Playground
+pnpm typecheck        # 全 workspace TypeScript
+pnpm test             # Vitest
+pnpm lint             # Biome check
+pnpm build            # 包构建
+pnpm test:e2e         # Playwright 浏览器验收
+pnpm test:e2e:update  # 更新视觉 baseline
 ```
 
-The repository is an experimental monorepo. Public API names may change before the first stable release. Please consult [`docs/ROADMAP.md`](docs/ROADMAP.md) before relying on an item marked planned or experimental.
+当前仓库仍处在 experimental monorepo 阶段。第一个 stable release 之前，公开 API 可能发生变化；依赖规划中或 experimental 标记的能力前，请先查看 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

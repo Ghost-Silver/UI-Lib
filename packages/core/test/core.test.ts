@@ -14,6 +14,7 @@ import {
 	wrap,
 } from "../src/index.js";
 import { Disposer } from "../src/lifecycle.js";
+import { ResourceRegistry } from "../src/resource.js";
 
 describe("math", () => {
 	it("clamps, lerps and maps ranges", () => {
@@ -138,6 +139,20 @@ describe("Disposer", () => {
 			ran = true;
 		});
 		expect(ran).toBe(true);
+	});
+});
+
+describe("resource registry", () => {
+	it("returns to zero after every handle is disposed", () => {
+		const registry = new ResourceRegistry();
+		const layer = registry.track("layer");
+		const panel = registry.track("panel");
+		expect(registry.snapshot().byKind.layer).toBe(1);
+		expect(registry.snapshot().total).toBe(2);
+		panel.dispose();
+		panel.dispose();
+		layer.dispose();
+		expect(registry.snapshot().total).toBe(0);
 	});
 });
 

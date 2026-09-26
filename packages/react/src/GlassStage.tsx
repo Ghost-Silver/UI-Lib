@@ -62,10 +62,13 @@ export function GlassStage({
 	autoQuality = true,
 	pointer = true,
 	alwaysSyncLayout = false,
+	onDeviceLost,
+	onContextRestored,
 }: GlassStageProps) {
 	const [state, setState] = useState<StageState>({ layer: null, error: null });
 	const [status, setStatus] = useState<GlassStageStatus>("idle");
 	const [stats, setStats] = useState<GlassLayerStats | null>(null);
+	const [recoveryAttempt, setRecoveryAttempt] = useState(0);
 
 	const backdropRef = useRef<BackdropSpec | undefined>(backdrop);
 	backdropRef.current = backdrop;
@@ -97,11 +100,19 @@ export function GlassStage({
 			zIndex,
 			dprCap,
 			antialias,
-			forceWebGL,
 			tier,
 			autoQuality,
 			pointer,
 			alwaysSyncLayout,
+			forceWebGL: forceWebGL || recoveryAttempt > 0,
+			onDeviceLost: (error) => {
+				if (cancelled) return;
+				setState({ layer: null, error });
+				setStatus("loading");
+				setRecoveryAttempt((attempt) => attempt + 1);
+				onDeviceLost?.(error);
+			},
+			onContextRestored,
 			onStats: (next) => {
 				setStats(next);
 				onStatsRef.current?.(next);
@@ -126,6 +137,7 @@ export function GlassStage({
 			cancelled = true;
 			created?.dispose();
 			setState({ layer: null, error: null });
+			setStats(null);
 		};
 	}, [
 		forceFallback,
@@ -137,6 +149,9 @@ export function GlassStage({
 		autoQuality,
 		pointer,
 		alwaysSyncLayout,
+		recoveryAttempt,
+		onDeviceLost,
+		onContextRestored,
 	]);
 
 	// Backdrop changes must not tear down the whole GPU layer. The ref keeps
@@ -167,6 +182,10 @@ export function GlassStage({
 		<GlassStageContext.Provider value={value}>
 			<div
 				data-ui-lib-stage={status}
+				data-ui-lib-backend={stats?.backend ?? "unknown"}
+				data-ui-lib-fps={stats?.fps ?? ""}
+				data-ui-lib-dropped-frames={stats?.droppedFrames ?? ""}
+				data-ui-lib-resource-count={stats?.resources.total ?? ""}
 				className={className}
 				style={{ position: "relative", zIndex: 1, ...style }}
 			>

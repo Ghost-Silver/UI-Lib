@@ -14,11 +14,14 @@
 		"typecheck": "pnpm -r run typecheck",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"test:e2e": "playwright test",
+		"test:e2e:update": "playwright test --update-snapshots",
 		"lint": "biome check .",
 		"format": "biome format --write ."
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.4",
+		"@playwright/test": "^1.63.0",
 		"typescript": "^5.9.3",
 		"vitest": "^3.2.4"
 	}

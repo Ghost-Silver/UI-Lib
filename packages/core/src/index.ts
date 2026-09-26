@@ -40,5 +40,11 @@ export type {
 	QualityTier,
 } from "./quality.js";
 export { QUALITY_PRESETS, QualityManager, scoreTier } from "./quality.js";
+export type {
+	ResourceHandle,
+	ResourceKind,
+	ResourceSnapshot,
+} from "./resource.js";
+export { getResourceSnapshot, ResourceRegistry, resourceRegistry } from "./resource.js";
 export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
 export { disposeScheduler, FrameScheduler, getScheduler, TASK_PRIORITY } from "./scheduler.js";

@@ -8,7 +8,11 @@
 export type { PostProcessingOptions } from "@ui-lib/post";
 export type { BackdropInstance, BackdropSpec } from "./backdrop.js";
 export { createBackdrop, DEFAULT_BACKDROP } from "./backdrop.js";
-export type { CreateRendererOptions, UiRenderer } from "./createRenderer.js";
+export type {
+	CreateRendererOptions,
+	RendererLossInfo,
+	UiRenderer,
+} from "./createRenderer.js";
 export { createRenderer, RendererUnavailableError } from "./createRenderer.js";
 
 export type {

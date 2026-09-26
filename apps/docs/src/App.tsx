@@ -19,6 +19,7 @@ import {
 	Mesh,
 	MeshBasicNodeMaterial,
 } from "three/webgpu";
+import { AcceptanceDemo, type AcceptanceDemoId } from "./AcceptanceDemo.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
 
@@ -153,7 +154,7 @@ function HeroCrystal() {
 	return null;
 }
 
-export default function App() {
+function Playground() {
 	const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
 	const [palette, setPalette] = useState<PaletteId>("aurora");
 	const [speed, setSpeed] = useState(0.25);
@@ -566,4 +567,21 @@ function Scene(props: SceneProps) {
 			<StatusHud stats={stats} status={status} forceFallback={forceFallback} />
 		</div>
 	);
+}
+
+const ACCEPTANCE_IDS: readonly AcceptanceDemoId[] = [
+	"liquid-glass",
+	"aurora-flow",
+	"product-hero",
+	"scroll-cinema",
+	"cursor-field",
+];
+
+export default function App() {
+	if (typeof window !== "undefined") {
+		const query = new URLSearchParams(window.location.search);
+		const demo = query.get("demo") as AcceptanceDemoId | null;
+		if (demo && ACCEPTANCE_IDS.includes(demo)) return <AcceptanceDemo id={demo} />;
+	}
+	return <Playground />;
 }
