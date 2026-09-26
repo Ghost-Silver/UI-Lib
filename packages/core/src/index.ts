@@ -31,6 +31,7 @@ export {
 	valueNoise2D,
 	wrap,
 } from "./math.js";
+export { mergeDefined } from "./mergeDefined.js";
 export type { PointerState, PointerTrackerOptions } from "./pointer.js";
 export { PointerTracker } from "./pointer.js";
 export type {

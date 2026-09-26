@@ -9,3 +9,6 @@ test-results/
 .env
 .env.local
 .vite/
+
+# Real-device telemetry scratch (see apps/docs/vite.config.ts)
+.diag/

@@ -31,6 +31,7 @@ import {
 	Vector2,
 } from "three/webgpu";
 import type { ColorUniform, FloatUniform, SharedUniforms, Vec2Uniform } from "./nodeTypes.js";
+import { mergeDefined } from "@ui-lib/core";
 
 /** Golden angle — gives an even, low-discrepancy disc sampling pattern. */
 const GOLDEN_ANGLE = 2.399963229728653;
@@ -180,7 +181,7 @@ export function createLiquidGlassMaterial(
 	options: LiquidGlassOptions = {},
 	shared: SharedUniforms = {},
 ): LiquidGlassMaterial {
-	const opts = { ...LIQUID_GLASS_DEFAULTS, ...options };
+	const opts = mergeDefined(LIQUID_GLASS_DEFAULTS, options);
 	const taps = Math.max(1, Math.round(opts.blurTaps));
 
 	// `null` → refract the live framebuffer (viewportSharedTexture).

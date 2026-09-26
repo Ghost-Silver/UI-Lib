@@ -1,6 +1,7 @@
 import { dot, float, fract, length, mix, sin, uniform, uv, vec2, vec3 } from "three/tsl";
 import { Color, type ColorRepresentation, MeshBasicNodeMaterial, Vector2 } from "three/webgpu";
 import type { ColorUniform, FloatUniform, SharedUniforms } from "./nodeTypes.js";
+import { mergeDefined } from "@ui-lib/core";
 
 export interface GradientBackdropOptions {
 	/** Four blob colours, blended by proximity. */
@@ -65,7 +66,7 @@ export function createGradientBackdropMaterial(
 	options: GradientBackdropOptions = {},
 	shared: SharedUniforms = {},
 ): GradientBackdropMaterial {
-	const opts = { ...GRADIENT_BACKDROP_DEFAULTS, ...options };
+	const opts = mergeDefined(GRADIENT_BACKDROP_DEFAULTS, options);
 
 	const uniforms = {
 		time: shared.time ?? uniform(0),
