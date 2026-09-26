@@ -90,7 +90,7 @@ Nothing throws, nothing looks broken.
 | [`@ui-lib/shaders`](packages/shaders) | yes | TSL node materials: liquid glass, gradient-mesh backdrop |
 | [`@ui-lib/renderer`](packages/renderer) | yes | renderer bootstrap (WebGPU→WebGL 2), backdrop passes, particles, the DOM-attached glass layer |
 | [`@ui-lib/particles`](packages/particles) | yes | compute/transform-feedback simulation, emitters, flow fields, bounds and sprite rendering |
-| [`@ui-lib/post`](packages/post) | yes | TSL viewport chain: bloom, chromatic aberration, grain and vignette |
+| [`@ui-lib/post`](packages/post) | yes | TSL viewport chain: bloom, halo, lens streak, depth-aware focus blur, motion blur, temporal accumulation and colour grading |
 | [`@ui-lib/react`](packages/react) | yes | `<GlassStage>`, `<GlassPanel>`, `<ParticleField>`, hooks, CSS fallback |
 
 Layering rule: `core` never imports three; adapter packages sit on top; reverse dependencies are bugs.
@@ -140,17 +140,18 @@ The first M3 chain is now connected to the live stage through [`@ui-lib/post`](p
 - animated procedural grain;
 - exposure / contrast / saturation grading;
 - vignette;
-- depth-free cinematic focus blur and directional motion blur controls;
-- temporal accumulation with Halton sub-pixel jitter and explicit history reset on resize / teardown;
-- all sampled from the already-composited canvas through `viewportTexture()`;
+- depth-aware cinematic focus blur and directional motion blur controls;
+- temporal accumulation with Halton sub-pixel jitter, reactive history rejection and explicit history reset on resize / teardown;
+- colour sampled from the already-composited canvas through `viewportTexture()`; focus and world reprojection also read the existing canvas depth through `viewportDepthTexture()`;
 - final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
 
 `<GlassStage post={{ bloomStrength: 0.4, chromaticAberration: 0.8 }} />` updates uniforms
-without rebuilding the renderer or tearing down particles. The playground exposes live sliders for
-all four effects.
+without rebuilding the renderer or tearing down particles. The playground exposes live sliders for refraction, bloom, focus depth, motion blur and temporal
+rejection. The history path uses conservative colour clamping and reactive rejection because the
+final framebuffer also contains stable DOM glass; it does not claim full depth-aware reprojection.
 
-The next M3 pass is temporal anti-aliasing and a true separable bloom pyramid; the current chain is
-intentionally a small first-frame-safe graph that works with the same WebGPU/WebGL2 renderer path.
+The next M3 pass is a world-only velocity/depth pass and a true separable bloom pyramid; the current
+chain remains a small first-frame-safe graph that works with the same WebGPU/WebGL2 renderer path.
 
 ## Next
 

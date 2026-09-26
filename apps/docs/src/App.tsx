@@ -53,6 +53,10 @@ interface Params {
 	haloStrength: number;
 	flareStrength: number;
 	chromaticAberration: number;
+	focusBlur: number;
+	focusDepth: number;
+	motionBlur: number;
+	temporalReactive: number;
 	grain: number;
 	vignette: number;
 }
@@ -72,6 +76,10 @@ const DEFAULT_PARAMS: Params = {
 	haloStrength: 0.14,
 	flareStrength: 0.1,
 	chromaticAberration: 0.35,
+	focusBlur: 2.5,
+	focusDepth: 0.62,
+	motionBlur: 0.05,
+	temporalReactive: 0.8,
 	grain: 0.018,
 	vignette: 0.12,
 };
@@ -162,6 +170,10 @@ export default function App() {
 			haloStrength: params.haloStrength,
 			flareStrength: params.flareStrength,
 			chromaticAberration: params.chromaticAberration,
+			focusBlur: params.focusBlur,
+			focusDepth: params.focusDepth,
+			motionBlur: params.motionBlur,
+			temporalReactive: params.temporalReactive,
 			grain: params.grain,
 			vignette: params.vignette,
 		}),
@@ -170,6 +182,10 @@ export default function App() {
 			params.haloStrength,
 			params.flareStrength,
 			params.chromaticAberration,
+			params.focusBlur,
+			params.focusDepth,
+			params.motionBlur,
+			params.temporalReactive,
 			params.grain,
 			params.vignette,
 		],
@@ -408,6 +424,38 @@ function Scene(props: SceneProps) {
 							max={4}
 							step={0.01}
 							onChange={set("chromaticAberration")}
+						/>
+						<Slider
+							label="Focus blur radius"
+							value={params.focusBlur}
+							min={0}
+							max={18}
+							step={0.1}
+							onChange={set("focusBlur")}
+						/>
+						<Slider
+							label="Focus depth"
+							value={params.focusDepth}
+							min={0}
+							max={1}
+							step={0.01}
+							onChange={set("focusDepth")}
+						/>
+						<Slider
+							label="Motion blur"
+							value={params.motionBlur}
+							min={0}
+							max={0.8}
+							step={0.01}
+							onChange={set("motionBlur")}
+						/>
+						<Slider
+							label="Temporal rejection"
+							value={params.temporalReactive}
+							min={0}
+							max={1}
+							step={0.01}
+							onChange={set("temporalReactive")}
 						/>
 						<Slider
 							label="Film grain"

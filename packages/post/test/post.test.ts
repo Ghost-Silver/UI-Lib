@@ -11,10 +11,15 @@ describe("post-processing", () => {
 		expect(post.uniforms.haloStrength.value).toBe(POST_DEFAULTS.haloStrength);
 		expect(post.uniforms.exposure.value).toBe(POST_DEFAULTS.exposure);
 		expect(post.uniforms.temporalBlend.value).toBe(POST_DEFAULTS.temporalBlend);
+		expect(post.uniforms.temporalReactive.value).toBe(POST_DEFAULTS.temporalReactive);
+		expect(post.uniforms.temporalClamp.value).toBe(POST_DEFAULTS.temporalClamp);
+		expect(post.uniforms.focusDepth.value).toBe(POST_DEFAULTS.focusDepth);
 		expect(post.uniforms.focusBlur.value).toBe(POST_DEFAULTS.focusBlur);
 		const jitter = post.nextJitter();
 		expect(jitter[0]).toBeGreaterThanOrEqual(-0.5);
 		expect(jitter[0]).toBeLessThanOrEqual(0.5);
+		expect(Number.isFinite(post.uniforms.temporalJitter.value.x)).toBe(true);
+		expect(Number.isFinite(post.uniforms.temporalJitter.value.y)).toBe(true);
 		expect(POST_DEFAULTS.vignette).toBeGreaterThan(0);
 
 		post.setSize(1280, 720);

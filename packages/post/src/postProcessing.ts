@@ -1,8 +1,12 @@
 import {
+	abs,
 	dot,
 	float,
 	fract,
+	linearDepth,
 	luminance,
+	max,
+	min,
 	mix,
 	oneMinus,
 	pow,
@@ -15,6 +19,7 @@ import {
 	vec2,
 	vec3,
 	vec4,
+	viewportDepthTexture,
 	viewportTexture,
 } from "three/tsl";
 import {
@@ -55,6 +60,12 @@ export interface PostProcessingOptions {
 	saturation?: number;
 	/** Previous-frame blend. Small values stabilise shimmer without visible trails. */
 	temporalBlend?: number;
+	/** Reactive history rejection for high-contrast changes. 0 disables it. */
+	temporalReactive?: number;
+	/** Maximum linear colour excursion allowed when clamping history. */
+	temporalClamp?: number;
+	/** Normalised linear depth at the focus plane. */
+	focusDepth?: number;
 	/** Screen-space focus blur radius in device pixels. 0 disables the DOF approximation. */
 	focusBlur?: number;
 	/** Radius around this UV point that stays in focus. */
@@ -81,6 +92,9 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	contrast: 1.03,
 	saturation: 1.08,
 	temporalBlend: 0.08,
+	temporalReactive: 0.8,
+	temporalClamp: 0.18,
+	focusDepth: 0.62,
 	focusBlur: 2.5,
 	focusPoint: [0.5, 0.5],
 	motionBlur: 0.05,
@@ -108,6 +122,10 @@ export interface PostProcessingUniforms {
 	contrast: ScalarUniform;
 	saturation: ScalarUniform;
 	temporalBlend: ScalarUniform;
+	temporalReactive: ScalarUniform;
+	temporalClamp: ScalarUniform;
+	temporalJitter: VectorUniform;
+	focusDepth: ScalarUniform;
 	focusBlur: ScalarUniform;
 	focusPoint: VectorUniform;
 	motionBlur: ScalarUniform;
@@ -212,6 +230,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		contrast: uniform(initial.contrast),
 		saturation: uniform(initial.saturation),
 		temporalBlend: uniform(initial.temporalBlend),
+		temporalReactive: uniform(initial.temporalReactive),
+		temporalClamp: uniform(initial.temporalClamp),
+		temporalJitter: uniform(new Vector2()),
+		focusDepth: uniform(initial.focusDepth),
 		focusBlur: uniform(initial.focusBlur),
 		focusPoint: uniform(new Vector2(...initial.focusPoint)),
 		motionBlur: uniform(initial.motionBlur),
@@ -297,9 +319,13 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	colour = mix(vec3(luminanceValue), colour, uniforms.saturation);
 	colour = colour.sub(0.5).mul(uniforms.contrast).add(0.5);
 
-	// Small screen-space focus blur. It is intentionally depth-free because the
-	// stage composites DOM glass and world effects rather than owning one 3D depth
-	// buffer; the focus point still gives the hero a cinematic centre.
+	// The canvas target owns a depth texture even though the backdrop and glass
+	// materials do not write depth. World particles / hero objects therefore
+	// provide a useful mask for both focus and jitter reprojection.
+	const sceneDepth = linearDepth(viewportDepthTexture(uv));
+
+	// Depth-aware screen-space focus blur. The UV falloff keeps the composition's
+	// centre slightly more restrained when the background is the only depth sample.
 	let defocus: Node<"vec3"> = vec3(0);
 	for (const [x, y] of DOF_OFFSETS) {
 		defocus = defocus.add(
@@ -307,8 +333,11 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		);
 	}
 	defocus = defocus.div(DOF_OFFSETS.length);
+	const depthDistance = abs(sceneDepth.sub(uniforms.focusDepth));
+	const depthOutOfFocus = smoothstep(0.018, 0.22, depthDistance);
 	const focusDistance = uv.sub(uniforms.focusPoint).length();
-	const outOfFocus = smoothstep(0.16, 0.74, focusDistance);
+	const spatialOutOfFocus = smoothstep(0.16, 0.74, focusDistance);
+	const outOfFocus = mix(spatialOutOfFocus, depthOutOfFocus, 0.78);
 	colour = mix(colour, defocus, outOfFocus.mul(saturate(uniforms.focusBlur.div(16))));
 
 	// A directional five-tap blur gives moving hero elements a restrained
@@ -344,12 +373,30 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	colour = colour.mul(mix(float(1), edgeDarkening, uniforms.vignette));
 
 	const effected = vec4(colour, baseSample.a);
-	const historySample = texture(historyTexture, uv);
-	const temporal = mix(
-		effected,
-		historySample,
-		uniforms.temporalBlend.mul(uniforms.historyValid),
+	const worldDepthMask = oneMinus(smoothstep(0.92, 0.998, sceneDepth));
+	// `temporalJitter` is the previous-minus-current Halton offset in device
+	// pixels. Reproject only depth-backed world fragments; the DOM glass and
+	// empty backdrop remain at their stable screen positions.
+	const historyUv = uv.add(
+		uniforms.temporalJitter.div(uniforms.resolution).mul(worldDepthMask),
 	);
+	const historySample = texture(historyTexture, historyUv);
+
+	// History clamping and reactive rejection are the two pieces that keep a
+	// jittered accumulation from turning a moving crystal into a ghost trail.
+	// This is deliberately conservative: the final framebuffer also contains
+	// stable DOM glass, so we do not reproject the whole canvas with a guessed
+	// motion vector. A future world-only MRT can replace this without changing
+	// the public output node.
+	const historyFloor = effected.rgb.sub(uniforms.temporalClamp);
+	const historyCeiling = effected.rgb.add(uniforms.temporalClamp);
+	const clampedHistory = min(max(historySample.rgb, historyFloor), historyCeiling);
+	const historyColour = vec4(clampedHistory, historySample.a);
+	const luminanceDelta = abs(luminance(clampedHistory).sub(luminance(effected.rgb)));
+	const rejection = oneMinus(saturate(luminanceDelta.mul(4)));
+	const reactiveFactor = mix(float(1), rejection, saturate(uniforms.temporalReactive));
+	const temporalWeight = uniforms.temporalBlend.mul(uniforms.historyValid).mul(reactiveFactor);
+	const temporal = mix(effected, historyColour, temporalWeight);
 	const outputNode = mix(baseSample, temporal, uniforms.enabled);
 
 	return {
@@ -367,6 +414,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 				historyTexture.image.height = nextHeight;
 				historyTexture.needsUpdate = true;
 				uniforms.historyValid.value = 0;
+				jitterIndex = 0;
+				uniforms.temporalJitter.value.set(0, 0);
 			}
 		},
 		commit(renderer) {
@@ -376,10 +425,21 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		resetHistory() {
 			uniforms.historyValid.value = 0;
 			jitterIndex = 0;
+			uniforms.temporalJitter.value.set(0, 0);
 		},
 		nextJitter() {
+			const previousIndex = jitterIndex === 0 ? 8 : jitterIndex;
 			jitterIndex = (jitterIndex % 8) + 1;
-			return [halton(jitterIndex, 2) - 0.5, halton(jitterIndex, 3) - 0.5];
+			const current: [number, number] = [
+				halton(jitterIndex, 2) - 0.5,
+				halton(jitterIndex, 3) - 0.5,
+			];
+			const previous: [number, number] = [
+				halton(previousIndex, 2) - 0.5,
+				halton(previousIndex, 3) - 0.5,
+			];
+			uniforms.temporalJitter.value.set(previous[0] - current[0], previous[1] - current[1]);
+			return current;
 		},
 		update(patch) {
 			if (patch.enabled !== undefined) uniforms.enabled.value = patch.enabled ? 1 : 0;
@@ -401,6 +461,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			if (patch.contrast !== undefined) uniforms.contrast.value = patch.contrast;
 			if (patch.saturation !== undefined) uniforms.saturation.value = patch.saturation;
 			if (patch.temporalBlend !== undefined) uniforms.temporalBlend.value = patch.temporalBlend;
+			if (patch.temporalReactive !== undefined)
+				uniforms.temporalReactive.value = patch.temporalReactive;
+			if (patch.temporalClamp !== undefined) uniforms.temporalClamp.value = patch.temporalClamp;
+			if (patch.focusDepth !== undefined) uniforms.focusDepth.value = patch.focusDepth;
 			if (patch.focusBlur !== undefined) uniforms.focusBlur.value = patch.focusBlur;
 			if (patch.focusPoint) uniforms.focusPoint.value.set(...patch.focusPoint);
 			if (patch.motionBlur !== undefined) uniforms.motionBlur.value = patch.motionBlur;
