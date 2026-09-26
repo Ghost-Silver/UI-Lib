@@ -1,12 +1,4 @@
 import {
-	Color,
-	MeshBasicNodeMaterial,
-	Vector2,
-	type ColorRepresentation,
-	type Node,
-	type Texture,
-} from "three/webgpu";
-import {
 	abs,
 	dot,
 	float,
@@ -30,6 +22,14 @@ import {
 	vec3,
 	viewportSharedTexture,
 } from "three/tsl";
+import {
+	Color,
+	type ColorRepresentation,
+	MeshBasicNodeMaterial,
+	type Node,
+	type Texture,
+	Vector2,
+} from "three/webgpu";
 import type { ColorUniform, FloatUniform, SharedUniforms, Vec2Uniform } from "./nodeTypes.js";
 
 /** Golden angle — gives an even, low-discrepancy disc sampling pattern. */
@@ -238,7 +238,9 @@ export function createLiquidGlassMaterial(
 	const inner = half.sub(uniforms.radius);
 	const q = abs(p).sub(inner);
 	const outer = max(q.x, q.y);
-	const dist = length(max(q, vec2(0))).add(min(outer, float(0))).sub(uniforms.radius);
+	const dist = length(max(q, vec2(0)))
+		.add(min(outer, float(0)))
+		.sub(uniforms.radius);
 
 	/* ------------------------------------------------- rounded bevel normal -- */
 	// 0 on the rim, 1 once we are `bevel` pixels inside the silhouette.
@@ -262,10 +264,7 @@ export function createLiquidGlassMaterial(
 	/* ---------------------------------------------------------- refraction -- */
 	// Frosted glass scatters, so it both blurs and refracts less crisply.
 	const refractionScale = mix(float(1), float(0.35), uniforms.roughness);
-	const offsetPx = normal.xy
-		.mul(uniforms.refraction)
-		.mul(refractionScale)
-		.add(uniforms.shift);
+	const offsetPx = normal.xy.mul(uniforms.refraction).mul(refractionScale).add(uniforms.shift);
 	const offsetUv = offsetPx.div(res);
 	const baseUv = screenUV;
 
@@ -304,7 +303,9 @@ export function createLiquidGlassMaterial(
 	/* --------------------------------------------------------- lighting -- */
 	const lightDir = normalize(vec3(uniforms.lightDirection, float(1)));
 	const halfVec = normalize(lightDir.add(vec3(0, 0, 1)));
-	const specular = pow(saturate(normal.dot(halfVec)), uniforms.shininess).mul(uniforms.specular);
+	const specular = pow(saturate(normal.dot(halfVec)), uniforms.shininess).mul(
+		uniforms.specular,
+	);
 
 	const fresnel = pow(saturate(float(1).sub(normal.z)), uniforms.fresnelPower).mul(
 		uniforms.fresnel,
@@ -315,7 +316,9 @@ export function createLiquidGlassMaterial(
 
 	// Cursor proximity: a soft specular bloom that follows the pointer.
 	const pointerDist = length(screenUV.mul(res).sub(uniforms.pointer));
-	const pointerGlow = saturate(float(1).sub(pointerDist.div(max(uniforms.pointerRadius, float(1)))))
+	const pointerGlow = saturate(
+		float(1).sub(pointerDist.div(max(uniforms.pointerRadius, float(1)))),
+	)
 		.pow(2)
 		.mul(uniforms.pointerStrength);
 

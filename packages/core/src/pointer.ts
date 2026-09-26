@@ -53,7 +53,10 @@ export class PointerTracker {
 	private lastTime = 0;
 	private started = false;
 
-	constructor(private readonly element: HTMLElement | Window = globalThis.window as Window, options: PointerTrackerOptions = {}) {
+	constructor(
+		private readonly element: HTMLElement | Window = globalThis.window as Window,
+		options: PointerTrackerOptions = {},
+	) {
 		this.smoothing = options.smoothing ?? 12;
 
 		const el = this.element as EventTarget;

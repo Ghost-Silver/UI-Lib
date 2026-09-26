@@ -14,7 +14,10 @@
 			"import": "./dist/index.js"
 		}
 	},
-	"files": ["dist", "src"],
+	"files": [
+		"dist",
+		"src"
+	],
 	"scripts": {
 		"build": "tsup",
 		"typecheck": "tsc --noEmit -p tsconfig.json"
@@ -24,6 +27,7 @@
 	},
 	"dependencies": {
 		"@ui-lib/core": "workspace:*",
+		"@ui-lib/particles": "workspace:*",
 		"@ui-lib/shaders": "workspace:*"
 	},
 	"devDependencies": {

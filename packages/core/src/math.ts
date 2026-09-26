@@ -14,7 +14,13 @@ export function inverseLerp(a: number, b: number, v: number): number {
 	return a === b ? 0 : clamp01((v - a) / (b - a));
 }
 
-export function mapRange(v: number, inMin: number, inMax: number, outMin: number, outMax: number) {
+export function mapRange(
+	v: number,
+	inMin: number,
+	inMax: number,
+	outMin: number,
+	outMax: number,
+) {
 	return lerp(outMin, outMax, inverseLerp(inMin, inMax, v));
 }
 
@@ -54,7 +60,9 @@ export const Easing = {
 		t === 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 2 ** (20 * t - 10) / 2 : (2 - 2 ** (-20 * t + 10)) / 2,
 	easeOutBack: (t: number) => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2,
 	easeOutElastic: (t: number) =>
-		t === 0 || t === 1 ? t : 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1,
+		t === 0 || t === 1
+			? t
+			: 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1,
 } as const;
 
 export type EasingName = keyof typeof Easing;

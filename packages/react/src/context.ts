@@ -1,5 +1,5 @@
-import { createContext, useContext } from "react";
 import type { GlassLayer, GlassLayerStats } from "@ui-lib/renderer";
+import { createContext, useContext } from "react";
 
 export type GlassStageStatus = "idle" | "loading" | "ready" | "unsupported";
 

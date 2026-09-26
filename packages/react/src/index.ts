@@ -9,14 +9,14 @@
  * user prefers reduced motion, panels render a CSS `backdrop-filter` fallback.
  */
 
-export type { GlassStageProps } from "./GlassStage.js";
-export { GlassStage } from "./GlassStage.js";
-
-export type { GlassPanelProps } from "./GlassPanel.js";
-export { GlassPanel } from "./GlassPanel.js";
-
+export type { GlassPanelHandle, GlassPanelOptions } from "@ui-lib/renderer";
 export type { GlassStageStatus, GlassStageValue } from "./context.js";
 export { GlassStageContext, useGlassStage } from "./context.js";
-
+export type { GlassPanelProps } from "./GlassPanel.js";
+export { GlassPanel } from "./GlassPanel.js";
+export type { GlassStageProps } from "./GlassStage.js";
+export { GlassStage } from "./GlassStage.js";
 export { ensureStyles } from "./injectStyles.js";
-export type { GlassPanelOptions, GlassPanelHandle } from "@ui-lib/renderer";
+
+export type { ParticleFieldProps } from "./ParticleField.js";
+export { ParticleField } from "./ParticleField.js";

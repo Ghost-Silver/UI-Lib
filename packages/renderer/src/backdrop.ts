@@ -1,17 +1,17 @@
 import {
-	Color,
-	MeshBasicNodeMaterial,
-	type ColorRepresentation,
-	type Texture,
-	type TextureNode,
-} from "three/webgpu";
-import { select, texture, uniform, uv, vec2 } from "three/tsl";
-import {
 	createGradientBackdropMaterial,
 	type GradientBackdropMaterial,
 	type GradientBackdropOptions,
 	type SharedUniforms,
 } from "@ui-lib/shaders";
+import { select, texture, uniform, uv, vec2 } from "three/tsl";
+import {
+	Color,
+	type ColorRepresentation,
+	MeshBasicNodeMaterial,
+	type Texture,
+	type TextureNode,
+} from "three/webgpu";
 
 export type BackdropSpec =
 	| ({ type: "gradient" } & GradientBackdropOptions)

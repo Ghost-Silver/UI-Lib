@@ -155,20 +155,22 @@
 > 每个里程碑都交付**一个能在浏览器里看到的东西**，而不是纯基建。
 
 ### M0 · 地基 ✅ 已完成
-- pnpm workspace + Turborepo + tsup + Biome + Vitest + CI（typecheck / lint / test / build / size）
+- pnpm workspace + tsup + Biome + Vitest（typecheck / lint / test / build）；Turborepo 与 CI 等包数量上来后补
 - `@ui-lib/core`：`device` 探测、`quality` 分级、`scheduler` 单帧循环、spring/缓动、指针事件归一化、`Disposable`
 - 文档站骨架（Vite）：路由、Playground 壳子、"降级形态"指示灯（当前跑在 WebGPU / WebGL2 / CSS）
 - **验收**：一个页面显示"当前后端 + Tier + 实时 FPS + 三个同步动画"，能手动切降级档位
 
 ### M1 · 第一颗明珠：液态玻璃 ✅ 已完成
 - `@ui-lib/shaders`：liquid-glass（折射/色散/厚度/边缘高光/粗糙度）+ 辅助的 environment、fresnel
-- `@ui-lib/react` + 命令式 API：`createLiquidGlass(el, opts)` / `<LiquidGlass>`
+- `@ui-lib/renderer` + `@ui-lib/react`：`createGlassLayer().register(el, opts)` / `<GlassStage>` + `<GlassPanel>`
 - Demo：把玻璃贴到真实 DOM 卡片上；CSS `backdrop-filter` 降级版
-- **验收**：WebGPU 与 WebGL2 下画面一致（快照比对），reduced-motion 下静态
+- **验收**：TSL 图构建 / typecheck / 单测已通过；真实 WebGPU/WebGL2 画面快照与 reduced-motion 浏览器回归待可用浏览器环境
 
-### M2 · 粒子引擎
-- `@ui-lib/particles`：SoA buffer、compute 更新、Emitter、ForceField（curl noise / vortex / attractor / SDF 碰撞）、Trail、颜色-生命曲线
-- Demo **Aurora Flow**：鼠标涡旋 + 流场；WebGPU 1M / WebGL2 80k 自动切换
+### M2 · 粒子引擎 🚧 首个可见切片已完成
+- `@ui-lib/particles`：SoA storage buffers、compute / transform-feedback 更新、Emitter、ForceField（noise flow / vortex / attractor）、球/盒碰撞、颜色-生命曲线、速度热色与软精灵
+- `@ui-lib/react`：`<ParticleField>`，粒子进入 `GlassStage` 的同一 canvas，DOM 玻璃可以折射粒子
+- Demo **Aurora Flow** 首版已在 playground：24k 粒子；WebGPU native compute / WebGL2 transform feedback 自动切换
+- **下一小步**：1M WebGPU 压测、动态 LOD、trail buffer 与真实 pointer→world ray
 - **验收**：1M 粒子 @60fps（WebGPU 基准机）+ 掉落帧 < 1% + dispose 后资源归零
 
 ### M3 · 后处理与相机
@@ -247,3 +249,13 @@
    （`libnss3` 等）。因此验证手段是：TSL 图在 Node 侧**完整构建**的冒烟测试（能抓出拼错的
    方法 / 错误的 swizzle / 参数个数错误）+ 全量 `tsc` + 单测 + 你在预览里看真实画面。
    M2 开始时建议补上 Playwright 视觉回归（需要能装系统依赖的环境）。
+
+8. **M2 粒子不再另开 renderer。** `@ui-lib/particles` 只负责 GPU 状态、compute kernel
+   和 sprite material；`GlassLayer.addParticles()` 把它挂到同一个 renderer / scheduler / canvas，
+   先执行 compute，再把粒子画到 backdrop 之后、glass 之前。这样液态玻璃天然折射粒子，且
+   页面永远只有一个 GPU context。
+
+9. **WebGL2 粒子走 three r186 的 transform-feedback backend。** 不是 CPU 模拟的假 fallback；
+   同一份 TSL compute graph 在 WebGPU 是 native compute pass，在 WebGL2 fallback 是
+   transform feedback。粒子默认 80k，demo 刻意用 24k 留出玻璃和低端设备余量；1M 基准和动态
+   LOD 仍属于 M2 的后续验收，不把未经浏览器验证的数字写成已经完成。

@@ -1,29 +1,37 @@
-import { Mesh, OrthographicCamera, PlaneGeometry, Scene, Vector2 } from "three/webgpu";
-import { uniform } from "three/tsl";
 import {
-	Disposer,
-	PointerTracker,
-	QualityManager,
-	getScheduler,
-	onReducedMotionChange,
 	type Disposable,
+	Disposer,
 	type FrameInfo,
 	type GpuBackend,
+	getScheduler,
+	onReducedMotionChange,
+	PointerTracker,
+	QualityManager,
 	type QualityTier,
 } from "@ui-lib/core";
+import type { ParticleSystem } from "@ui-lib/particles";
 import {
 	createFullscreenQuad,
 	createLiquidGlassMaterial,
 	type LiquidGlassMaterial,
 	type SharedUniforms,
 } from "@ui-lib/shaders";
-import { createRenderer, type UiRenderer } from "./createRenderer.js";
+import { uniform } from "three/tsl";
 import {
-	DEFAULT_BACKDROP,
-	createBackdrop,
+	Mesh,
+	OrthographicCamera,
+	PerspectiveCamera,
+	PlaneGeometry,
+	Scene,
+	Vector2,
+} from "three/webgpu";
+import {
 	type BackdropInstance,
 	type BackdropSpec,
+	createBackdrop,
+	DEFAULT_BACKDROP,
 } from "./backdrop.js";
+import { createRenderer, type UiRenderer } from "./createRenderer.js";
 
 /** Panel tuning knobs, all in **CSS pixels** — the layer scales them by DPR. */
 export interface GlassPanelOptions {
@@ -105,6 +113,14 @@ export interface GlassLayerOptions {
 	onStats?: (stats: GlassLayerStats) => void;
 }
 
+export interface ParticleLayerOptions {
+	/** Camera position in particle world units. */
+	cameraPosition?: [number, number, number];
+	/** Camera target in particle world units. */
+	cameraTarget?: [number, number, number];
+	fov?: number;
+}
+
 export interface GlassLayerStats {
 	backend: GpuBackend;
 	tier: QualityTier;
@@ -141,8 +157,9 @@ const STATS_INTERVAL = 0.25;
  *   contexts (browsers cap those hard, usually around 8–16).
  * - **The backdrop is ours.** True refraction needs pixels to bend, and only
  *   content we render can be sampled — so the layer owns the backdrop pass and
- *   renders it into a target that the panels refract. DOM content is layered
- *   *above* the canvas, which is exactly how the "text on glass" look is built.
+ *   uses three's shared viewport texture for the glass pass. Particle effects
+ *   are drawn between those two passes and are refracted too. DOM content is
+ *   layered *above* the canvas, which is exactly how the "text on glass" look is built.
  * - **Everything is reactive to layout.** Element rects are re-read on scroll,
  *   resize and `ResizeObserver` signals rather than assumed static.
  */
@@ -161,7 +178,11 @@ export class GlassLayer implements Disposable {
 	private readonly glassScene = new Scene();
 	private readonly glassCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
 	private readonly backdropScene = new Scene();
+	private readonly particleScene = new Scene();
+	private readonly particleCamera = new PerspectiveCamera(52, 1, 0.1, 100);
 	private readonly panelGeometry = new PlaneGeometry(1, 1);
+	private readonly particleSystems = new Set<ParticleSystem>();
+	private readonly particleStops = new Map<ParticleSystem, () => void>();
 	private readonly panels = new Set<Panel>();
 	private readonly resizeObserver: ResizeObserver;
 
@@ -208,6 +229,9 @@ export class GlassLayer implements Disposable {
 		this.backdropQuad = createFullscreenQuad(this.backdrop.material);
 		this.backdropScene.add(this.backdropQuad.mesh);
 
+		this.particleCamera.position.set(0, 0, 14);
+		this.particleCamera.lookAt(0, 0, 0);
+
 		this.applyCanvasStyles(options);
 		const parent = options.parent ?? document.body;
 		parent.appendChild(this.canvas);
@@ -232,6 +256,14 @@ export class GlassLayer implements Disposable {
 			this.disposer.own(this.pointer);
 		}
 
+		this.disposer.add(() => {
+			for (const [system, stop] of this.particleStops) {
+				stop();
+				system.dispose();
+			}
+			this.particleStops.clear();
+			this.particleSystems.clear();
+		});
 		this.disposer.add(() => {
 			for (const panel of [...this.panels]) this.destroyPanel(panel);
 			this.panels.clear();
@@ -330,6 +362,43 @@ export class GlassLayer implements Disposable {
 		};
 	}
 
+	/**
+	 * Attach a GPU particle system behind the glass panels. Simulation is
+	 * registered at the scheduler's `compute` priority, so every particle system
+	 * advances before the layer's single draw pass. The returned handle owns the
+	 * system and disposes it on removal.
+	 */
+	addParticles(system: ParticleSystem, options: ParticleLayerOptions = {}): Disposable {
+		const position = options.cameraPosition ?? [0, 0, 14];
+		const target = options.cameraTarget ?? [0, 0, 0];
+		this.particleCamera.position.set(...position);
+		this.particleCamera.fov = options.fov ?? 52;
+		this.particleCamera.lookAt(...target);
+		this.particleCamera.updateProjectionMatrix();
+
+		this.particleScene.add(system.object);
+		this.particleSystems.add(system);
+		system.reset(this.ui.renderer);
+
+		const stop = getScheduler().add((info) => {
+			if (!this.reducedMotion && this.quality.tier > 0) system.step(this.ui.renderer, info.dt);
+		}, "compute");
+		this.particleStops.set(system, stop);
+
+		let disposed = false;
+		return {
+			dispose: () => {
+				if (disposed) return;
+				disposed = true;
+				stop();
+				this.particleStops.delete(system);
+				this.particleSystems.delete(system);
+				this.particleScene.remove(system.object);
+				system.dispose();
+			},
+		};
+	}
+
 	setBackdrop(spec: BackdropSpec): void {
 		const previous = this.backdrop;
 		this.backdrop = createBackdrop(spec, this.shared);
@@ -361,23 +430,25 @@ export class GlassLayer implements Disposable {
 
 	/* ------------------------------------------------------------ private -- */
 
-	private createPanel(
-		element: HTMLElement,
-		options: Required<GlassPanelOptions>,
-	): Panel {
+	private createPanel(element: HTMLElement, options: Required<GlassPanelOptions>): Panel {
 		const material = this.createPanelMaterial(options);
 		const mesh = new Mesh(this.panelGeometry, material);
 		mesh.frustumCulled = false;
 		mesh.visible = false;
 		this.glassScene.add(mesh);
-		const panel: Panel = { element, mesh, material, options, userVisible: true, onScreen: false };
+		const panel: Panel = {
+			element,
+			mesh,
+			material,
+			options,
+			userVisible: true,
+			onScreen: false,
+		};
 		this.applyPanelOptions(panel);
 		return panel;
 	}
 
-	private createPanelMaterial(
-		options: Required<GlassPanelOptions>,
-	): LiquidGlassMaterial {
+	private createPanelMaterial(options: Required<GlassPanelOptions>): LiquidGlassMaterial {
 		const material = createLiquidGlassMaterial(
 			{
 				size: [1, 1],
@@ -432,7 +503,10 @@ export class GlassLayer implements Disposable {
 		u.fresnel.value = panel.options.fresnel;
 		u.fresnelPower.value = panel.options.fresnelPower;
 		u.edgeGlow.value = panel.options.edgeGlow;
-		u.lightDirection.value.set(panel.options.lightDirection[0], panel.options.lightDirection[1]);
+		u.lightDirection.value.set(
+			panel.options.lightDirection[0],
+			panel.options.lightDirection[1],
+		);
 		u.grain.value = panel.options.grain;
 		u.opacity.value = panel.options.opacity;
 		u.pointerStrength.value = panel.options.pointerStrength;
@@ -465,6 +539,8 @@ export class GlassLayer implements Disposable {
 		this.height = height;
 		this.dpr = dpr;
 		this.ui.setSize(width, height, dprCap);
+		this.particleCamera.aspect = width / Math.max(height, 1);
+		this.particleCamera.updateProjectionMatrix();
 
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
@@ -572,11 +648,17 @@ export class GlassLayer implements Disposable {
 		// 1. Backdrop first, straight to the screen.
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
 
-		// 2. Glass next, in a separate `render()` call. `viewportSharedTexture`
+		// 2. Particle effects are composited into the same canvas, before glass.
+		//    The following glass render then refracts both the backdrop and these
+		//    particles through `viewportSharedTexture()`.
+		if (this.particleSystems.size > 0) {
+			renderer.render(this.particleScene, this.particleCamera);
+		}
+
+		// 3. Glass next, in a separate `render()` call. `viewportSharedTexture`
 		//    de-duplicates its framebuffer copy per render call, so this is one
 		//    blit per frame no matter how many panels are registered — and the
-		//    copy happens after the backdrop is already on screen, which is
-		//    exactly what refraction needs.
+		//    copy happens after the backdrop and particles are already on screen.
 		renderer.render(this.glassScene, this.glassCamera);
 	}
 }

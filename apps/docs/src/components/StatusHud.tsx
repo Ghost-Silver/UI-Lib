@@ -9,7 +9,13 @@ interface StatusHudProps {
 export function StatusHud({ stats, status, forceFallback }: StatusHudProps) {
 	const backend = stats?.backend ?? (forceFallback ? "css" : "…");
 	const badge =
-		backend === "webgpu" ? "WebGPU" : backend === "webgl2" ? "WebGL 2" : backend === "css" ? "CSS" : "…";
+		backend === "webgpu"
+			? "WebGPU"
+			: backend === "webgl2"
+				? "WebGL 2"
+				: backend === "css"
+					? "CSS"
+					: "…";
 
 	return (
 		<aside className="hud" aria-live="polite">
@@ -32,15 +38,11 @@ export function StatusHud({ stats, status, forceFallback }: StatusHudProps) {
 				</div>
 				<div>
 					<dt>Panels</dt>
-					<dd>
-						{stats ? `${stats.visiblePanels}/${stats.panels}` : "—"}
-					</dd>
+					<dd>{stats ? `${stats.visiblePanels}/${stats.panels}` : "—"}</dd>
 				</div>
 				<div>
 					<dt>Buffer</dt>
-					<dd>
-						{stats ? `${stats.bufferWidth}×${stats.bufferHeight}` : "—"}
-					</dd>
+					<dd>{stats ? `${stats.bufferWidth}×${stats.bufferHeight}` : "—"}</dd>
 				</div>
 				<div>
 					<dt>Motion</dt>

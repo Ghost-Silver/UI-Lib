@@ -1,5 +1,5 @@
-import { Color, Vector2 } from "three/webgpu";
 import { uniform } from "three/tsl";
+import { Color, Vector2 } from "three/webgpu";
 
 /**
  * Structural types for the TSL uniform nodes we hand around between packages.

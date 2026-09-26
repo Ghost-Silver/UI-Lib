@@ -5,16 +5,16 @@
  * package is where a GPU actually gets involved.
  */
 
+export type { BackdropInstance, BackdropSpec } from "./backdrop.js";
+export { createBackdrop, DEFAULT_BACKDROP } from "./backdrop.js";
 export type { CreateRendererOptions, UiRenderer } from "./createRenderer.js";
 export { createRenderer, RendererUnavailableError } from "./createRenderer.js";
-
-export type { BackdropSpec, BackdropInstance } from "./backdrop.js";
-export { createBackdrop, DEFAULT_BACKDROP } from "./backdrop.js";
 
 export type {
 	GlassLayerOptions,
 	GlassLayerStats,
 	GlassPanelHandle,
 	GlassPanelOptions,
+	ParticleLayerOptions,
 } from "./glassLayer.js";
-export { GlassLayer, GLASS_PANEL_DEFAULTS, createGlassLayer } from "./glassLayer.js";
+export { createGlassLayer, GLASS_PANEL_DEFAULTS, GlassLayer } from "./glassLayer.js";

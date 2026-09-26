@@ -1,5 +1,5 @@
-import { Color, MeshBasicNodeMaterial, Vector2, type ColorRepresentation } from "three/webgpu";
 import { dot, float, fract, length, mix, sin, uniform, uv, vec2, vec3 } from "three/tsl";
+import { Color, type ColorRepresentation, MeshBasicNodeMaterial, Vector2 } from "three/webgpu";
 import type { ColorUniform, FloatUniform, SharedUniforms } from "./nodeTypes.js";
 
 export interface GradientBackdropOptions {
@@ -88,10 +88,24 @@ export function createGradientBackdropMaterial(
 	// Normalised, aspect-corrected coordinates centred on 0.
 	const coords = uv().sub(0.5).mul(vec2(uniforms.aspect, 1)).mul(uniforms.scale);
 
-	const blob = (cx: number, cy: number, sx: number, sy: number, phase: number, falloff: number) => {
-		const center = vec2(sin(t.mul(sx).add(phase)).mul(cx), sin(t.mul(sy).add(phase * 1.7)).mul(cy));
+	const blob = (
+		cx: number,
+		cy: number,
+		sx: number,
+		sy: number,
+		phase: number,
+		falloff: number,
+	) => {
+		const center = vec2(
+			sin(t.mul(sx).add(phase)).mul(cx),
+			sin(t.mul(sy).add(phase * 1.7)).mul(cy),
+		);
 		const d = length(coords.sub(center));
-		return float(1).div(float(1).add(falloff * 1).mul(d.mul(d)));
+		return float(1).div(
+			float(1)
+				.add(falloff * 1)
+				.mul(d.mul(d)),
+		);
 	};
 
 	const w0 = blob(0.62, 0.48, 0.9, 0.7, 0.0, 7);

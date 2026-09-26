@@ -178,6 +178,9 @@ importers:
 
   apps/docs:
     dependencies:
+      '@ui-lib/particles':
+        specifier: workspace:*
+        version: link:../../packages/particles
       '@ui-lib/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -222,11 +225,29 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/particles:
+    devDependencies:
+      '@types/three':
+        specifier: ^0.186.0
+        version: 0.186.0
+      three:
+        specifier: 0.186.1
+        version: 0.186.1
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/react:
     dependencies:
       '@ui-lib/core':
         specifier: workspace:*
         version: link:../core
+      '@ui-lib/particles':
+        specifier: workspace:*
+        version: link:../particles
       '@ui-lib/renderer':
         specifier: workspace:*
         version: link:../renderer
@@ -261,6 +282,9 @@ importers:
       '@ui-lib/core':
         specifier: workspace:*
         version: link:../core
+      '@ui-lib/particles':
+        specifier: workspace:*
+        version: link:../particles
       '@ui-lib/shaders':
         specifier: workspace:*
         version: link:../shaders

@@ -1,7 +1,7 @@
 {
-	"name": "@ui-lib/core",
+	"name": "@ui-lib/particles",
 	"version": "0.0.1",
-	"description": "Framework-agnostic runtime foundation for UI-Lib: device probing, adaptive quality, a single unified frame loop, math and lifecycle primitives.",
+	"description": "GPU particle engine for UI-Lib: compute-shader simulation, force fields and instanced sprite rendering.",
 	"license": "MIT",
 	"type": "module",
 	"sideEffects": false,
@@ -22,7 +22,12 @@
 		"build": "tsup",
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
+	"peerDependencies": {
+		"three": ">=0.180.0"
+	},
 	"devDependencies": {
+		"@types/three": "^0.186.0",
+		"three": "0.186.1",
 		"tsup": "^8.5.0",
 		"typescript": "^5.9.3"
 	}

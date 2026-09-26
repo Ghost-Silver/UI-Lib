@@ -1,24 +1,14 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "types": [
-      "@types/three",
-      "@types/react"
-    ],
-    "paths": {
-      "@ui-lib/core": [
-        "../core/src/index.ts"
-      ],
-      "@ui-lib/shaders": [
-        "../shaders/src/index.ts"
-      ],
-      "@ui-lib/renderer": [
-        "../renderer/src/index.ts"
-      ]
-    }
-  },
-  "include": [
-    "src"
-  ]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"types": ["@types/three", "@types/react"],
+		"paths": {
+			"@ui-lib/core": ["../core/src/index.ts"],
+			"@ui-lib/particles": ["../particles/src/index.ts"],
+			"@ui-lib/shaders": ["../shaders/src/index.ts"],
+			"@ui-lib/renderer": ["../renderer/src/index.ts"]
+		}
+	},
+	"include": ["src"]
 }

@@ -1,28 +1,29 @@
 {
-  "name": "@ui-lib/docs",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "description": "Interactive showcase and playground for UI-Lib.",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
-  },
-  "dependencies": {
-    "@ui-lib/react": "workspace:*",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "three": "0.186.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.15.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@types/three": "^0.186.0",
-    "@vitejs/plugin-react": "^5.0.4",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.9"
-  }
+	"name": "@ui-lib/docs",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"description": "Interactive showcase and playground for UI-Lib.",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"dependencies": {
+		"@ui-lib/particles": "workspace:*",
+		"@ui-lib/react": "workspace:*",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
+		"three": "0.186.1"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.0",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"@types/three": "^0.186.0",
+		"@vitejs/plugin-react": "^5.0.4",
+		"typescript": "^5.9.3",
+		"vite": "^7.1.9"
+	}
 }

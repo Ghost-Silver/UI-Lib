@@ -45,11 +45,18 @@ de-duplicates the copy **per render call** — so forty panels still cost one bl
 ## Usage
 
 ```tsx
-import { GlassPanel, GlassStage } from "@ui-lib/react";
+import { GlassPanel, GlassStage, ParticleField } from "@ui-lib/react";
 
 export default function Page() {
   return (
     <GlassStage backdrop={{ type: "gradient", colors: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"] }}>
+      <ParticleField
+        options={{
+          count: 100_000,
+          forces: { turbulence: 2.2, vortex: 1.4 },
+          colors: ["#5eead4", "#a78bfa", "#f472b6"],
+        }}
+      />
       <GlassPanel radius={34} refraction={46} dispersion={0.3} roughness={0.2} className="card">
         <h2>Text sits *on* the glass, not inside a canvas.</h2>
       </GlassPanel>
@@ -57,6 +64,10 @@ export default function Page() {
   );
 }
 ```
+
+`ParticleField` is GPU-simulated and is composited into the same stage before the glass pass,
+so panels refract particles as well as the backdrop. WebGPU uses compute shaders; the WebGL 2
+fallback uses three's transform-feedback path with the same TSL graph.
 
 Or imperatively, without React:
 
@@ -77,8 +88,9 @@ Nothing throws, nothing looks broken.
 | --- | --- | --- |
 | [`@ui-lib/core`](packages/core) | no | device probing, adaptive quality, one unified frame loop, math, pointer, lifecycle |
 | [`@ui-lib/shaders`](packages/shaders) | yes | TSL node materials: liquid glass, gradient-mesh backdrop |
-| [`@ui-lib/renderer`](packages/renderer) | yes | renderer bootstrap (WebGPU→WebGL 2), backdrop passes, the DOM-attached glass layer |
-| [`@ui-lib/react`](packages/react) | yes | `<GlassStage>`, `<GlassPanel>`, hooks, CSS fallback |
+| [`@ui-lib/renderer`](packages/renderer) | yes | renderer bootstrap (WebGPU→WebGL 2), backdrop passes, particles, the DOM-attached glass layer |
+| [`@ui-lib/particles`](packages/particles) | yes | compute/transform-feedback simulation, emitters, flow fields, bounds and sprite rendering |
+| [`@ui-lib/react`](packages/react) | yes | `<GlassStage>`, `<GlassPanel>`, `<ParticleField>`, hooks, CSS fallback |
 
 Layering rule: `core` never imports three; adapter packages sit on top; reverse dependencies are bugs.
 
@@ -100,7 +112,21 @@ pnpm lint       # biome
 | WebGL 2 | everything else — automatic, same shader graph |
 | CSS | no GPU at all — `backdrop-filter` fallback |
 
+## Milestone 2: GPU particles
+
+The first M2 slice is now live in the playground and in [`@ui-lib/particles`](packages/particles):
+
+- struct-of-arrays storage buffers for positions, velocities and packed lifetime attributes;
+- deterministic GPU spawning from point, sphere, box, disc, ring or cone emitters;
+- gravity, wind, damping, a cheap divergence-free noise flow, vortex and pointer attractor;
+- sphere/box bounds with restitution, lifetime respawn, colour-over-life, speed heat and soft sprites;
+- WebGPU native compute with three's WebGL 2 transform-feedback fallback;
+- one shared scheduler: compute runs before the render pass, and particles share the glass canvas.
+
+The docs scene uses 24,000 particles intentionally; the public default is 80,000 and the engine is
+structured for 1M+ once the next storage/LOD pass lands.
+
 ## Next
 
-Milestone 2 is the GPU particle engine (compute shaders, curl-noise force fields, 1M+ particles).
+Milestone 3 is the TSL post-processing chain (bloom, glare, chromatic aberration, bokeh and TAA).
 Full plan, milestones and open questions: [`docs/ROADMAP.md`](docs/ROADMAP.md).

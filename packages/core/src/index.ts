@@ -6,39 +6,39 @@
  * deterministic lifecycle.
  */
 
-export type { GpuBackend, DeviceCapabilities } from "./device.js";
+export type { DeviceCapabilities, GpuBackend } from "./device.js";
 export {
-	hasDom,
 	detectCapabilities,
 	detectCapabilitiesSync,
+	hasDom,
 	onReducedMotionChange,
 } from "./device.js";
-
-export type { QualityTier, QualitySettings, QualityPreset, QualityManagerOptions } from "./quality.js";
-export { QUALITY_PRESETS, scoreTier, QualityManager } from "./quality.js";
-
-export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
-export { FrameScheduler, TASK_PRIORITY, getScheduler, disposeScheduler } from "./scheduler.js";
-
 export type { Disposable, Teardown } from "./lifecycle.js";
 export { Disposer, nextFrame } from "./lifecycle.js";
-
+export type { EasingName, SpringOptions } from "./math.js";
 export {
-	Easing,
-	Spring,
-	Spring2,
 	clamp,
 	clamp01,
 	damp,
+	Easing,
 	fbm2D,
 	inverseLerp,
 	lerp,
 	mapRange,
+	Spring,
+	Spring2,
 	smoothstep,
 	valueNoise2D,
 	wrap,
 } from "./math.js";
-export type { EasingName, SpringOptions } from "./math.js";
-
 export type { PointerState, PointerTrackerOptions } from "./pointer.js";
 export { PointerTracker } from "./pointer.js";
+export type {
+	QualityManagerOptions,
+	QualityPreset,
+	QualitySettings,
+	QualityTier,
+} from "./quality.js";
+export { QUALITY_PRESETS, QualityManager, scoreTier } from "./quality.js";
+export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
+export { disposeScheduler, FrameScheduler, getScheduler, TASK_PRIORITY } from "./scheduler.js";

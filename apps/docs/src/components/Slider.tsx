@@ -40,7 +40,11 @@ interface ToggleProps {
 export function Toggle({ label, checked, hint, onChange }: ToggleProps) {
 	return (
 		<label className="toggle">
-			<input type="checkbox" checked={checked} onChange={(e) => onChange(e.currentTarget.checked)} />
+			<input
+				type="checkbox"
+				checked={checked}
+				onChange={(e) => onChange(e.currentTarget.checked)}
+			/>
 			<span className="toggle__track" aria-hidden="true">
 				<span className="toggle__thumb" />
 			</span>

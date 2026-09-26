@@ -1,19 +1,19 @@
 import {
+	type BackdropSpec,
+	createGlassLayer,
+	type GlassLayer,
+	type GlassLayerOptions,
+	type GlassLayerStats,
+} from "@ui-lib/renderer";
+import {
+	type CSSProperties,
+	type ReactNode,
 	useCallback,
 	useEffect,
 	useMemo,
 	useRef,
 	useState,
-	type CSSProperties,
-	type ReactNode,
 } from "react";
-import {
-	createGlassLayer,
-	type BackdropSpec,
-	type GlassLayer,
-	type GlassLayerOptions,
-	type GlassLayerStats,
-} from "@ui-lib/renderer";
 import { GlassStageContext, type GlassStageStatus, type GlassStageValue } from "./context.js";
 import { ensureStyles } from "./injectStyles.js";
 import { stableKey, useIsomorphicLayoutEffect } from "./utils.js";
@@ -122,17 +122,32 @@ export function GlassStage({
 			created?.dispose();
 			setState({ layer: null, error: null });
 		};
-	}, [forceFallback, zIndex, dprCap, antialias, forceWebGL, tier, autoQuality, pointer, alwaysSyncLayout]);
+	}, [
+		forceFallback,
+		zIndex,
+		dprCap,
+		antialias,
+		forceWebGL,
+		tier,
+		autoQuality,
+		pointer,
+		alwaysSyncLayout,
+	]);
 
-	// Backdrop changes must not tear down the whole GPU layer.
+	// Backdrop changes must not tear down the whole GPU layer. The ref keeps
+	// object identity out of the dependency list; the content key still drives
+	// this effect for inline object props.
 	useEffect(() => {
-		state.layer?.setBackdrop(backdropRef.current ?? { type: "gradient" });
+		if (backdropKey) state.layer?.setBackdrop(backdropRef.current ?? { type: "gradient" });
 	}, [state.layer, backdropKey]);
 
-	const setBackdrop = useCallback((spec: BackdropSpec) => {
-		backdropRef.current = spec;
-		state.layer?.setBackdrop(spec);
-	}, [state.layer]);
+	const setBackdrop = useCallback(
+		(spec: BackdropSpec) => {
+			backdropRef.current = spec;
+			state.layer?.setBackdrop(spec);
+		},
+		[state.layer],
+	);
 
 	const value = useMemo<GlassStageValue>(
 		() => ({ layer: state.layer, status, error: state.error, stats, setBackdrop }),

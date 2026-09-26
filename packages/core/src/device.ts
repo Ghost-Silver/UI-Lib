@@ -85,7 +85,10 @@ function envInfo() {
 	const nav = (typeof navigator === "undefined" ? {} : navigator) as NavigatorExtras;
 	const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
 	return {
-		cores: Math.max(1, (typeof navigator === "undefined" ? 1 : navigator.hardwareConcurrency) || 1),
+		cores: Math.max(
+			1,
+			(typeof navigator === "undefined" ? 1 : navigator.hardwareConcurrency) || 1,
+		),
 		memoryGB: typeof nav.deviceMemory === "number" ? nav.deviceMemory : null,
 		saveData: nav.connection?.saveData === true,
 		devicePixelRatio: hasDom() ? window.devicePixelRatio || 1 : 1,

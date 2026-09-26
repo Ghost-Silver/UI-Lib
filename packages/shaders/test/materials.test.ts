@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { DataTexture, RGBAFormat, UnsignedByteType } from "three/webgpu";
+import { describe, expect, it } from "vitest";
 import { createGradientBackdropMaterial, createLiquidGlassMaterial } from "../src/index.js";
 
 /**
@@ -49,18 +49,27 @@ describe("createLiquidGlassMaterial", () => {
 
 	it("shares time/resolution uniforms across materials", () => {
 		const a = createLiquidGlassMaterial();
-		const b = createLiquidGlassMaterial({}, {
-			time: a.uniforms.time,
-			resolution: a.uniforms.resolution,
-			pointer: a.uniforms.pointer,
-		});
+		const b = createLiquidGlassMaterial(
+			{},
+			{
+				time: a.uniforms.time,
+				resolution: a.uniforms.resolution,
+				pointer: a.uniforms.pointer,
+			},
+		);
 		a.uniforms.time.value = 12.5;
 		expect(b.uniforms.time.value).toBe(12.5);
 	});
 
 	it("repoints the backdrop texture without rebuilding", () => {
 		const material = createLiquidGlassMaterial({ blurTaps: 5 });
-		const texture = new DataTexture(new Uint8Array([255, 0, 0, 255]), 1, 1, RGBAFormat, UnsignedByteType);
+		const texture = new DataTexture(
+			new Uint8Array([255, 0, 0, 255]),
+			1,
+			1,
+			RGBAFormat,
+			UnsignedByteType,
+		);
 		expect(() => material.setBackdrop(texture)).not.toThrow();
 		expect(material.usesPlaceholderBackdrop).toBe(true);
 	});

@@ -1,6 +1,6 @@
-import { WebGPURenderer } from "three/webgpu";
 import type { DeviceCapabilities, GpuBackend } from "@ui-lib/core";
 import { detectCapabilities, hasDom } from "@ui-lib/core";
+import { WebGPURenderer } from "three/webgpu";
 
 export interface CreateRendererOptions {
 	canvas?: HTMLCanvasElement;

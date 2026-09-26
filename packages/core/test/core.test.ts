@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { detectCapabilitiesSync } from "../src/device.js";
 import {
+	clamp,
+	damp,
 	Easing,
+	lerp,
+	mapRange,
 	QUALITY_PRESETS,
 	QualityManager,
 	Spring,
-	clamp,
-	damp,
-	lerp,
-	mapRange,
 	scoreTier,
 	smoothstep,
 	wrap,
 } from "../src/index.js";
 import { Disposer } from "../src/lifecycle.js";
-import { detectCapabilitiesSync } from "../src/device.js";
 
 describe("math", () => {
 	it("clamps, lerps and maps ranges", () => {

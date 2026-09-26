@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { GlassPanel, GlassStage, useGlassStage } from "@ui-lib/react";
+import type { ParticleSystemOptions } from "@ui-lib/particles";
+import { GlassPanel, GlassStage, ParticleField, useGlassStage } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
+import { useMemo, useState } from "react";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
 
@@ -46,6 +47,37 @@ const DEFAULT_PARAMS: Params = {
 	saturation: 1.15,
 };
 
+const PARTICLES: ParticleSystemOptions = {
+	count: 24_000,
+	emitter: {
+		shape: "sphere",
+		radius: 3.8,
+		direction: [0, 0.15, 0],
+		speed: 0.8,
+		spread: 0.92,
+	},
+	forces: {
+		gravity: [0, 0.06, 0],
+		drag: 0.12,
+		turbulence: 2.2,
+		noiseScale: 0.3,
+		noiseDrift: 0.24,
+		vortex: 1.8,
+		attractor: 0.8,
+		attractorRadius: 7,
+	},
+	life: [4, 10],
+	size: [0.035, 0.12],
+	colors: ["#4de8d5", "#8d7bff", "#f778c8"],
+	hotColor: "#ffffff",
+	hotAmount: 0.32,
+	intensity: 1.8,
+	opacity: 0.82,
+	bounds: "sphere",
+	boundsRadius: 8,
+	blending: "additive",
+};
+
 export default function App() {
 	const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
 	const [palette, setPalette] = useState<PaletteId>("aurora");
@@ -58,8 +90,10 @@ export default function App() {
 		[palette, speed],
 	);
 
-	const set = <K extends keyof Params>(key: K) => (value: Params[K]) =>
-		setParams((prev) => ({ ...prev, [key]: value }));
+	const set =
+		<K extends keyof Params>(key: K) =>
+		(value: Params[K]) =>
+			setParams((prev) => ({ ...prev, [key]: value }));
 
 	return (
 		<GlassStage
@@ -68,6 +102,11 @@ export default function App() {
 			forceWebGL={backend === "webgl"}
 			className="stage"
 		>
+			<ParticleField
+				options={PARTICLES}
+				camera={{ cameraPosition: [0, 0.5, 13], cameraTarget: [0, 0.3, 0], fov: 50 }}
+				pointer
+			/>
 			<Scene
 				params={params}
 				set={set}
@@ -131,7 +170,11 @@ function Scene(props: SceneProps) {
 					UI·LIB <span className="brand__sub">/ liquid glass</span>
 				</div>
 				<GlassPanel className="pill" {...pill}>
-					{stats?.backend === "webgpu" ? "WebGPU" : stats?.backend === "webgl2" ? "WebGL 2" : "CSS fallback"}
+					{stats?.backend === "webgpu"
+						? "WebGPU"
+						: stats?.backend === "webgl2"
+							? "WebGL 2"
+							: "CSS fallback"}
 				</GlassPanel>
 			</header>
 
@@ -144,12 +187,17 @@ function Scene(props: SceneProps) {
 						<em>bends light.</em>
 					</h1>
 					<p className="lede">
-						Not <code>backdrop-filter</code>. A rounded-rect SDF drives a quarter-round bevel normal;
-						that normal offsets screen-space UVs to refract the backdrop, with a per-channel scale
-						for chromatic dispersion and a golden-angle disc blur for frost.
+						Not <code>backdrop-filter</code>. A rounded-rect SDF drives a quarter-round bevel
+						normal; that normal offsets screen-space UVs to refract the backdrop, with a
+						per-channel scale for chromatic dispersion and a golden-angle disc blur for frost.
 					</p>
 					<div className="hero__actions">
-						<GlassPanel as="button" className="cta" {...pill} onClick={() => setParams(DEFAULT_PARAMS)}>
+						<GlassPanel
+							as="button"
+							className="cta"
+							{...pill}
+							onClick={() => setParams(DEFAULT_PARAMS)}
+						>
 							Reset parameters
 						</GlassPanel>
 						<GlassPanel
@@ -166,16 +214,82 @@ function Scene(props: SceneProps) {
 				<GlassPanel className="panel panel--hero" {...glass}>
 					<h2 className="panel__title">Live parameters</h2>
 					<div className="sliders">
-						<Slider label="Refraction" value={params.refraction} min={0} max={140} onChange={set("refraction")} />
-						<Slider label="Dispersion" value={params.dispersion} min={0} max={1} step={0.01} onChange={set("dispersion")} />
-						<Slider label="Roughness" value={params.roughness} min={0} max={1} step={0.01} onChange={set("roughness")} />
-						<Slider label="Frost radius" value={params.frost} min={0} max={80} onChange={set("frost")} />
-						<Slider label="Corner radius" value={params.radius} min={0} max={90} onChange={set("radius")} />
-						<Slider label="Bevel" value={params.bevel} min={0} max={90} onChange={set("bevel")} />
-						<Slider label="Specular" value={params.specular} min={0} max={2} step={0.01} onChange={set("specular")} />
-						<Slider label="Edge glow" value={params.edgeGlow} min={0} max={2} step={0.01} onChange={set("edgeGlow")} />
-						<Slider label="Tint" value={params.tintAmount} min={0} max={0.6} step={0.01} onChange={set("tintAmount")} />
-						<Slider label="Saturation" value={params.saturation} min={0} max={2} step={0.01} onChange={set("saturation")} />
+						<Slider
+							label="Refraction"
+							value={params.refraction}
+							min={0}
+							max={140}
+							onChange={set("refraction")}
+						/>
+						<Slider
+							label="Dispersion"
+							value={params.dispersion}
+							min={0}
+							max={1}
+							step={0.01}
+							onChange={set("dispersion")}
+						/>
+						<Slider
+							label="Roughness"
+							value={params.roughness}
+							min={0}
+							max={1}
+							step={0.01}
+							onChange={set("roughness")}
+						/>
+						<Slider
+							label="Frost radius"
+							value={params.frost}
+							min={0}
+							max={80}
+							onChange={set("frost")}
+						/>
+						<Slider
+							label="Corner radius"
+							value={params.radius}
+							min={0}
+							max={90}
+							onChange={set("radius")}
+						/>
+						<Slider
+							label="Bevel"
+							value={params.bevel}
+							min={0}
+							max={90}
+							onChange={set("bevel")}
+						/>
+						<Slider
+							label="Specular"
+							value={params.specular}
+							min={0}
+							max={2}
+							step={0.01}
+							onChange={set("specular")}
+						/>
+						<Slider
+							label="Edge glow"
+							value={params.edgeGlow}
+							min={0}
+							max={2}
+							step={0.01}
+							onChange={set("edgeGlow")}
+						/>
+						<Slider
+							label="Tint"
+							value={params.tintAmount}
+							min={0}
+							max={0.6}
+							step={0.01}
+							onChange={set("tintAmount")}
+						/>
+						<Slider
+							label="Saturation"
+							value={params.saturation}
+							min={0}
+							max={2}
+							step={0.01}
+							onChange={set("saturation")}
+						/>
 					</div>
 				</GlassPanel>
 			</section>
@@ -199,26 +313,47 @@ function Scene(props: SceneProps) {
 				<GlassPanel className="panel" {...card}>
 					<h2 className="panel__title">One canvas, many panels</h2>
 					<p>
-						Browsers cap concurrent WebGPU/WebGL contexts at roughly 8–16. The layer owns a single
-						fixed, pointer-transparent canvas and draws every registered element into it, so a
-						dashboard with forty glass cards still costs one device.
+						Browsers cap concurrent WebGPU/WebGL contexts at roughly 8–16. The layer owns a
+						single fixed, pointer-transparent canvas and draws every registered element into it,
+						so a dashboard with forty glass cards still costs one device.
 					</p>
 				</GlassPanel>
 				<GlassPanel className="panel" {...card}>
 					<h2 className="panel__title">Progressive by construction</h2>
 					<p>
-						TSL compiles the same graph to WGSL under WebGPU and GLSL under WebGL 2. No GPU at all
-						and the panel quietly becomes a <code>backdrop-filter</code> card — try the toggle
-						below to see exactly what a no-GPU visitor gets.
+						TSL compiles the same graph to WGSL under WebGPU and GLSL under WebGL 2. No GPU at
+						all and the panel quietly becomes a <code>backdrop-filter</code> card — try the
+						toggle below to see exactly what a no-GPU visitor gets.
 					</p>
 				</GlassPanel>
 			</section>
 
 			<section className="row">
 				<GlassPanel className="panel" {...card}>
+					<h2 className="panel__title">Compute particles</h2>
+					<p>
+						24,000 points are born, advected through a noise-derived flow field, pulled by a
+						soft attractor and respawned entirely on the GPU. WebGL 2 uses transform feedback;
+						WebGPU uses a native compute pass. The glass above refracts them through the same
+						canvas.
+					</p>
+				</GlassPanel>
+				<GlassPanel className="panel" {...card}>
 					<h2 className="panel__title">Backdrop</h2>
-					<Choice label="Palette" value={palette} options={PALETTE_OPTIONS} onChange={setPalette} />
-					<Slider label="Drift speed" value={speed} min={0} max={1.5} step={0.01} onChange={setSpeed} />
+					<Choice
+						label="Palette"
+						value={palette}
+						options={PALETTE_OPTIONS}
+						onChange={setPalette}
+					/>
+					<Slider
+						label="Drift speed"
+						value={speed}
+						min={0}
+						max={1.5}
+						step={0.01}
+						onChange={setSpeed}
+					/>
 				</GlassPanel>
 				<GlassPanel className="panel" {...card}>
 					<h2 className="panel__title">Rendering</h2>
