@@ -1,0 +1,44 @@
+{
+	"name": "@ui-lib/react",
+	"version": "0.0.1",
+	"description": "React bindings for UI-Lib: a glass stage plus declarative, progressively-enhanced effect components.",
+	"license": "MIT",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"peerDependencies": {
+		"react": ">=18",
+		"react-dom": ">=18",
+		"three": ">=0.180.0"
+	},
+	"dependencies": {
+		"@ui-lib/core": "workspace:*",
+		"@ui-lib/particles": "workspace:*",
+		"@ui-lib/renderer": "workspace:*",
+		"@ui-lib/shaders": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/react": "^19.2.0",
+		"@types/three": "^0.186.0",
+		"react": "^19.2.0",
+		"three": "0.186.1",
+		"tsup": "^8.5.0",
+		"typescript": "^5.9.3"
+	}
+}

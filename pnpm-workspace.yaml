@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+# esbuild ships its platform binary via a postinstall script; without this
+# Vite and tsup cannot run. (pnpm 12 renamed `onlyBuiltDependencies`.)
+allowBuilds:
+  esbuild: true

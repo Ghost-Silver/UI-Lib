@@ -1,0 +1,16 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"types": ["@types/three", "@types/react", "@types/react-dom", "vite/client", "node"],
+		"paths": {
+			"@ui-lib/particles": ["../../packages/particles/src/index.ts"],
+			"@ui-lib/post": ["../../packages/post/src/index.ts"],
+			"@ui-lib/react": ["../../packages/react/src/index.ts"],
+			"@ui-lib/renderer": ["../../packages/renderer/src/index.ts"],
+			"@ui-lib/shaders": ["../../packages/shaders/src/index.ts"],
+			"@ui-lib/core": ["../../packages/core/src/index.ts"]
+		}
+	},
+	"include": ["src", "vite.config.ts"]
+}
