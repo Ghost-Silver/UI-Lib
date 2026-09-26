@@ -140,7 +140,8 @@ The first M3 chain is now connected to the live stage through [`@ui-lib/post`](p
 - animated procedural grain;
 - exposure / contrast / saturation grading;
 - vignette;
-- temporal accumulation with explicit history reset on resize / teardown;
+- depth-free cinematic focus blur and directional motion blur controls;
+- temporal accumulation with Halton sub-pixel jitter and explicit history reset on resize / teardown;
 - all sampled from the already-composited canvas through `viewportTexture()`;
 - final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
 

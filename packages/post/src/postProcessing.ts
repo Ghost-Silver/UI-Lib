@@ -6,6 +6,7 @@ import {
 	mix,
 	oneMinus,
 	pow,
+	saturate,
 	screenUV,
 	sin,
 	smoothstep,
@@ -54,6 +55,14 @@ export interface PostProcessingOptions {
 	saturation?: number;
 	/** Previous-frame blend. Small values stabilise shimmer without visible trails. */
 	temporalBlend?: number;
+	/** Screen-space focus blur radius in device pixels. 0 disables the DOF approximation. */
+	focusBlur?: number;
+	/** Radius around this UV point that stays in focus. */
+	focusPoint?: [number, number];
+	/** Directional screen-space blur in device pixels. 0 disables motion blur. */
+	motionBlur?: number;
+	/** Motion vector direction in screen space. */
+	motionDirection?: [number, number];
 }
 
 export const POST_DEFAULTS: Required<PostProcessingOptions> = {
@@ -72,6 +81,10 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	contrast: 1.03,
 	saturation: 1.08,
 	temporalBlend: 0.08,
+	focusBlur: 2.5,
+	focusPoint: [0.5, 0.5],
+	motionBlur: 0.05,
+	motionDirection: [1, 0],
 };
 
 const _floatUniform = uniform(0);
@@ -95,6 +108,10 @@ export interface PostProcessingUniforms {
 	contrast: ScalarUniform;
 	saturation: ScalarUniform;
 	temporalBlend: ScalarUniform;
+	focusBlur: ScalarUniform;
+	focusPoint: VectorUniform;
+	motionBlur: ScalarUniform;
+	motionDirection: VectorUniform;
 	historyValid: ScalarUniform;
 	resolution: VectorUniform;
 	time: ScalarUniform;
@@ -108,6 +125,8 @@ export interface PostProcessing {
 	/** Copy the just-finished output into the next frame's temporal history. */
 	commit(renderer: WebGPURenderer): void;
 	resetHistory(): void;
+	/** Return the next 8-sample Halton jitter in device pixels for the world camera. */
+	nextJitter(): [number, number];
 	update(options: Partial<PostProcessingOptions>): void;
 	/** Advance animated effects from the page scheduler's single clock. */
 	step(dt: number): void;
@@ -123,6 +142,29 @@ const FLARE_OFFSETS: readonly [number, number][] = [
 	[3, 0.08],
 	[6, 0.045],
 ];
+
+const DOF_OFFSETS: readonly [number, number][] = [
+	[-1, -1],
+	[0, -1],
+	[1, -1],
+	[-1, 0],
+	[1, 0],
+	[-1, 1],
+	[0, 1],
+	[1, 1],
+];
+
+function halton(index: number, base: number): number {
+	let result = 0;
+	let fraction = 1 / base;
+	let value = index;
+	while (value > 0) {
+		result += (value % base) * fraction;
+		value = Math.floor(value / base);
+		fraction /= base;
+	}
+	return result;
+}
 
 const BLOOM_OFFSETS: readonly [number, number, number][] = [
 	[0, 0, 0.22],
@@ -170,6 +212,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		contrast: uniform(initial.contrast),
 		saturation: uniform(initial.saturation),
 		temporalBlend: uniform(initial.temporalBlend),
+		focusBlur: uniform(initial.focusBlur),
+		focusPoint: uniform(new Vector2(...initial.focusPoint)),
+		motionBlur: uniform(initial.motionBlur),
+		motionDirection: uniform(new Vector2(...initial.motionDirection)),
 		historyValid: uniform(0),
 		resolution: uniform(new Vector2(1, 1)),
 		time: uniform(0),
@@ -177,6 +223,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const historyTexture = new FramebufferTexture(1, 1);
 	historyTexture.colorSpace = SRGBColorSpace;
 	historyTexture.name = "ui-lib:post-history";
+	let jitterIndex = 0;
 
 	const source = viewportTexture();
 	const uv = screenUV;
@@ -250,6 +297,39 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	colour = mix(vec3(luminanceValue), colour, uniforms.saturation);
 	colour = colour.sub(0.5).mul(uniforms.contrast).add(0.5);
 
+	// Small screen-space focus blur. It is intentionally depth-free because the
+	// stage composites DOM glass and world effects rather than owning one 3D depth
+	// buffer; the focus point still gives the hero a cinematic centre.
+	let defocus: Node<"vec3"> = vec3(0);
+	for (const [x, y] of DOF_OFFSETS) {
+		defocus = defocus.add(
+			sample(vec2(x, y).mul(uniforms.focusBlur).div(uniforms.resolution)).rgb,
+		);
+	}
+	defocus = defocus.div(DOF_OFFSETS.length);
+	const focusDistance = uv.sub(uniforms.focusPoint).length();
+	const outOfFocus = smoothstep(0.16, 0.74, focusDistance);
+	colour = mix(colour, defocus, outOfFocus.mul(saturate(uniforms.focusBlur.div(16))));
+
+	// A directional five-tap blur gives moving hero elements a restrained
+	// cinematic smear. It is disabled by default and costs only the graph taps
+	// required by the selected option.
+	let motion: Node<"vec3"> = vec3(0);
+	for (const [distance, weight] of [
+		[-2, 0.12],
+		[-1, 0.2],
+		[0, 0.36],
+		[1, 0.2],
+		[2, 0.12],
+	] as const) {
+		motion = motion.add(
+			sample(uniforms.motionDirection.mul(distance).mul(2).div(uniforms.resolution)).rgb.mul(
+				weight,
+			),
+		);
+	}
+	colour = mix(colour, motion, uniforms.motionBlur);
+
 	// A deterministic animated grain pattern: no random texture allocation and
 	// no CPU-side noise upload.
 	const grainSeed = dot(
@@ -295,6 +375,11 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		},
 		resetHistory() {
 			uniforms.historyValid.value = 0;
+			jitterIndex = 0;
+		},
+		nextJitter() {
+			jitterIndex = (jitterIndex % 8) + 1;
+			return [halton(jitterIndex, 2) - 0.5, halton(jitterIndex, 3) - 0.5];
 		},
 		update(patch) {
 			if (patch.enabled !== undefined) uniforms.enabled.value = patch.enabled ? 1 : 0;
@@ -316,6 +401,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			if (patch.contrast !== undefined) uniforms.contrast.value = patch.contrast;
 			if (patch.saturation !== undefined) uniforms.saturation.value = patch.saturation;
 			if (patch.temporalBlend !== undefined) uniforms.temporalBlend.value = patch.temporalBlend;
+			if (patch.focusBlur !== undefined) uniforms.focusBlur.value = patch.focusBlur;
+			if (patch.focusPoint) uniforms.focusPoint.value.set(...patch.focusPoint);
+			if (patch.motionBlur !== undefined) uniforms.motionBlur.value = patch.motionBlur;
+			if (patch.motionDirection) uniforms.motionDirection.value.set(...patch.motionDirection);
 		},
 		step(dt) {
 			uniforms.time.value += Math.max(0, Math.min(dt, 1 / 15));

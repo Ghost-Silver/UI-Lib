@@ -731,11 +731,29 @@ export class GlassLayer implements Disposable {
 		// 1. Backdrop first, straight to the screen.
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
 
-		// 2. Particle effects are composited into the same canvas, before glass.
-		//    The following glass render then refracts both the backdrop and these
-		//    particles through `viewportSharedTexture()`.
-		if (this.particleSystems.size > 0) {
+		// 2. World effects are jittered by a short Halton sequence when temporal
+		//    accumulation is active. The DOM-attached glass camera stays unjittered,
+		//    so text and panel edges never swim while particles / hero geometry get
+		//    true sub-pixel coverage over several frames.
+		const hasWorldObjects = this.particleSystems.size > 0 || this.worldStops.size > 0;
+		let jitteredWorld = false;
+		if (usesPost && hasWorldObjects && !this.reducedMotion) {
+			const jitter = this.postProcessing?.nextJitter() ?? [0, 0];
+			const bufferWidth = Math.max(1, Math.round(this.sharedResolution.value.x));
+			const bufferHeight = Math.max(1, Math.round(this.sharedResolution.value.y));
+			this.particleCamera.setViewOffset(
+				bufferWidth,
+				bufferHeight,
+				jitter[0],
+				jitter[1],
+				bufferWidth,
+				bufferHeight,
+			);
+			jitteredWorld = true;
+		}
+		if (hasWorldObjects) {
 			renderer.render(this.particleScene, this.particleCamera);
+			if (jitteredWorld) this.particleCamera.clearViewOffset();
 		}
 
 		// 3. Glass next, in a separate `render()` call. `viewportSharedTexture`
