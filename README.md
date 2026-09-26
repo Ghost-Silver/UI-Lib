@@ -1,165 +1,342 @@
 # UI-Lib
 
-**A GPU-first visual-effects layer for the web.** 3D, particles, refraction, post-processing and
-scroll cinema — the stuff Apple's site does with video and CSS, done in real time on the GPU, and
-available to any app through a typed, progressively-enhanced API.
+**A GPU-first motion and visual-effects runtime for the web.**
 
-> Status: **Milestone 1 (liquid glass) is working.** WebGPU first, automatic WebGL 2 fallback,
-> pure-CSS fallback when there is no GPU at all. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+UI-Lib brings real-time liquid glass, GPU particles, 3D composition and TSL post-processing to ordinary web interfaces. It is designed for product heroes, scroll narratives and interactive surfaces—not for replacing semantic HTML with a canvas.
 
-```bash
-pnpm install
-pnpm dev        # http://localhost:5173 — interactive playground
-```
+> **Status: experimental `0.0.1`.** The rendering spine and the first Liquid Glass / particles / post-processing slices are implemented. Browser-level visual regression, production SSR APIs, DOM/motion packages and the flagship demos are still in progress. This README deliberately separates implemented behavior from roadmap claims.
+
+[Roadmap](docs/ROADMAP.md) · [Interactive playground](apps/docs) · [Packages](#packages)
 
 ---
 
-## What makes it different
+## Why UI-Lib exists
 
-|  | Apple's site / typical UI kit | UI-Lib |
-| --- | --- | --- |
-| Glass | `backdrop-filter: blur()` — blur only, no refraction, no dispersion | real screen-space refraction, chromatic dispersion, bevel thickness, edge caustics |
-| Particles | hundreds to thousands (CPU or CSS) | **millions** — physics in GPU compute shaders |
-| Post-processing | none | bloom, chromatic aberration, bokeh DOF, motion blur, TAA |
-| Backends | hand-tuned per effect | one TSL graph → WGSL **or** GLSL, chosen automatically |
-| Perf strategy | manual | device tiering + measured-fps auto-degrade + offscreen pause |
-| Instances | one canvas per effect | **one canvas per page**, N panels inside it |
+Most web visual effects make one of two compromises:
 
-## Milestone 1: liquid glass
+- CSS is accessible and easy to integrate, but `backdrop-filter` is only an approximation of glass and cannot provide a shared 3D world or GPU simulation.
+- A canvas demo can look impressive, but it often introduces another renderer, another animation loop, inaccessible content and no reliable teardown path.
 
-The glass look is built entirely from a rounded-rect SDF, in
-[`packages/shaders/src/liquidGlass.ts`](packages/shaders/src/liquidGlass.ts):
+UI-Lib takes a third approach:
 
-1. the SDF gives an antialiased silhouette **and** a bevel parameter `t`
-   (0 at the outer rim, 1 on the flat centre);
-2. `t` drives a quarter-round surface normal — flat in the middle, curving to near-vertical at the
-   rim, which is what makes the edge bend light;
-3. that normal offsets screen-space UVs to sample the framebuffer, with a per-channel scale for
-   chromatic dispersion;
-4. `roughness` cross-fades into a golden-angle disc blur (frosted glass), whose tap count comes from
-   the adaptive quality tier.
+- **DOM stays DOM.** Text, links, forms and layout remain semantic HTML.
+- **One shared rendering runtime.** A page uses one canvas, one renderer and one scheduler for all UI-Lib effects.
+- **Progressive enhancement.** WebGPU is preferred, WebGL2 is the automatic GPU fallback, and CSS/static states remain available when no GPU is usable.
+- **TSL only.** Materials and post effects are expressed as Three Shading Language node graphs so the same graph can compile to WGSL or GLSL. UI-Lib does not require raw GLSL/WGSL effect code.
+- **Deterministic lifecycle.** Every renderer, particle system, material, geometry and subscription has an explicit disposal path.
 
-Refraction reads the live framebuffer through three's `viewportSharedTexture()`, which
-de-duplicates the copy **per render call** — so forty panels still cost one blit per frame.
+UI-Lib is **not** a component library for buttons, cards or layout primitives. It is the visual runtime underneath those interfaces.
 
-## Usage
+## Current status
+
+### Implemented rendering slices
+
+- Liquid Glass attached to real DOM elements
+  - rounded-rectangle SDF silhouette and bevel shading
+  - screen-space refraction
+  - chromatic dispersion
+  - frost / roughness blur
+  - edge highlight, fresnel and tint controls
+- GPU particles
+  - WebGPU compute path
+  - WebGL2 transform-feedback fallback
+  - emitters, gravity, drag, turbulence, vortex, attractor and bounds
+  - color-over-life, speed heat, soft sprites and additive blending
+- TSL post-processing
+  - bloom, atmospheric halo and lens streak
+  - chromatic aberration, grain, exposure, contrast and saturation
+  - vignette, focus blur and directional motion blur controls
+  - Halton-jittered temporal accumulation
+  - depth history, disocclusion rejection, variance clipping and reactive rejection
+  - compile-time quality budgets (`quality: 1 | 2 | 3`)
+- Runtime behavior
+  - WebGPU-first renderer selection with WebGL2 fallback
+  - adaptive quality tiers and measured-FPS degradation
+  - reduced-motion handling
+  - hidden-tab scheduler pause
+  - static-frame redraw and TAA-history skipping when the scene is stable
+  - CSS fallback when the GPU path is unavailable or explicitly disabled
+  - shared renderer, canvas and scheduler for the stage
+
+### Not yet production-ready
+
+The following are intentionally **not** presented as finished capabilities:
+
+- real browser screenshot and FPS regression gates
+- GPU resource leak tests across repeated mount/unmount cycles
+- world-only per-pixel velocity MRT
+- reusable multi-pass bloom pyramid and custom post-pass slots
+- DOM ↔ GPU bridge and scroll-linked motion package
+- MSDF text
+- dynamic particle LOD, trails and validated pointer-to-world ray casting
+- complete imperative `createEffect()` API
+- R3F, Vue and Svelte adapters
+- SSR/hydration examples and release automation
+
+The playground is a technical showcase, not evidence of a guaranteed performance number. In particular, UI-Lib does **not** currently claim that one million particles run at 60 FPS on all WebGPU devices.
+
+## Quick start
+
+Requirements:
+
+- Node.js `>=20.19`
+- pnpm `12.x`
+- a browser with WebGPU or WebGL2 for the accelerated path
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Open the playground at `http://localhost:5173`.
+
+Build and validate the workspace:
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm lint
+pnpm build
+```
+
+The current repository has Node-side tests and TSL graph smoke tests. Full browser visual/performance validation requires a Playwright-capable environment with the relevant browser and GPU support; it is a planned P0 gate, not something this package currently fakes with a typecheck.
+
+## React usage
+
+`@ui-lib/react` is the first adapter. The content remains normal DOM while the stage owns the shared GPU layer.
 
 ```tsx
 import { GlassPanel, GlassStage, ParticleField } from "@ui-lib/react";
 
-export default function Page() {
+export function ProductHero() {
   return (
-    <GlassStage backdrop={{ type: "gradient", colors: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"] }}>
+    <GlassStage
+      backdrop={{
+        type: "gradient",
+        colors: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"],
+      }}
+      post={{
+        bloomStrength: 0.4,
+        chromaticAberration: 0.8,
+        focusBlur: 1.5,
+      }}
+    >
       <ParticleField
         options={{
-          count: 100_000,
+          count: 24_000,
           forces: { turbulence: 2.2, vortex: 1.4 },
           colors: ["#5eead4", "#a78bfa", "#f472b6"],
         }}
       />
-      <GlassPanel radius={34} refraction={46} dispersion={0.3} roughness={0.2} className="card">
-        <h2>Text sits *on* the glass, not inside a canvas.</h2>
+
+      <GlassPanel
+        radius={34}
+        refraction={46}
+        dispersion={0.3}
+        roughness={0.2}
+        className="product-card"
+      >
+        <h2>Semantic content stays on the page.</h2>
+        <p>The GPU layer changes the surface, not the document.</p>
       </GlassPanel>
     </GlassStage>
   );
 }
 ```
 
-`ParticleField` is GPU-simulated and is composited into the same stage before the glass pass,
-so panels refract particles as well as the backdrop. WebGPU uses compute shaders; the WebGL 2
-fallback uses three's transform-feedback path with the same TSL graph.
+`ParticleField` is simulated and rendered inside the same stage as the glass. The glass therefore refracts the backdrop and the particle layer without creating a second canvas or renderer.
 
-Or imperatively, without React:
+### Imperative escape hatch
+
+The renderer can also be used without React:
 
 ```ts
 import { createGlassLayer } from "@ui-lib/renderer";
 
-const layer = await createGlassLayer({ backdrop: { type: "gradient" } });
-const handle = layer.register(document.querySelector(".card")!, { radius: 34, refraction: 46 });
-// handle.update({ roughness: 0.6 }) · handle.dispose()
+const layer = await createGlassLayer({
+  backdrop: { type: "gradient", colors: ["#101827", "#6d28d9"] },
+});
+
+const card = document.querySelector<HTMLElement>(".product-card");
+if (card) {
+  const handle = layer.register(card, {
+    radius: 34,
+    refraction: 46,
+    roughness: 0.2,
+  });
+
+  handle.update({ roughness: 0.6 });
+  // handle.dispose() when the element or route is removed
+}
+
+// layer.dispose() when the owner is destroyed
 ```
 
-No GPU? No WebGPU? `prefers-reduced-motion`? The panel silently becomes a `backdrop-filter` card.
-Nothing throws, nothing looks broken.
+The standalone effect factory, richer command surface and external-store integration are planned API work. The current imperative API is useful, but should not yet be treated as the final cross-framework contract.
+
+## Architecture
+
+```text
+semantic DOM / React adapter
+              │
+              ▼
+       @ui-lib/renderer
+   one canvas · one renderer
+              │
+       ┌──────┼────────┐
+       ▼      ▼        ▼
+  backdrop particles  glass DOM surfaces
+              │
+              ▼
+        @ui-lib/post
+     TSL post graph + history
+              │
+       WebGPU or WebGL2
+```
+
+The frame order is intentionally shared:
+
+```text
+input → GPU compute → DOM/state update → backdrop → particles → glass → post resolve
+```
+
+A stable color/texture backdrop with no active world objects, pointer changes or layout changes can skip the complete redraw and history copy. Quality changes rebuild compile-time graph budgets rather than pretending that an already-expanded shader loop can be changed with a uniform.
 
 ## Packages
 
-| Package | Depends on three? | What it holds |
+| Package | Three.js | Responsibility | Status |
+| --- | --- | --- | --- |
+| [`@ui-lib/core`](packages/core) | no | device capabilities, quality tiers, scheduler, pointer, math and lifecycle primitives | implemented |
+| [`@ui-lib/shaders`](packages/shaders) | peer | TSL node materials for Liquid Glass and backdrops | implemented slice |
+| [`@ui-lib/particles`](packages/particles) | peer | GPU simulation, emitters, forces, bounds and particle rendering | implemented slice |
+| [`@ui-lib/post`](packages/post) | peer | TSL post graph, quality budgets, temporal history and color processing | implemented slice |
+| [`@ui-lib/renderer`](packages/renderer) | peer | WebGPU/WebGL2 bootstrap, stage orchestration and DOM-attached glass | implemented slice |
+| [`@ui-lib/react`](packages/react) | peer | React `GlassStage`, `GlassPanel`, `ParticleField` and fallback styles | first adapter |
+| `@ui-lib/motion` | — | timeline, spring orchestration, gestures and scroll-linked motion | planned |
+| `@ui-lib/dom` | — | DOM ↔ GPU tracking, snapshots and transitions | planned |
+| `@ui-lib/vue` / `@ui-lib/svelte` | — | additional framework adapters | planned |
+
+`three` is a **peer dependency** of the rendering packages. UI-Lib does not bundle a private copy of Three.js into those packages. `@ui-lib/core` remains framework-agnostic and Three-free.
+
+## Rendering and fallback policy
+
+### Backend selection
+
+1. Request a usable WebGPU adapter.
+2. Fall back to WebGL2 using the same TSL source graph where the feature is supported.
+3. Use the CSS/static fallback when neither GPU backend is available, when reduced motion requires it, or when the application opts out.
+
+The exact backend depends on the browser, OS, driver, device policy and context availability. UI-Lib does not promise a browser version table without running its browser matrix.
+
+### Quality tiers
+
+Post-processing tap counts and expensive graph branches are selected at compile time:
+
+| Quality | Intended use | Post budget |
 | --- | --- | --- |
-| [`@ui-lib/core`](packages/core) | no | device probing, adaptive quality, one unified frame loop, math, pointer, lifecycle |
-| [`@ui-lib/shaders`](packages/shaders) | yes | TSL node materials: liquid glass, gradient-mesh backdrop |
-| [`@ui-lib/renderer`](packages/renderer) | yes | renderer bootstrap (WebGPU→WebGL 2), backdrop passes, particles, the DOM-attached glass layer |
-| [`@ui-lib/particles`](packages/particles) | yes | compute/transform-feedback simulation, emitters, flow fields, bounds and sprite rendering |
-| [`@ui-lib/post`](packages/post) | yes | TSL viewport chain: bloom, halo, lens streak, depth-aware focus blur, motion blur, temporal accumulation and colour grading |
-| [`@ui-lib/react`](packages/react) | yes | `<GlassStage>`, `<GlassPanel>`, `<ParticleField>`, hooks, CSS fallback |
+| `1` | constrained devices | minimal graph; may disable post FX through the quality manager |
+| `2` | balanced default | medium bloom/TAA budget |
+| `3` | high-end / cinematic | full current bloom/TAA budget |
 
-Layering rule: `core` never imports three; adapter packages sit on top; reverse dependencies are bugs.
+Runtime FPS monitoring can move between quality tiers. Rebuilding a graph is deliberate: loop and tap counts are compile-time decisions in TSL.
 
-## Scripts
+### Accessibility
+
+UI-Lib is decorative enhancement around real HTML:
+
+- content should remain available without the GPU canvas;
+- `prefers-reduced-motion` must settle effects into a readable, low-motion state;
+- canvas layers should be decorative and must not intercept keyboard focus;
+- application-owned semantics, focus order and controls remain in the DOM.
+
+Accessibility browser tests and a documented reduced-motion contract are part of the production acceptance work.
+
+## Performance principles
+
+UI-Lib is built around constraints rather than marketing numbers:
+
+- one canvas, one renderer and one scheduler per stage/application;
+- no extra renderer to implement particles or post effects;
+- no second animation loop for motion or DOM synchronization;
+- hidden tabs pause the shared scheduler;
+- static scenes avoid unnecessary redraw and TAA history copies;
+- lower tiers reduce DPR, particle work and post graph complexity;
+- every owned GPU resource has an explicit disposal path.
+
+The docs playground intentionally uses 24,000 particles so the visual demo is usable while the benchmark matrix is unfinished. Device-specific particle LOD and public performance budgets will only be documented after real browser/GPU measurements.
+
+## Roadmap
+
+### P0 — prove the runtime
+
+- Playwright visual regression for WebGPU and WebGL2 smoke paths
+- FPS, dropped-frame and interaction benchmarks
+- GPU resource/dispose tests
+- device-lost and context-lost recovery
+- SSR and hydration validation
+- five browser-facing acceptance pages with reproducible baselines
+
+### P1 — raise the visual ceiling
+
+- world-only per-pixel velocity MRT
+- real multi-pass bloom pyramid
+- custom post-pass insertion API
+- environment reflection and stronger glass material composition
+- dynamic particle LOD and trail buffers
+- stable pointer-to-world ray mapping
+- camera paths and a complete Glass Product Hero
+
+### P1 — add the motion narrative layer
+
+- `@ui-lib/dom`: element-to-texture and DOM/3D tracking
+- `@ui-lib/motion`: timelines, gestures, springs and scroll-linked choreography
+- cursor field and magnetic interactions
+- MSDF text with character/word/line animation
+- Scroll Cinema demo
+
+### P2 — ecosystem and distribution
+
+- R3F adapter and production imperative API
+- Vue and Svelte adapters
+- Next.js, Nuxt and SvelteKit examples
+- Changesets, size budgets, CI browser matrix and npm provenance
+- recipes, API reference and copy-ready documentation
+
+### Flagship demos
+
+The target product surface is five real pages, not one parameter playground:
+
+1. **LiquidGlass Pro** — refraction, dispersion, frost and DOM content.
+2. **Aurora Flow** — GPU particles, flow fields, cursor forces and adaptive LOD.
+3. **Glass Product Hero** — product object, camera path, environment lighting and post graph.
+4. **Scroll Cinema** — scroll-linked DOM/3D choreography and MSDF text.
+5. **Cursor Field** — pointer field, trails, magnetic UI and motion-aware glass.
+
+Only the first technical slices currently exist in the playground. These demos become complete when they also have browser screenshots, interaction checks, accessibility checks and performance data.
+
+## Non-negotiable design rules
+
+- Core does not import React, Three.js or another framework.
+- Three.js remains a peer dependency and is never bundled by the library packages.
+- All shader and post work uses TSL; no raw GLSL/WGSL shortcut is used to bypass the cross-backend contract.
+- No extra canvas, renderer or scheduler is introduced for a feature.
+- Every effect supports an explicit lifecycle and disposal path.
+- Reduced motion, no-GPU and WebGL2 states are first-class product states.
+- A feature is not “done” because its TSL graph builds: it needs visual, interaction, performance, accessibility and compatibility evidence.
+
+## Development
 
 ```bash
-pnpm dev        # playground (apps/docs)
-pnpm build      # build every package (tsup: ESM + d.ts)
-pnpm typecheck  # tsc --noEmit across the workspace
-pnpm test       # vitest
-pnpm lint       # biome
+pnpm install
+pnpm dev          # Vite playground
+pnpm typecheck    # TypeScript across the workspace
+pnpm test         # Vitest
+pnpm lint         # Biome check
+pnpm build        # package builds
 ```
 
-## Browser support
+The repository is an experimental monorepo. Public API names may change before the first stable release. Please consult [`docs/ROADMAP.md`](docs/ROADMAP.md) before relying on an item marked planned or experimental.
 
-| Backend | Where |
-| --- | --- |
-| WebGPU | Chrome/Edge 113+, Safari 26+, Firefox 141+ |
-| WebGL 2 | everything else — automatic, same shader graph |
-| CSS | no GPU at all — `backdrop-filter` fallback |
+## License
 
-## Milestone 2: GPU particles
-
-The first M2 slice is now live in the playground and in [`@ui-lib/particles`](packages/particles):
-
-- struct-of-arrays storage buffers for positions, velocities and packed lifetime attributes;
-- deterministic GPU spawning from point, sphere, box, disc, ring or cone emitters;
-- gravity, wind, damping, a cheap divergence-free noise flow, vortex and pointer attractor;
-- sphere/box bounds with restitution, lifetime respawn, colour-over-life, speed heat and soft sprites;
-- WebGPU native compute with three's WebGL 2 transform-feedback fallback;
-- one shared scheduler: compute runs before the render pass, and particles share the glass canvas.
-
-The docs scene uses 24,000 particles intentionally. The public default is 80,000; pass
-`count: "auto"` to `<ParticleField>` and the adapter selects 1M on WebGPU or 80k on WebGL 2.
-The engine is structured for that budget; actual device-specific LOD and the benchmark gate remain
-part of the M2 acceptance pass.
-
-## Milestone 3: TSL post-processing
-
-The first M3 chain is now connected to the live stage through [`@ui-lib/post`](packages/post):
-
-- bright-pass multi-radius bloom;
-- wide atmospheric halo;
-- directional lens streak;
-- screen-space chromatic aberration;
-- animated procedural grain;
-- exposure / contrast / saturation grading;
-- vignette;
-- depth-aware cinematic focus blur and directional motion blur controls;
-- full TAA resolve with 16-sample Halton sub-pixel jitter, world-object screen velocity, depth-history disocclusion rejection, 3×3 variance clipping, reactive history rejection and explicit history reset on resize / teardown;
-- multi-scale separable bloom kernel in the single TSL graph, with no extra scene render or canvas;
-- compile-time post budgets (`quality: 1 | 2 | 3`) selected from the adaptive quality tier;
-- static color / texture stages skip redraw and history copies until layout, pointer or content activity returns;
-- colour sampled from the already-composited canvas through `viewportTexture()`; focus and world reprojection also read the existing canvas depth through `viewportDepthTexture()`;
-- final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
-
-`<GlassStage post={{ bloomStrength: 0.4, chromaticAberration: 0.8 }} />` updates uniforms
-without rebuilding the renderer or tearing down particles. The playground exposes live sliders for refraction, bloom, focus depth, motion blur and temporal
-rejection. The history path uses conservative colour clamping and reactive rejection because the
-final framebuffer also contains stable DOM glass; it does not claim full depth-aware reprojection.
-
-The current TAA resolve is complete for the single composited canvas: colour and depth histories are
-copied from the existing framebuffer, and history is reprojected only where world depth exists. A
-future world-only MRT can provide per-pixel velocity for complex deforming particle fields; the
-single-graph bloom remains the intentional no-extra-pass fallback for the current stage.
-
-## Next
-
-Milestone 4 is the DOM bridge and scroll cinema: image-to-texture transitions, 3D-to-DOM tracking,
-magnetic cursor and scroll-linked choreography.
-Full plan, milestones and open questions: [`docs/ROADMAP.md`](docs/ROADMAP.md).
+MIT
