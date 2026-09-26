@@ -201,6 +201,7 @@ export class GlassLayer implements Disposable {
 	private readonly particleSystems = new Set<ParticleSystem>();
 	private readonly particleStops = new Map<ParticleSystem, () => void>();
 	private readonly worldStops = new Map<Object3D, () => void>();
+	private readonly worldAnimations = new Set<Object3D>();
 	private readonly worldVelocitySamples = new Map<Object3D, WorldVelocitySample>();
 	private readonly worldPosition = new Vector3();
 	private readonly projectedWorldPosition = new Vector3();
@@ -209,6 +210,7 @@ export class GlassLayer implements Disposable {
 
 	private backdrop: BackdropInstance;
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
+	private postOptions: PostProcessingOptions | false = {};
 	private postProcessing: PostProcessing | null = null;
 	private postPipeline: RenderPipeline | null = null;
 	private pointer: PointerTracker | null = null;
@@ -219,6 +221,8 @@ export class GlassLayer implements Disposable {
 	private dirty = true;
 	private reducedMotion = false;
 	private statsAccum = 0;
+	private hasRendered = false;
+	private readonly lastPointer = new Vector2(Number.NaN, Number.NaN);
 	private stopFrame: (() => void) | null = null;
 	private readonly onStats?: (stats: GlassLayerStats) => void;
 
@@ -235,6 +239,7 @@ export class GlassLayer implements Disposable {
 				// Blur tap count is baked into the shader graph, so a tier change
 				// rebuilds the materials with the new budget.
 				this.rebuildPanelMaterials();
+				this.rebuildPostProcessing();
 				this.dirty = true;
 				if (typeof console !== "undefined" && previous !== settings.tier) {
 					console.info(`[ui-lib] quality tier ${previous} → ${settings.tier}`);
@@ -293,6 +298,7 @@ export class GlassLayer implements Disposable {
 				this.particleScene.remove(object);
 			}
 			this.worldStops.clear();
+			this.worldAnimations.clear();
 			this.worldVelocitySamples.clear();
 		});
 		this.disposer.add(() => {
@@ -444,6 +450,7 @@ export class GlassLayer implements Disposable {
 			screen: new Vector2(),
 			initialized: false,
 		});
+		if (onFrame) this.worldAnimations.add(object);
 		const stop = onFrame ? getScheduler().add(onFrame, "update") : () => {};
 		this.worldStops.set(object, stop);
 		let disposed = false;
@@ -453,6 +460,7 @@ export class GlassLayer implements Disposable {
 				disposed = true;
 				stop();
 				this.worldStops.delete(object);
+				this.worldAnimations.delete(object);
 				this.worldVelocitySamples.delete(object);
 				this.particleScene.remove(object);
 			},
@@ -460,19 +468,31 @@ export class GlassLayer implements Disposable {
 	}
 
 	setPostProcessing(options: PostProcessingOptions | false): void {
+		this.postOptions = options;
 		if (options !== false && this.postProcessing !== null && this.postPipeline !== null) {
 			this.postProcessing.update(options);
 			this.markDirty();
 			return;
 		}
+		this.rebuildPostProcessing();
+	}
 
+	private postQuality(): 1 | 2 | 3 {
+		if (this.quality.tier <= 1) return 1;
+		return this.quality.tier === 2 ? 2 : 3;
+	}
+
+	private rebuildPostProcessing(): void {
 		this.postPipeline?.dispose();
 		this.postProcessing?.dispose();
 		this.postPipeline = null;
 		this.postProcessing = null;
 
-		if (options !== false) {
-			const post = createPostProcessing(options);
+		if (this.postOptions !== false && this.quality.settings.allowPostFx) {
+			const post = createPostProcessing({
+				...this.postOptions,
+				quality: this.postQuality(),
+			});
 			const pipeline = new RenderPipeline(this.ui.renderer);
 			pipeline.outputNode = post.outputNode;
 			pipeline.needsUpdate = true;
@@ -692,6 +712,14 @@ export class GlassLayer implements Disposable {
 		}
 	}
 
+	private reportStats(dt: number): void {
+		this.statsAccum += dt;
+		if (this.statsAccum >= STATS_INTERVAL) {
+			this.statsAccum = 0;
+			this.onStats?.(this.getStats());
+		}
+	}
+
 	private frame = (info: FrameInfo): void => {
 		this.quality.sample(info.dt);
 
@@ -707,8 +735,13 @@ export class GlassLayer implements Disposable {
 				this.pointer.smoothY * this.dpr,
 			);
 		}
+		const pointerChanged =
+			Number.isNaN(this.lastPointer.x) ||
+			this.lastPointer.distanceToSquared(this.sharedPointer.value) > 0.01;
+		this.lastPointer.copy(this.sharedPointer.value);
 
 		this.syncViewport();
+		const layoutWasDirty = this.dirty;
 		if (this.dirty) {
 			this.syncLayout();
 			this.dirty = false;
@@ -721,13 +754,22 @@ export class GlassLayer implements Disposable {
 		}
 		this.canvas.style.visibility = "visible";
 
-		this.renderFrame();
-
-		this.statsAccum += info.dt;
-		if (this.statsAccum >= STATS_INTERVAL) {
-			this.statsAccum = 0;
-			this.onStats?.(this.getStats());
+		const hasAnimatedSources =
+			!this.reducedMotion &&
+			(this.backdrop.animated ||
+				this.particleSystems.size > 0 ||
+				this.worldAnimations.size > 0);
+		if (!layoutWasDirty && this.hasRendered && !hasAnimatedSources && !pointerChanged) {
+			// The framebuffer and both TAA histories already contain the finished
+			// image. Do not rerun the post graph or copy history on a truly static
+			// page; the scheduler remains alive for future pointer/layout activity.
+			this.reportStats(info.dt);
+			return;
 		}
+
+		this.renderFrame();
+		this.hasRendered = true;
+		this.reportStats(info.dt);
 	};
 
 	private updateWorldVelocity(): void {

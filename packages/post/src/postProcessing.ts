@@ -76,6 +76,8 @@ export interface PostProcessingOptions {
 	focusPoint?: [number, number];
 	/** Directional screen-space blur in device pixels. 0 disables motion blur. */
 	motionBlur?: number;
+	/** Compile-time post tap budget. 1 = low, 2 = balanced, 3 = cinematic. */
+	quality?: 1 | 2 | 3;
 	/** Motion vector direction in screen space. */
 	motionDirection?: [number, number];
 }
@@ -102,6 +104,7 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	focusDepth: 0.62,
 	focusBlur: 2.5,
 	focusPoint: [0.5, 0.5],
+	quality: 3,
 	motionBlur: 0.05,
 	motionDirection: [1, 0],
 };
@@ -229,6 +232,10 @@ const TAA_NEIGHBOUR_OFFSETS: readonly [number, number][] = [
  */
 export function createPostProcessing(options: PostProcessingOptions = {}): PostProcessing {
 	const initial = { ...POST_DEFAULTS, ...options };
+	const quality = initial.quality;
+	const bloomLevels = BLOOM_PYRAMID_LEVELS.slice(0, quality === 1 ? 2 : quality === 2 ? 3 : 4);
+	const separableTaps = quality === 1 ? ([[0, 1]] as const) : SEPARABLE_TAPS;
+	const taaNeighbourOffsets = TAA_NEIGHBOUR_OFFSETS.slice(0, quality === 1 ? 4 : 8);
 	const uniforms: PostProcessingUniforms = {
 		enabled: uniform(initial.enabled ? 1 : 0),
 		bloomStrength: uniform(initial.bloomStrength),
@@ -280,7 +287,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const sampleSeparable = (radius: Node<"float">): Node<"vec3"> => {
 		let horizontal: Node<"vec3"> = vec3(0);
 		let vertical: Node<"vec3"> = vec3(0);
-		for (const [distance, weight] of SEPARABLE_TAPS) {
+		for (const [distance, weight] of separableTaps) {
 			horizontal = horizontal.add(
 				sample(vec2(distance, 0).mul(radius).div(uniforms.resolution)).rgb.mul(weight),
 			);
@@ -298,14 +305,14 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		);
 
 	let bloom: Node<"vec3"> = vec3(0);
-	for (const [radius, weight] of BLOOM_PYRAMID_LEVELS) {
+	for (const [radius, weight] of bloomLevels) {
 		const colour = sampleSeparable(uniforms.bloomRadius.mul(radius));
 		bloom = bloom.add(colour.mul(brightPass(colour)).mul(weight));
 	}
 
 	// A wider copy of the same separable levels creates the atmospheric halo.
 	let halo: Node<"vec3"> = vec3(0);
-	for (const [radius, weight] of BLOOM_PYRAMID_LEVELS) {
+	for (const [radius, weight] of bloomLevels) {
 		const colour = sampleSeparable(uniforms.bloomRadius.mul(radius * 3));
 		halo = halo.add(colour.mul(brightPass(colour)).mul(weight));
 	}
@@ -428,12 +435,12 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 
 	let moment1: Node<"vec3"> = effected.rgb;
 	let moment2: Node<"vec3"> = effected.rgb.pow(2);
-	for (const [x, y] of TAA_NEIGHBOUR_OFFSETS) {
+	for (const [x, y] of taaNeighbourOffsets) {
 		const neighbour = sample(vec2(x, y).div(uniforms.resolution)).rgb;
 		moment1 = moment1.add(neighbour);
 		moment2 = moment2.add(neighbour.pow(2));
 	}
-	const sampleCount = TAA_NEIGHBOUR_OFFSETS.length + 1;
+	const sampleCount = taaNeighbourOffsets.length + 1;
 	const mean = moment1.div(sampleCount);
 	const standardDeviation = moment2.div(sampleCount).sub(mean.pow(2)).max(0).sqrt();
 	const motionFactor = saturate(historyOffset.length().div(64));

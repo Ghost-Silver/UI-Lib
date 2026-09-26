@@ -38,5 +38,9 @@ describe("post-processing", () => {
 		expect(post.uniforms.depthRange.value.x).toBe(0.2);
 		expect(post.uniforms.depthRange.value.y).toBe(80);
 		post.dispose();
+
+		const lowBudgetPost = createPostProcessing({ quality: 1 });
+		expect(lowBudgetPost.outputNode.isNode).toBe(true);
+		lowBudgetPost.dispose();
 	});
 });

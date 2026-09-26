@@ -175,7 +175,8 @@
 - **验收**：1M 粒子 @60fps（WebGPU 基准机）+ 掉落帧 < 1% + dispose 后资源归零
 
 ### M3 · 后处理与相机 🚧 首个链路已完成
-- `@ui-lib/post`：TSL viewport chain 已交付 multi-scale separable bloom / wide halo / lens streak / chromatic aberration / grain / exposure / contrast / saturation / vignette / depth-aware focus blur / directional motion blur / 16-step Halton full TAA / world-object velocity / depth history disocclusion / 3×3 variance clipping / reactive history rejection；可通过 `GlassStage post` 动态改 uniform 或关闭，不重建 renderer
+- `@ui-lib/post`：TSL viewport chain 已交付 multi-scale separable bloom / wide halo / lens streak / chromatic aberration / grain / exposure / contrast / saturation / vignette / depth-aware focus blur / directional motion blur / 16-step Halton full TAA / world-object velocity / depth history disocclusion / 3×3 variance clipping / reactive history rejection；支持 `quality: 1 | 2 | 3` 的编译期 tap budget，可通过 `GlassStage post` 动态改 uniform 或关闭，不重建 renderer
+- 静态 color / texture backdrop 且没有动态 world / pointer 时跳过整帧重绘与 history copy；auto quality tier 变化会同步重建 post graph tap budget
 - 现在的链路作用于 backdrop + particles + liquid glass 的**已经合成画面**，仍然只有一个 canvas；RenderPipeline 负责最后一次 tone mapping / sRGB；history 在 resize / dispose 时显式清理
 - **下一步**：world-only per-pixel velocity MRT（复杂 deforming particle fields）、真正的多 pass bloom pyramid、自定义 pass 插槽、路径相机与 **Glass Product Hero** demo
 - **验收**：后处理链可拼装、可关闭；关闭前后不崩、不变色（色彩管线统一 sRGB）

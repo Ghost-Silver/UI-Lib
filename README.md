@@ -143,6 +143,8 @@ The first M3 chain is now connected to the live stage through [`@ui-lib/post`](p
 - depth-aware cinematic focus blur and directional motion blur controls;
 - full TAA resolve with 16-sample Halton sub-pixel jitter, world-object screen velocity, depth-history disocclusion rejection, 3×3 variance clipping, reactive history rejection and explicit history reset on resize / teardown;
 - multi-scale separable bloom kernel in the single TSL graph, with no extra scene render or canvas;
+- compile-time post budgets (`quality: 1 | 2 | 3`) selected from the adaptive quality tier;
+- static color / texture stages skip redraw and history copies until layout, pointer or content activity returns;
 - colour sampled from the already-composited canvas through `viewportTexture()`; focus and world reprojection also read the existing canvas depth through `viewportDepthTexture()`;
 - final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
 
