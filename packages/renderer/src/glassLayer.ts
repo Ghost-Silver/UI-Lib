@@ -29,6 +29,7 @@ import { uniform } from "three/tsl";
 import {
 	LinearSRGBColorSpace,
 	Mesh,
+	MeshBasicMaterial,
 	NoToneMapping,
 	type Object3D,
 	OrthographicCamera,
@@ -38,6 +39,7 @@ import {
 	Scene,
 	Vector2,
 	Vector3,
+	WebGLRenderTarget,
 } from "three/webgpu";
 import {
 	type BackdropInstance,
@@ -226,6 +228,10 @@ export class GlassLayer implements Disposable {
 	private backdrop: BackdropInstance;
 	private backdropResource: ResourceHandle | null = null;
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
+	/** Background renders into this off-screen target; glass samples it directly. */
+	private readonly backdropRT = new WebGLRenderTarget(1, 1);
+	private readonly presentScene = new Scene();
+	private readonly presentQuad: ReturnType<typeof createFullscreenQuad>;
 	private postOptions: PostProcessingOptions | false = {};
 	private postProcessing: PostProcessing | null = null;
 	private postPipeline: RenderPipeline | null = null;
@@ -274,6 +280,10 @@ export class GlassLayer implements Disposable {
 		this.backdropResource = resourceRegistry.track("backdrop");
 		this.backdropQuad = createFullscreenQuad(this.backdrop.material);
 		this.backdropScene.add(this.backdropQuad.mesh);
+		this.presentQuad = createFullscreenQuad(
+			new MeshBasicMaterial({ map: this.backdropRT.texture }),
+		);
+		this.presentScene.add(this.presentQuad.mesh);
 		this.setPostProcessing(options.post ?? {});
 
 		this.particleCamera.position.set(0, 0, 14);
@@ -330,6 +340,8 @@ export class GlassLayer implements Disposable {
 		this.disposer.add(() => this.backdrop.dispose());
 		this.disposer.add(() => this.backdropResource?.dispose());
 		this.disposer.add(() => this.backdropQuad.dispose());
+		this.disposer.add(() => this.backdropRT.dispose());
+		this.disposer.add(() => this.presentQuad.dispose());
 		this.disposer.add(() => this.postPipeline?.dispose());
 		this.disposer.add(() => this.postProcessing?.dispose());
 		this.disposer.add(() => this.postResource?.dispose());
@@ -601,8 +613,14 @@ export class GlassLayer implements Disposable {
 	}
 
 	private createPanelMaterial(options: Required<GlassPanelOptions>): LiquidGlassMaterial {
+		// Always sample an explicit backdrop target, never the live framebuffer:
+		// `viewportSharedTexture` reads the color buffer that is being written,
+		// a read-after-write that fails WebGPU's strict pass validation (and
+		// clashes with antialiasing's sample count). The backdropRT is rendered
+		// in `renderFrame`. See docs/review-ui-lib-gpu-blackout.md.
 		const material = createLiquidGlassMaterial(
 			{
+				backdrop: this.backdropRT.texture,
 				size: [1, 1],
 				radius: options.radius,
 				bevel: options.bevel,
@@ -698,6 +716,7 @@ export class GlassLayer implements Disposable {
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
+		this.backdropRT.setSize(bufferWidth, bufferHeight);
 		for (const sample of this.worldVelocitySamples.values()) sample.initialized = false;
 		this.postProcessing?.setSize(bufferWidth, bufferHeight);
 		this.postProcessing?.setWorldVelocity([0, 0]);
@@ -876,18 +895,20 @@ export class GlassLayer implements Disposable {
 		const usesPost = this.postPipeline !== null && this.postProcessing !== null;
 
 		renderer.autoClear = false;
-		renderer.setRenderTarget(null);
-		renderer.clear(true, true, false);
 
-		// Keep the intermediate canvas in working-linear space. The RenderPipeline
-		// applies tone mapping and the output colour transform exactly once after
-		// the bloom / aberration / grain nodes have sampled it.
+		// Keep the intermediate buffers in working-linear space. The RenderPipeline
+		// applies tone mapping and the output colour transform exactly once after the
+		// bloom / aberration / grain nodes have sampled it.
 		if (usesPost) {
 			renderer.toneMapping = NoToneMapping;
 			renderer.outputColorSpace = LinearSRGBColorSpace;
 		}
 
-		// 1. Backdrop first, straight to the screen.
+		// 1. Backdrop + world objects render into a dedicated off-screen target.
+		//    Glass samples this target directly (never the live framebuffer), so
+		//    WebGPU sees no read-after-write and no MSAA sample-count clash.
+		renderer.setRenderTarget(this.backdropRT);
+		renderer.clear(true, true, false);
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
 
 		// Update object motion before applying this frame's camera jitter. The
@@ -919,13 +940,16 @@ export class GlassLayer implements Disposable {
 			renderer.render(this.particleScene, this.particleCamera);
 			if (jitteredWorld) this.particleCamera.clearViewOffset();
 		}
+		renderer.setRenderTarget(null);
 
-		// 3. Glass next, in a separate `render()` call. `viewportSharedTexture`
-		//    de-duplicates its framebuffer copy per render call, so this is one
-		//    blit per frame no matter how many panels are registered.
+		// 3. Screen base = the rendered backdrop (also the glass refraction source).
+		renderer.clear(true, true, false);
+		renderer.render(this.presentScene, this.presentQuad.camera);
+
+		// 4. Glass panels on top, sampling `backdropRT` in a separate render call.
 		renderer.render(this.glassScene, this.glassCamera);
 
-		// 4. The final canvas image becomes a TSL input. Put the renderer's output
+		// 5. The final canvas image becomes a TSL input. Put the renderer's output
 		// settings back before `_update()` so RenderPipeline captures the real
 		// target transform and applies tone mapping / sRGB exactly once.
 		if (usesPost) {
