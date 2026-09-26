@@ -5,6 +5,7 @@ import {
 	luminance,
 	mix,
 	oneMinus,
+	pow,
 	screenUV,
 	sin,
 	smoothstep,
@@ -26,6 +27,10 @@ export interface PostProcessingOptions {
 	bloomKnee?: number;
 	/** Blur radius in device pixels. */
 	bloomRadius?: number;
+	/** Wide, low-frequency halo around the bright pass. */
+	haloStrength?: number;
+	/** Horizontal/diagonal lens streak strength. */
+	flareStrength?: number;
 	/** Per-channel screen-space shift in device pixels. */
 	chromaticAberration?: number;
 	/** Direction of chromatic separation in screen space. */
@@ -34,6 +39,12 @@ export interface PostProcessingOptions {
 	grain?: number;
 	/** Edge darkening amount. */
 	vignette?: number;
+	/** Exposure multiplier in stops. */
+	exposure?: number;
+	/** Mid-tone contrast multiplier. */
+	contrast?: number;
+	/** Colour intensity around luminance 1. */
+	saturation?: number;
 }
 
 export const POST_DEFAULTS: Required<PostProcessingOptions> = {
@@ -42,10 +53,15 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	bloomThreshold: 0.72,
 	bloomKnee: 0.18,
 	bloomRadius: 6,
+	haloStrength: 0.14,
+	flareStrength: 0.1,
 	chromaticAberration: 0.35,
 	chromaticDirection: [1, 0.38],
 	grain: 0.018,
 	vignette: 0.12,
+	exposure: 0.04,
+	contrast: 1.03,
+	saturation: 1.08,
 };
 
 const _floatUniform = uniform(0);
@@ -59,10 +75,15 @@ export interface PostProcessingUniforms {
 	bloomThreshold: ScalarUniform;
 	bloomKnee: ScalarUniform;
 	bloomRadius: ScalarUniform;
+	haloStrength: ScalarUniform;
+	flareStrength: ScalarUniform;
 	chromaticAberration: ScalarUniform;
 	chromaticDirection: VectorUniform;
 	grain: ScalarUniform;
 	vignette: ScalarUniform;
+	exposure: ScalarUniform;
+	contrast: ScalarUniform;
+	saturation: ScalarUniform;
 	resolution: VectorUniform;
 	time: ScalarUniform;
 }
@@ -77,6 +98,16 @@ export interface PostProcessing {
 	step(dt: number): void;
 	dispose(): void;
 }
+
+const FLARE_OFFSETS: readonly [number, number][] = [
+	[-6, 0.045],
+	[-3, 0.08],
+	[-1.5, 0.12],
+	[0, 0.18],
+	[1.5, 0.12],
+	[3, 0.08],
+	[6, 0.045],
+];
 
 const BLOOM_OFFSETS: readonly [number, number, number][] = [
 	[0, 0, 0.22],
@@ -114,10 +145,15 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		bloomThreshold: uniform(initial.bloomThreshold),
 		bloomKnee: uniform(initial.bloomKnee),
 		bloomRadius: uniform(initial.bloomRadius),
+		haloStrength: uniform(initial.haloStrength),
+		flareStrength: uniform(initial.flareStrength),
 		chromaticAberration: uniform(initial.chromaticAberration),
 		chromaticDirection: uniform(new Vector2(...initial.chromaticDirection)),
 		grain: uniform(initial.grain),
 		vignette: uniform(initial.vignette),
+		exposure: uniform(initial.exposure),
+		contrast: uniform(initial.contrast),
+		saturation: uniform(initial.saturation),
 		resolution: uniform(new Vector2(1, 1)),
 		time: uniform(0),
 	};
@@ -143,6 +179,40 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		bloom = bloom.add(colour.mul(brightness).mul(weight));
 	}
 
+	// A second, wider blur gives highlights a soft atmospheric halo instead of
+	// the small circular glow alone. It is still an unrolled fixed graph.
+	let halo: Node<"vec3"> = vec3(0);
+	for (const [x, y, weight] of BLOOM_OFFSETS) {
+		const colour = sample(
+			vec2(x, y).mul(uniforms.bloomRadius.mul(3)).div(uniforms.resolution),
+		).rgb;
+		const brightness = smoothstep(
+			uniforms.bloomThreshold.sub(uniforms.bloomKnee),
+			uniforms.bloomThreshold.add(uniforms.bloomKnee),
+			luminance(colour),
+		);
+		halo = halo.add(colour.mul(brightness).mul(weight));
+	}
+
+	// A directional streak is the inexpensive lens-flare cue: it follows the
+	// chromatic direction so colour separation and glare feel like one optical
+	// system rather than unrelated filters.
+	let flare: Node<"vec3"> = vec3(0);
+	for (const [distance, weight] of FLARE_OFFSETS) {
+		const colour = sample(
+			uniforms.chromaticDirection
+				.mul(distance)
+				.mul(uniforms.bloomRadius)
+				.div(uniforms.resolution),
+		).rgb;
+		const brightness = smoothstep(
+			uniforms.bloomThreshold.sub(uniforms.bloomKnee),
+			uniforms.bloomThreshold.add(uniforms.bloomKnee),
+			luminance(colour),
+		);
+		flare = flare.add(colour.mul(brightness).mul(weight));
+	}
+
 	// Red and blue are offset in opposite directions. At zero aberration the
 	// graph collapses to the unshifted sample, so the effect is safe to animate.
 	const chromaOffset = uniforms.chromaticDirection
@@ -151,7 +221,14 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const red = sample(chromaOffset).r;
 	const blue = sample(chromaOffset.negate()).b;
 	let colour: Node<"vec3"> = vec3(red, base.g, blue);
-	colour = colour.add(bloom.mul(uniforms.bloomStrength));
+	colour = colour
+		.add(bloom.mul(uniforms.bloomStrength))
+		.add(halo.mul(uniforms.haloStrength))
+		.add(flare.mul(uniforms.flareStrength));
+	colour = colour.mul(pow(float(2), uniforms.exposure));
+	const luminanceValue = luminance(colour);
+	colour = mix(vec3(luminanceValue), colour, uniforms.saturation);
+	colour = colour.sub(0.5).mul(uniforms.contrast).add(0.5);
 
 	// A deterministic animated grain pattern: no random texture allocation and
 	// no CPU-side noise upload.
@@ -182,6 +259,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 				uniforms.bloomThreshold.value = patch.bloomThreshold;
 			if (patch.bloomKnee !== undefined) uniforms.bloomKnee.value = patch.bloomKnee;
 			if (patch.bloomRadius !== undefined) uniforms.bloomRadius.value = patch.bloomRadius;
+			if (patch.haloStrength !== undefined) uniforms.haloStrength.value = patch.haloStrength;
+			if (patch.flareStrength !== undefined) uniforms.flareStrength.value = patch.flareStrength;
 			if (patch.chromaticAberration !== undefined) {
 				uniforms.chromaticAberration.value = patch.chromaticAberration;
 			}
@@ -189,6 +268,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 				uniforms.chromaticDirection.value.set(...patch.chromaticDirection);
 			if (patch.grain !== undefined) uniforms.grain.value = patch.grain;
 			if (patch.vignette !== undefined) uniforms.vignette.value = patch.vignette;
+			if (patch.exposure !== undefined) uniforms.exposure.value = patch.exposure;
+			if (patch.contrast !== undefined) uniforms.contrast.value = patch.contrast;
+			if (patch.saturation !== undefined) uniforms.saturation.value = patch.saturation;
 		},
 		step(dt) {
 			uniforms.time.value += Math.max(0, Math.min(dt, 1 / 15));

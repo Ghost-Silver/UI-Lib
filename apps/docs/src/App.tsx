@@ -1,7 +1,24 @@
 import type { ParticleSystemOptions } from "@ui-lib/particles";
 import { GlassPanel, GlassStage, ParticleField, useGlassStage } from "@ui-lib/react";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+	cameraPosition,
+	dot,
+	mix,
+	normalize,
+	normalWorld,
+	oneMinus,
+	positionWorld,
+	saturate,
+	vec3,
+} from "three/tsl";
+import {
+	AdditiveBlending,
+	IcosahedronGeometry,
+	Mesh,
+	MeshBasicNodeMaterial,
+} from "three/webgpu";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
 
@@ -33,6 +50,8 @@ interface Params {
 	tintAmount: number;
 	saturation: number;
 	bloomStrength: number;
+	haloStrength: number;
+	flareStrength: number;
 	chromaticAberration: number;
 	grain: number;
 	vignette: number;
@@ -50,6 +69,8 @@ const DEFAULT_PARAMS: Params = {
 	tintAmount: 0.05,
 	saturation: 1.15,
 	bloomStrength: 0.28,
+	haloStrength: 0.14,
+	flareStrength: 0.1,
 	chromaticAberration: 0.35,
 	grain: 0.018,
 	vignette: 0.12,
@@ -86,6 +107,44 @@ const PARTICLES: ParticleSystemOptions = {
 	blending: "additive",
 };
 
+/** A deliberately small hero object: the library owns the world scene and clock,
+ * while the example owns the look. This is the extension point for product demos. */
+function HeroCrystal() {
+	const { layer } = useGlassStage();
+
+	useEffect(() => {
+		if (!layer) return;
+		const geometry = new IcosahedronGeometry(2.25, 5);
+		const material = new MeshBasicNodeMaterial({ transparent: true, opacity: 0.88 });
+		const viewDirection = normalize(cameraPosition.sub(positionWorld));
+		const rim = oneMinus(saturate(dot(normalWorld, viewDirection))).pow(1.7);
+		material.colorNode = mix(vec3(0.04, 0.32, 0.5), vec3(0.85, 0.2, 0.68), rim);
+		material.opacityNode = mix(0.54, 0.96, rim);
+		material.transparent = true;
+		material.depthWrite = false;
+		material.blending = AdditiveBlending;
+
+		const crystal = new Mesh(geometry, material);
+		crystal.name = "ui-lib:hero-crystal";
+		crystal.scale.setScalar(1.08);
+		const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		const attachment = layer.addWorldObject(crystal, (info) => {
+			if (prefersReducedMotion) return;
+			crystal.rotation.y += info.dt * 0.22;
+			crystal.rotation.x = Math.sin(info.elapsed * 0.42) * 0.12;
+			crystal.position.y = Math.sin(info.elapsed * 0.68) * 0.28;
+		});
+
+		return () => {
+			attachment.dispose();
+			geometry.dispose();
+			material.dispose();
+		};
+	}, [layer]);
+
+	return null;
+}
+
 export default function App() {
 	const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
 	const [palette, setPalette] = useState<PaletteId>("aurora");
@@ -100,11 +159,20 @@ export default function App() {
 	const post = useMemo<PostProcessingOptions>(
 		() => ({
 			bloomStrength: params.bloomStrength,
+			haloStrength: params.haloStrength,
+			flareStrength: params.flareStrength,
 			chromaticAberration: params.chromaticAberration,
 			grain: params.grain,
 			vignette: params.vignette,
 		}),
-		[params.bloomStrength, params.chromaticAberration, params.grain, params.vignette],
+		[
+			params.bloomStrength,
+			params.haloStrength,
+			params.flareStrength,
+			params.chromaticAberration,
+			params.grain,
+			params.vignette,
+		],
 	);
 
 	const set =
@@ -120,6 +188,7 @@ export default function App() {
 			forceWebGL={backend === "webgl"}
 			className="stage"
 		>
+			<HeroCrystal />
 			<ParticleField
 				options={PARTICLES}
 				camera={{ cameraPosition: [0, 0.5, 13], cameraTarget: [0, 0.3, 0], fov: 50 }}
@@ -315,6 +384,22 @@ function Scene(props: SceneProps) {
 							max={1.2}
 							step={0.01}
 							onChange={set("bloomStrength")}
+						/>
+						<Slider
+							label="Atmospheric halo"
+							value={params.haloStrength}
+							min={0}
+							max={0.6}
+							step={0.01}
+							onChange={set("haloStrength")}
+						/>
+						<Slider
+							label="Lens streak"
+							value={params.flareStrength}
+							min={0}
+							max={0.6}
+							step={0.01}
+							onChange={set("flareStrength")}
 						/>
 						<Slider
 							label="Chromatic aberration"

@@ -26,6 +26,7 @@ import {
 	LinearSRGBColorSpace,
 	Mesh,
 	NoToneMapping,
+	type Object3D,
 	OrthographicCamera,
 	PerspectiveCamera,
 	PlaneGeometry,
@@ -193,6 +194,7 @@ export class GlassLayer implements Disposable {
 	private readonly panelGeometry = new PlaneGeometry(1, 1);
 	private readonly particleSystems = new Set<ParticleSystem>();
 	private readonly particleStops = new Map<ParticleSystem, () => void>();
+	private readonly worldStops = new Map<Object3D, () => void>();
 	private readonly panels = new Set<Panel>();
 	private readonly resizeObserver: ResizeObserver;
 
@@ -276,6 +278,11 @@ export class GlassLayer implements Disposable {
 			}
 			this.particleStops.clear();
 			this.particleSystems.clear();
+			for (const [object, stop] of this.worldStops) {
+				stop();
+				this.particleScene.remove(object);
+			}
+			this.worldStops.clear();
 		});
 		this.disposer.add(() => {
 			for (const panel of [...this.panels]) this.destroyPanel(panel);
@@ -410,6 +417,27 @@ export class GlassLayer implements Disposable {
 				this.particleSystems.delete(system);
 				this.particleScene.remove(system.object);
 				system.dispose();
+			},
+		};
+	}
+
+	/**
+	 * Add a regular three Object3D to the world/effects scene behind DOM glass.
+	 * The optional callback runs on the shared scheduler, so examples can animate
+	 * a hero object without creating a second requestAnimationFrame loop.
+	 */
+	addWorldObject(object: Object3D, onFrame?: (info: FrameInfo) => void): Disposable {
+		this.particleScene.add(object);
+		const stop = onFrame ? getScheduler().add(onFrame, "update") : () => {};
+		this.worldStops.set(object, stop);
+		let disposed = false;
+		return {
+			dispose: () => {
+				if (disposed) return;
+				disposed = true;
+				stop();
+				this.worldStops.delete(object);
+				this.particleScene.remove(object);
 			},
 		};
 	}

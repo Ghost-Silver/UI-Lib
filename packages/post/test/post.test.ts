@@ -8,6 +8,8 @@ describe("post-processing", () => {
 		expect(post.outputNode.isNode).toBe(true);
 		expect(post.uniforms.bloomStrength.value).toBe(0.5);
 		expect(post.uniforms.grain.value).toBe(0.03);
+		expect(post.uniforms.haloStrength.value).toBe(POST_DEFAULTS.haloStrength);
+		expect(post.uniforms.exposure.value).toBe(POST_DEFAULTS.exposure);
 		expect(POST_DEFAULTS.vignette).toBeGreaterThan(0);
 
 		post.setSize(1280, 720);

@@ -134,8 +134,11 @@ part of the M2 acceptance pass.
 The first M3 chain is now connected to the live stage through [`@ui-lib/post`](packages/post):
 
 - bright-pass multi-radius bloom;
+- wide atmospheric halo;
+- directional lens streak;
 - screen-space chromatic aberration;
 - animated procedural grain;
+- exposure / contrast / saturation grading;
 - vignette;
 - all sampled from the already-composited canvas through `viewportTexture()`;
 - final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
