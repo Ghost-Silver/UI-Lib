@@ -90,6 +90,7 @@ Nothing throws, nothing looks broken.
 | [`@ui-lib/shaders`](packages/shaders) | yes | TSL node materials: liquid glass, gradient-mesh backdrop |
 | [`@ui-lib/renderer`](packages/renderer) | yes | renderer bootstrap (WebGPU→WebGL 2), backdrop passes, particles, the DOM-attached glass layer |
 | [`@ui-lib/particles`](packages/particles) | yes | compute/transform-feedback simulation, emitters, flow fields, bounds and sprite rendering |
+| [`@ui-lib/post`](packages/post) | yes | TSL viewport chain: bloom, chromatic aberration, grain and vignette |
 | [`@ui-lib/react`](packages/react) | yes | `<GlassStage>`, `<GlassPanel>`, `<ParticleField>`, hooks, CSS fallback |
 
 Layering rule: `core` never imports three; adapter packages sit on top; reverse dependencies are bugs.
@@ -128,7 +129,26 @@ The docs scene uses 24,000 particles intentionally. The public default is 80,000
 The engine is structured for that budget; actual device-specific LOD and the benchmark gate remain
 part of the M2 acceptance pass.
 
+## Milestone 3: TSL post-processing
+
+The first M3 chain is now connected to the live stage through [`@ui-lib/post`](packages/post):
+
+- bright-pass multi-radius bloom;
+- screen-space chromatic aberration;
+- animated procedural grain;
+- vignette;
+- all sampled from the already-composited canvas through `viewportTexture()`;
+- final tone mapping and sRGB transform happen once in three's `RenderPipeline`.
+
+`<GlassStage post={{ bloomStrength: 0.4, chromaticAberration: 0.8 }} />` updates uniforms
+without rebuilding the renderer or tearing down particles. The playground exposes live sliders for
+all four effects.
+
+The next M3 pass is temporal anti-aliasing and a true separable bloom pyramid; the current chain is
+intentionally a small first-frame-safe graph that works with the same WebGPU/WebGL2 renderer path.
+
 ## Next
 
-Milestone 3 is the TSL post-processing chain (bloom, glare, chromatic aberration, bokeh and TAA).
+Milestone 4 is the DOM bridge and scroll cinema: image-to-texture transitions, 3D-to-DOM tracking,
+magnetic cursor and scroll-linked choreography.
 Full plan, milestones and open questions: [`docs/ROADMAP.md`](docs/ROADMAP.md).

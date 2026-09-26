@@ -1,7 +1,7 @@
 {
-	"name": "@ui-lib/renderer",
+	"name": "@ui-lib/post",
 	"version": "0.0.1",
-	"description": "three.js WebGPU/WebGL2 rendering runtime for UI-Lib: adaptive renderer bootstrap, backdrop passes and the DOM-attached glass layer.",
+	"description": "TSL post-processing chain for UI-Lib: bloom, chromatic aberration, grain and vignette.",
 	"license": "MIT",
 	"type": "module",
 	"sideEffects": false,
@@ -24,12 +24,6 @@
 	},
 	"peerDependencies": {
 		"three": ">=0.180.0"
-	},
-	"dependencies": {
-		"@ui-lib/core": "workspace:*",
-		"@ui-lib/particles": "workspace:*",
-		"@ui-lib/post": "workspace:*",
-		"@ui-lib/shaders": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/three": "^0.186.0",

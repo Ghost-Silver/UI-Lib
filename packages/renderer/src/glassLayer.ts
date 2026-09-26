@@ -11,6 +11,11 @@ import {
 } from "@ui-lib/core";
 import type { ParticleSystem } from "@ui-lib/particles";
 import {
+	createPostProcessing,
+	type PostProcessing,
+	type PostProcessingOptions,
+} from "@ui-lib/post";
+import {
 	createFullscreenQuad,
 	createLiquidGlassMaterial,
 	type LiquidGlassMaterial,
@@ -18,10 +23,13 @@ import {
 } from "@ui-lib/shaders";
 import { uniform } from "three/tsl";
 import {
+	LinearSRGBColorSpace,
 	Mesh,
+	NoToneMapping,
 	OrthographicCamera,
 	PerspectiveCamera,
 	PlaneGeometry,
+	RenderPipeline,
 	Scene,
 	Vector2,
 } from "three/webgpu";
@@ -101,6 +109,8 @@ export interface GlassLayerOptions {
 	zIndex?: number;
 	parent?: HTMLElement;
 	backdrop?: BackdropSpec;
+	/** TSL post chain. Pass `false` to keep the raw scene output. */
+	post?: PostProcessingOptions | false;
 	dprCap?: number;
 	antialias?: boolean;
 	forceWebGL?: boolean;
@@ -188,6 +198,8 @@ export class GlassLayer implements Disposable {
 
 	private backdrop: BackdropInstance;
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
+	private postProcessing: PostProcessing | null = null;
+	private postPipeline: RenderPipeline | null = null;
 	private pointer: PointerTracker | null = null;
 
 	private width = 0;
@@ -228,6 +240,7 @@ export class GlassLayer implements Disposable {
 		this.backdrop = createBackdrop(options.backdrop ?? DEFAULT_BACKDROP, this.shared);
 		this.backdropQuad = createFullscreenQuad(this.backdrop.material);
 		this.backdropScene.add(this.backdropQuad.mesh);
+		this.setPostProcessing(options.post ?? {});
 
 		this.particleCamera.position.set(0, 0, 14);
 		this.particleCamera.lookAt(0, 0, 0);
@@ -270,6 +283,8 @@ export class GlassLayer implements Disposable {
 		});
 		this.disposer.add(() => this.backdrop.dispose());
 		this.disposer.add(() => this.backdropQuad.dispose());
+		this.disposer.add(() => this.postPipeline?.dispose());
+		this.disposer.add(() => this.postProcessing?.dispose());
 		this.disposer.add(() => this.panelGeometry.dispose());
 		this.disposer.add(() => this.ui.dispose());
 
@@ -397,6 +412,30 @@ export class GlassLayer implements Disposable {
 				system.dispose();
 			},
 		};
+	}
+
+	setPostProcessing(options: PostProcessingOptions | false): void {
+		if (options !== false && this.postProcessing !== null && this.postPipeline !== null) {
+			this.postProcessing.update(options);
+			this.markDirty();
+			return;
+		}
+
+		this.postPipeline?.dispose();
+		this.postProcessing?.dispose();
+		this.postPipeline = null;
+		this.postProcessing = null;
+
+		if (options !== false) {
+			const post = createPostProcessing(options);
+			const pipeline = new RenderPipeline(this.ui.renderer);
+			pipeline.outputNode = post.outputNode;
+			pipeline.needsUpdate = true;
+			this.postProcessing = post;
+			this.postPipeline = pipeline;
+			post.setSize(Math.max(1, this.width * this.dpr), Math.max(1, this.height * this.dpr));
+		}
+		this.markDirty();
 	}
 
 	setBackdrop(spec: BackdropSpec): void {
@@ -545,6 +584,7 @@ export class GlassLayer implements Disposable {
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
+		this.postProcessing?.setSize(bufferWidth, bufferHeight);
 
 		this.glassCamera.left = -bufferWidth / 2;
 		this.glassCamera.right = bufferWidth / 2;
@@ -607,7 +647,10 @@ export class GlassLayer implements Disposable {
 	private frame = (info: FrameInfo): void => {
 		this.quality.sample(info.dt);
 
-		if (!this.reducedMotion) this.sharedTime.value += info.dt;
+		if (!this.reducedMotion) {
+			this.sharedTime.value += info.dt;
+			this.postProcessing?.step(info.dt);
+		}
 
 		if (this.pointer) {
 			this.pointer.update(info.dt);
@@ -641,9 +684,21 @@ export class GlassLayer implements Disposable {
 
 	private renderFrame(): void {
 		const { renderer } = this.ui;
+		const previousToneMapping = renderer.toneMapping;
+		const previousColorSpace = renderer.outputColorSpace;
+		const usesPost = this.postPipeline !== null && this.postProcessing !== null;
+
 		renderer.autoClear = false;
 		renderer.setRenderTarget(null);
 		renderer.clear(true, true, false);
+
+		// Keep the intermediate canvas in working-linear space. The RenderPipeline
+		// applies tone mapping and the output colour transform exactly once after
+		// the bloom / aberration / grain nodes have sampled it.
+		if (usesPost) {
+			renderer.toneMapping = NoToneMapping;
+			renderer.outputColorSpace = LinearSRGBColorSpace;
+		}
 
 		// 1. Backdrop first, straight to the screen.
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
@@ -657,9 +712,20 @@ export class GlassLayer implements Disposable {
 
 		// 3. Glass next, in a separate `render()` call. `viewportSharedTexture`
 		//    de-duplicates its framebuffer copy per render call, so this is one
-		//    blit per frame no matter how many panels are registered — and the
-		//    copy happens after the backdrop and particles are already on screen.
+		//    blit per frame no matter how many panels are registered.
 		renderer.render(this.glassScene, this.glassCamera);
+
+		// 4. The final canvas image becomes a TSL input. Put the renderer's output
+		// settings back before `_update()` so RenderPipeline captures the real
+		// target transform and applies tone mapping / sRGB exactly once.
+		if (usesPost) {
+			renderer.toneMapping = previousToneMapping;
+			renderer.outputColorSpace = previousColorSpace;
+			this.postPipeline?.render();
+		}
+
+		renderer.toneMapping = previousToneMapping;
+		renderer.outputColorSpace = previousColorSpace;
 	}
 }
 

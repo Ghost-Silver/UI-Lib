@@ -5,6 +5,7 @@
  * package is where a GPU actually gets involved.
  */
 
+export type { PostProcessingOptions } from "@ui-lib/post";
 export type { BackdropInstance, BackdropSpec } from "./backdrop.js";
 export { createBackdrop, DEFAULT_BACKDROP } from "./backdrop.js";
 export type { CreateRendererOptions, UiRenderer } from "./createRenderer.js";

@@ -1,6 +1,6 @@
 import type { ParticleSystemOptions } from "@ui-lib/particles";
 import { GlassPanel, GlassStage, ParticleField, useGlassStage } from "@ui-lib/react";
-import type { BackdropSpec } from "@ui-lib/renderer";
+import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useMemo, useState } from "react";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
@@ -32,6 +32,10 @@ interface Params {
 	edgeGlow: number;
 	tintAmount: number;
 	saturation: number;
+	bloomStrength: number;
+	chromaticAberration: number;
+	grain: number;
+	vignette: number;
 }
 
 const DEFAULT_PARAMS: Params = {
@@ -45,6 +49,10 @@ const DEFAULT_PARAMS: Params = {
 	edgeGlow: 0.55,
 	tintAmount: 0.05,
 	saturation: 1.15,
+	bloomStrength: 0.28,
+	chromaticAberration: 0.35,
+	grain: 0.018,
+	vignette: 0.12,
 };
 
 const PARTICLES: ParticleSystemOptions = {
@@ -89,6 +97,15 @@ export default function App() {
 		() => ({ type: "gradient", colors: [...PALETTES[palette]], speed }),
 		[palette, speed],
 	);
+	const post = useMemo<PostProcessingOptions>(
+		() => ({
+			bloomStrength: params.bloomStrength,
+			chromaticAberration: params.chromaticAberration,
+			grain: params.grain,
+			vignette: params.vignette,
+		}),
+		[params.bloomStrength, params.chromaticAberration, params.grain, params.vignette],
+	);
 
 	const set =
 		<K extends keyof Params>(key: K) =>
@@ -98,6 +115,7 @@ export default function App() {
 	return (
 		<GlassStage
 			backdrop={backdrop}
+			post={post}
 			forceFallback={forceFallback}
 			forceWebGL={backend === "webgl"}
 			className="stage"
@@ -289,6 +307,38 @@ function Scene(props: SceneProps) {
 							max={2}
 							step={0.01}
 							onChange={set("saturation")}
+						/>
+						<Slider
+							label="Bloom"
+							value={params.bloomStrength}
+							min={0}
+							max={1.2}
+							step={0.01}
+							onChange={set("bloomStrength")}
+						/>
+						<Slider
+							label="Chromatic aberration"
+							value={params.chromaticAberration}
+							min={0}
+							max={4}
+							step={0.01}
+							onChange={set("chromaticAberration")}
+						/>
+						<Slider
+							label="Film grain"
+							value={params.grain}
+							min={0}
+							max={0.12}
+							step={0.001}
+							onChange={set("grain")}
+						/>
+						<Slider
+							label="Vignette"
+							value={params.vignette}
+							min={0}
+							max={1}
+							step={0.01}
+							onChange={set("vignette")}
 						/>
 					</div>
 				</GlassPanel>

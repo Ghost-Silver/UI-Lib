@@ -53,6 +53,7 @@ export function GlassStage({
 	onStats,
 	forceFallback = false,
 	backdrop,
+	post,
 	zIndex = 0,
 	dprCap,
 	antialias = true,
@@ -68,6 +69,8 @@ export function GlassStage({
 
 	const backdropRef = useRef<BackdropSpec | undefined>(backdrop);
 	backdropRef.current = backdrop;
+	const postRef = useRef<GlassLayerOptions["post"]>(post);
+	postRef.current = post;
 	const onStatsRef = useRef(onStats);
 	onStatsRef.current = onStats;
 
@@ -76,6 +79,7 @@ export function GlassStage({
 	}, []);
 
 	const backdropKey = backdropKeyOf(backdrop);
+	const postKey = stableKey(post);
 
 	useEffect(() => {
 		if (forceFallback) {
@@ -89,6 +93,7 @@ export function GlassStage({
 
 		createGlassLayer({
 			backdrop: backdropRef.current ?? { type: "gradient" },
+			post: postRef.current ?? {},
 			zIndex,
 			dprCap,
 			antialias,
@@ -140,6 +145,10 @@ export function GlassStage({
 	useEffect(() => {
 		if (backdropKey) state.layer?.setBackdrop(backdropRef.current ?? { type: "gradient" });
 	}, [state.layer, backdropKey]);
+
+	useEffect(() => {
+		if (postKey) state.layer?.setPostProcessing(postRef.current ?? {});
+	}, [state.layer, postKey]);
 
 	const setBackdrop = useCallback(
 		(spec: BackdropSpec) => {

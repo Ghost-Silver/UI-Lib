@@ -11,6 +11,7 @@ export default defineConfig({
 		// a build step in between.
 		alias: {
 			"@ui-lib/particles": r("../../packages/particles/src/index.ts"),
+			"@ui-lib/post": r("../../packages/post/src/index.ts"),
 			"@ui-lib/react": r("../../packages/react/src/index.ts"),
 			"@ui-lib/renderer": r("../../packages/renderer/src/index.ts"),
 			"@ui-lib/shaders": r("../../packages/shaders/src/index.ts"),
