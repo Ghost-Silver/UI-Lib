@@ -370,6 +370,12 @@ export class GlassLayer implements Disposable {
 	private reducedMotion = false;
 	private statsAccum = 0;
 	private hasRendered = false;
+	/**
+	 * True only after a frame actually drew world depth into the history.
+	 * A gradient-only frame must not copy the cleared depth attachment, or the
+	 * first world object disoccludes against empty depth and smears.
+	 */
+	private depthHistoryLive = false;
 	private readonly lastPointer = new Vector2(Number.NaN, Number.NaN);
 	private stopFrame: (() => void) | null = null;
 	private readonly onStats?: (stats: GlassLayerStats) => void;
@@ -1184,12 +1190,21 @@ export class GlassLayer implements Disposable {
 		const height = measured.height;
 		if (width < 1 || height < 1) {
 			this.dirty = true;
+			// Forget the last good size. A restore of the same CSS box must not
+			// hit the cache below, or a section hidden while collapsed stays hidden.
+			this.width = 0;
+			this.height = 0;
 			this.canvas.style.visibility = "hidden";
 			return;
 		}
 
 		const dprCap = Math.min(this.quality.settings.dprCap, Number.POSITIVE_INFINITY);
 		const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+
+		// Before the size-guard return. A collapse used to leave the cached size
+		// in place, so restoring the same CSS box skipped every side effect here.
+		// Tier 0 stays hidden; frame() hides again if the GPU tier drops.
+		if (this.quality.tier !== 0) this.canvas.style.visibility = "visible";
 
 		if (!force && width === this.width && height === this.height && dpr === this.dpr) return;
 
@@ -1317,6 +1332,7 @@ export class GlassLayer implements Disposable {
 
 		this.syncViewport();
 		if (this.bounds.width < 1 || this.bounds.height < 1) {
+			this.canvas.style.visibility = "hidden";
 			this.reportStats(info.dt);
 			return;
 		}
@@ -1605,17 +1621,26 @@ export class GlassLayer implements Disposable {
 		// 5. The final canvas image becomes a TSL input. Put the renderer's output
 		// settings back before `_update()` so RenderPipeline captures the real
 		// target transform and applies tone mapping / sRGB exactly once.
+		if (usesPost && hasWorldObjects !== this.depthHistoryLive) {
+			// The gradient quad does not write depth. Copying that clear into
+			// history makes the first world object borrow or reject the wrong frame.
+			this.postProcessing?.resetHistory();
+		}
 		if (usesPost) {
 			renderer.toneMapping = previousToneMapping;
 			renderer.outputColorSpace = previousColorSpace;
 			this.postPipeline?.render();
 			this.postProcessing?.commit(renderer);
 			// History depth must be the world target, not the present-quad that
-			// now owns the default framebuffer.
-			renderer.setRenderTarget(this.backdropRT);
-			this.postProcessing?.captureDepth(renderer);
-			renderer.setRenderTarget(null);
+			// now owns the default framebuffer. Skip the copy when this frame
+			// drew no world depth.
+			if (hasWorldObjects) {
+				renderer.setRenderTarget(this.backdropRT);
+				this.postProcessing?.captureDepth(renderer);
+				renderer.setRenderTarget(null);
+			}
 		}
+		this.depthHistoryLive = usesPost && hasWorldObjects;
 
 		renderer.toneMapping = previousToneMapping;
 		renderer.outputColorSpace = previousColorSpace;

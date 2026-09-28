@@ -61,12 +61,12 @@ describe("optics looks", () => {
 		expect(mote.forces?.attractor).toBe(FIELD_LOOKS.mote.forces?.attractor);
 		expect(FIELD_LOOKS.mote.count).toBe(1_400);
 		expect(FIELD_LOOKS.spark.count).toBe(64);
-		expect(FIELD_LOOKS.quiet.count).toBeLessThan(FIELD_LOOKS.mote.count ?? 0);
+		expect(asCount(FIELD_LOOKS.quiet.count)).toBeLessThan(asCount(FIELD_LOOKS.mote.count));
 		expect(FIELD_LOOKS.quiet.intensity).toBeLessThan(FIELD_LOOKS.mote.intensity ?? 1);
 		expect(FIELD_LOOKS.cursor.intensity ?? 1).toBeLessThanOrEqual(
 			FIELD_LOOKS.quiet.intensity ?? 1,
 		);
-		expect(FIELD_LOOKS.cursor.count ?? 0).toBeGreaterThan(FIELD_LOOKS.quiet.count ?? 0);
+		expect(asCount(FIELD_LOOKS.cursor.count)).toBeGreaterThan(asCount(FIELD_LOOKS.quiet.count));
 		expect(GLASS_LOOKS.cursor.environment).toBeLessThan(GLASS_LOOKS.cinema.environment);
 		expect(GLASS_LOOKS.cursor.pointerStrength).toBeGreaterThan(
 			GLASS_LOOKS.quiet.pointerStrength,
@@ -85,3 +85,10 @@ describe("optics looks", () => {
 		expect(GLASS_LOOKS.veil.environment).toBeLessThanOrEqual(GLASS_LOOKS.cinema.environment);
 	});
 });
+
+function asCount(value: number | "auto" | undefined): number {
+	if (typeof value !== "number") {
+		throw new Error(`expected a numeric particle count, got ${String(value)}`);
+	}
+	return value;
+}

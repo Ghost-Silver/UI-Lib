@@ -20,7 +20,13 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 | Aurora Flow | `/?demo=aurora-flow` | 整页流场，不是参数面板。`<ParticleField flow />` 把局部涡旋沿同一条射线走近。中心有一颗浅色的心，是换色，不抬 `intensity`。手快时涡流略变宽，停住回到原来的半径。后面有一层更暗、更慢的雾。字用 `<Reveal>`。 |
 | Liquid Glass Pro | `/?demo=liquid-glass` | 仍是验收壳，不是旗舰页。 |
 
-验证到这一步：`pnpm typecheck` 通过，Vitest 67 项通过。Aurora 页面能返回 200。没有在这台机器上检查真实 GPU 像素，所以亮度和心是否看得清，要以浏览器里的画面为准。Playwright 截图基线仍未生成。
+验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
+
+```bash
+pnpm build && pnpm typecheck && pnpm test
+```
+
+修完 section 可见性和深度历史后再跑，8 个包 typecheck 通过，Vitest 12 个文件 67 项通过。五个 demo 路由能返回 200。没有在这台机器上检查真实 GPU 像素，所以亮度和心是否看得清，要以浏览器里的画面为准。仓库里没有截图基线，`pnpm test:e2e` 第一次跑会因为 `toHaveScreenshot` 失败，它现在不是可回归的验收门禁。
 
 ## 下一步
 
@@ -140,11 +146,11 @@ pnpm dev
 执行仓库级验证：
 
 ```bash
-pnpm typecheck
-pnpm test
+pnpm build && pnpm typecheck && pnpm test
 pnpm lint
-pnpm build
 ```
+
+`pnpm test` 自己也会先 `pnpm build`。包入口指向 `dist/`，跳过构建的话跨包测试解析不到。
 
 执行浏览器验收：
 
@@ -153,7 +159,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件和 five-demo acceptance surface 已经加入仓库，但截图 baseline、WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
+在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件和五个 demo 的 acceptance surface 已经加入仓库，但仓库里没有截图 baseline。首次 `pnpm test:e2e` 会因 `toHaveScreenshot` 失败，在基线生成之前不要把它当成合并门禁。WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
 
 ## React 用法
 
@@ -560,8 +566,8 @@ UI-Lib 以约束而不是营销数字为中心：
 ```bash
 pnpm install
 pnpm dev              # Vite Playground
-pnpm typecheck        # 全 workspace TypeScript
-pnpm test             # Vitest
+pnpm build && pnpm typecheck && pnpm test   # 干净 clone 的门禁
+pnpm test             # 先构建 dist，再跑 Vitest
 pnpm lint             # Biome check
 pnpm build            # 包构建
 pnpm test:e2e         # Playwright 浏览器验收

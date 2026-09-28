@@ -17,7 +17,12 @@ describe("React adapter SSR", () => {
 		const html = renderToString(
 			React.createElement(
 				GlassStage,
-				{ backdrop: { type: "gradient", colors: ["#111827", "#4c1d95"] } },
+				{
+					backdrop: {
+						type: "gradient",
+						colors: ["#111827", "#4c1d95", "#111827", "#4c1d95"],
+					},
+				},
 				React.createElement(
 					GlassPanel,
 					{ as: "main", "aria-label": "Product hero" },
