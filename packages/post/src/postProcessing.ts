@@ -1,3 +1,4 @@
+import { mergeDefined } from "@ui-lib/core";
 import {
 	abs,
 	dot,
@@ -26,12 +27,13 @@ import {
 import {
 	DepthTexture,
 	FramebufferTexture,
+	Matrix4,
 	type Node,
 	SRGBColorSpace,
+	type Texture,
 	Vector2,
 	type WebGPURenderer,
 } from "three/webgpu";
-import { mergeDefined } from "@ui-lib/core";
 
 export interface PostProcessingOptions {
 	enabled?: boolean;
@@ -57,6 +59,12 @@ export interface PostProcessingOptions {
 	vignette?: number;
 	/** Exposure multiplier in stops. */
 	exposure?: number;
+	/**
+	 * Reinhard roll-off of channels above 1, in [0, 1]. 0 leaves the image
+	 * linear. Midtones are not touched — this is how a bright optic stays an
+	 * optic instead of clipping to white.
+	 */
+	shoulder?: number;
 	/** Mid-tone contrast multiplier. */
 	contrast?: number;
 	/** Colour intensity around luminance 1. */
@@ -69,6 +77,16 @@ export interface PostProcessingOptions {
 	temporalClamp?: number;
 	/** Screen-space world velocity in device pixels, supplied by the shared layer. */
 	worldVelocity?: [number, number];
+	/**
+	 * Scale and aim `motionBlur` from the camera's screen velocity, and apply
+	 * it only to world-depth fragments. DOM glass stays sharp.
+	 */
+	cameraMotionBlur?: boolean;
+	/**
+	 * Perspective depth of the offscreen world target. When omitted, the graph
+	 * samples the canvas depth attachment instead.
+	 */
+	depthTexture?: Texture | null;
 	/** Normalised linear depth at the focus plane. */
 	focusDepth?: number;
 	/** Screen-space focus blur radius in device pixels. 0 disables the DOF approximation. */
@@ -96,12 +114,15 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	grain: 0.018,
 	vignette: 0.12,
 	exposure: 0.04,
+	shoulder: 0,
 	contrast: 1.03,
 	saturation: 1.08,
 	temporalBlend: 0.88,
 	temporalReactive: 0.8,
 	temporalClamp: 0.18,
 	worldVelocity: [0, 0],
+	cameraMotionBlur: false,
+	depthTexture: null,
 	focusDepth: 0.62,
 	focusBlur: 2.5,
 	focusPoint: [0.5, 0.5],
@@ -128,6 +149,7 @@ export interface PostProcessingUniforms {
 	grain: ScalarUniform;
 	vignette: ScalarUniform;
 	exposure: ScalarUniform;
+	shoulder: ScalarUniform;
 	contrast: ScalarUniform;
 	saturation: ScalarUniform;
 	temporalBlend: ScalarUniform;
@@ -135,6 +157,8 @@ export interface PostProcessingUniforms {
 	temporalClamp: ScalarUniform;
 	temporalJitter: VectorUniform;
 	worldVelocity: VectorUniform;
+	cameraMotionBlur: ScalarUniform;
+	velocityValid: ScalarUniform;
 	depthRange: VectorUniform;
 	focusDepth: ScalarUniform;
 	focusBlur: ScalarUniform;
@@ -158,8 +182,16 @@ export interface PostProcessing {
 	nextJitter(): [number, number];
 	/** Update the aggregate world-object velocity in device pixels. */
 	setWorldVelocity(velocity: [number, number]): void;
-	/** Tell depth reprojection which perspective camera produced the viewport depth. */
+	/** Tell depth reprojection which perspective camera produced the world depth. */
 	setDepthRange(near: number, far: number): void;
+	/**
+	 * Current and previous unjittered view-projections. `inverseViewProjection`
+	 * is the inverse of the current matrix, computed on the CPU so the graph
+	 * does not depend on a mat4 inverse opcode.
+	 */
+	setViewProjection(inverseViewProjection: Matrix4, previousViewProjection: Matrix4): void;
+	/** Copy the currently bound render target's depth into next frame's history. */
+	captureDepth(renderer: WebGPURenderer): void;
 	update(options: Partial<PostProcessingOptions>): void;
 	/** Advance animated effects from the page scheduler's single clock. */
 	step(dt: number): void;
@@ -250,6 +282,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		grain: uniform(initial.grain),
 		vignette: uniform(initial.vignette),
 		exposure: uniform(initial.exposure),
+		shoulder: uniform(initial.shoulder),
 		contrast: uniform(initial.contrast),
 		saturation: uniform(initial.saturation),
 		temporalBlend: uniform(initial.temporalBlend),
@@ -257,6 +290,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		temporalClamp: uniform(initial.temporalClamp),
 		temporalJitter: uniform(new Vector2()),
 		worldVelocity: uniform(new Vector2(...initial.worldVelocity)),
+		cameraMotionBlur: uniform(initial.cameraMotionBlur ? 1 : 0),
+		velocityValid: uniform(0),
 		depthRange: uniform(new Vector2(0.1, 100)),
 		focusDepth: uniform(initial.focusDepth),
 		focusBlur: uniform(initial.focusBlur),
@@ -276,6 +311,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 
 	const source = viewportTexture();
 	const uv = screenUV;
+	const depthTexture = options.depthTexture ?? null;
+	const depthNode = depthTexture ? texture(depthTexture, uv) : viewportDepthTexture(uv);
+	const invViewProjection = uniform(new Matrix4());
+	const previousViewProjection = uniform(new Matrix4());
 	const sample = (offset: Node<"vec2"> = vec2(0, 0) as Node<"vec2">) =>
 		source.sample(uv.add(offset));
 	const baseSample = sample();
@@ -354,18 +393,37 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	colour = mix(vec3(luminanceValue), colour, uniforms.saturation);
 	colour = colour.sub(0.5).mul(uniforms.contrast).add(0.5);
 
-	// The canvas target owns a depth texture even though the backdrop and glass
-	// materials do not write depth. World particles / hero objects therefore
-	// provide a useful mask for both focus and jitter reprojection. The depth
-	// buffer was produced by the perspective particle camera, not the post quad,
-	// so linearise it explicitly with that camera's near/far range.
+	// Depth comes from the offscreen world target when the layer provides one.
+	// The canvas depth attachment is only the present-quad, so it cannot mask
+	// the hero. Linearise with the perspective camera that drew that target.
 	const lineariseDepth = (depth: Node<"float">): Node<"float"> =>
 		viewZToOrthographicDepth(
 			perspectiveDepthToViewZ(depth, uniforms.depthRange.x, uniforms.depthRange.y),
 			uniforms.depthRange.x,
 			uniforms.depthRange.y,
 		);
-	const sceneDepth = lineariseDepth(viewportDepthTexture(uv).r);
+	const depthRaw = depthNode.r;
+	const sceneDepth = lineariseDepth(depthRaw);
+	// Far-plane fragments are backdrop. Only closer, depth-written world pixels
+	// may reproject or take camera motion blur. DOM glass is not in this target.
+	const worldDepthMask = oneMinus(smoothstep(0.92, 0.998, sceneDepth));
+	// Same unproject / reproject as `reprojectionVelocity()`: top-left uv,
+	// window-Z depth, column-major view-projection. Inverse is supplied by the
+	// CPU. velocityValid stays 0 until the first matrix pair arrives.
+	const clip = vec4(
+		uv.x.mul(2).sub(1),
+		oneMinus(uv.y).mul(2).sub(1),
+		depthRaw.mul(2).sub(1),
+		1,
+	);
+	const worldH = invViewProjection.mul(clip);
+	const world = worldH.div(worldH.w);
+	const prevH = previousViewProjection.mul(vec4(world.xyz, 1));
+	const prevW = prevH.w;
+	const prevUvX = prevH.x.div(prevW).mul(0.5).add(0.5);
+	const prevUvY = oneMinus(prevH.y.div(prevW).mul(0.5).add(0.5));
+	const pixelVelocity = vec2(uv.x.sub(prevUvX), uv.y.sub(prevUvY)).mul(uniforms.resolution);
+	const velocity = mix(uniforms.worldVelocity, pixelVelocity, uniforms.velocityValid);
 
 	// Depth-aware screen-space focus blur. The UV falloff keeps the composition's
 	// centre slightly more restrained when the background is the only depth sample.
@@ -381,7 +439,14 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const focusDistance = uv.sub(uniforms.focusPoint).length();
 	const spatialOutOfFocus = smoothstep(0.16, 0.74, focusDistance);
 	const outOfFocus = mix(spatialOutOfFocus, depthOutOfFocus, 0.78);
-	colour = mix(colour, defocus, outOfFocus.mul(saturate(uniforms.focusBlur.div(16))));
+	// Camera-driven pages must not defocus DOM glass that sits over the far
+	// backdrop. Playground keeps the full-frame mix.
+	const focusMask = mix(float(1), worldDepthMask, uniforms.cameraMotionBlur);
+	colour = mix(
+		colour,
+		defocus,
+		outOfFocus.mul(focusMask).mul(saturate(uniforms.focusBlur.div(16))),
+	);
 
 	// A directional five-tap blur gives moving hero elements a restrained
 	// cinematic smear. It is disabled by default and costs only the graph taps
@@ -400,7 +465,19 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			),
 		);
 	}
-	colour = mix(colour, motion, uniforms.motionBlur);
+	const motionAmount = mix(
+		uniforms.motionBlur,
+		uniforms.motionBlur.mul(worldDepthMask),
+		uniforms.cameraMotionBlur,
+	);
+	colour = mix(colour, motion, motionAmount);
+
+	// Same expression as `compressHighlight`: only the part above 1 rolls off.
+	// Applied after focus and motion blur so those raw taps cannot put the
+	// clipped peaks back. One mix, no extra samples.
+	const excess = max(colour.sub(1), 0);
+	const rolled = colour.sub(excess).add(excess.div(excess.add(1)));
+	colour = mix(colour, rolled, uniforms.shoulder);
 
 	// A deterministic animated grain pattern: no random texture allocation and
 	// no CPU-side noise upload.
@@ -416,12 +493,11 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	colour = colour.mul(mix(float(1), edgeDarkening, uniforms.vignette));
 
 	const effected = vec4(colour, baseSample.a);
-	const worldDepthMask = oneMinus(smoothstep(0.92, 0.998, sceneDepth));
 	// `temporalJitter` is the previous-minus-current Halton offset and
-	// `worldVelocity` is current-minus-previous object motion, both in device
-	// pixels. Reproject only depth-backed world fragments; the DOM glass and
-	// empty backdrop remain at their stable screen positions.
-	const historyOffset = uniforms.temporalJitter.sub(uniforms.worldVelocity);
+	// `velocity` is current-minus-previous motion, both in device pixels.
+	// Reproject only depth-backed world fragments; DOM glass and the backdrop
+	// stay on their stable screen positions.
+	const historyOffset = uniforms.temporalJitter.sub(velocity);
 	const historyUv = uv.add(historyOffset.div(uniforms.resolution).mul(worldDepthMask));
 	const historySample = texture(historyTexture, historyUv);
 	const historyDepth = lineariseDepth(texture(historyDepthTexture, historyUv).r);
@@ -461,11 +537,17 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const luminanceDelta = abs(luminance(clampedHistory).sub(luminance(effected.rgb)));
 	const rejection = oneMinus(saturate(luminanceDelta.mul(4)));
 	const reactiveFactor = mix(float(1), rejection, saturate(uniforms.temporalReactive));
+	// Pixels without world depth cannot be reprojected. If any tracked object is
+	// moving, drop their history instead of shifting the whole frame — that is
+	// what smears DOM glass. Depth-backed fragments keep the per-pixel offset.
+	const objectMotion = saturate(uniforms.worldVelocity.length().div(3));
+	const uncoveredMotion = objectMotion.mul(oneMinus(worldDepthMask));
 	const temporalWeight = uniforms.temporalBlend
 		.mul(uniforms.historyValid)
 		.mul(depthConfidence)
 		.mul(uvConfidence)
-		.mul(reactiveFactor);
+		.mul(reactiveFactor)
+		.mul(oneMinus(uncoveredMotion));
 	const temporal = mix(effected, historyColour, temporalWeight);
 	const outputNode = mix(baseSample, temporal, uniforms.enabled);
 
@@ -493,16 +575,27 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		},
 		commit(renderer) {
 			renderer.copyFramebufferToTexture(historyTexture);
-			// A depth FramebufferTexture makes three copy the currently bound depth
-			// attachment rather than the colour attachment. This keeps the history
-			// depth in lockstep with the final colour before the next frame begins.
-			renderer.copyFramebufferToTexture(historyDepthTexture as unknown as FramebufferTexture);
+			// World depth is copied by `captureDepth` while the offscreen target
+			// is still bound. Copying the screen depth here would replace that
+			// with the present-quad and make disocclusion rejection meaningless.
+			if (!depthTexture) {
+				renderer.copyFramebufferToTexture(historyDepthTexture as unknown as FramebufferTexture);
+			}
 			uniforms.historyValid.value = 1;
 		},
 		resetHistory() {
 			uniforms.historyValid.value = 0;
+			uniforms.velocityValid.value = 0;
 			jitterIndex = 0;
 			uniforms.temporalJitter.value.set(0, 0);
+		},
+		setViewProjection(inverseViewProjection, previous) {
+			invViewProjection.value.copy(inverseViewProjection);
+			previousViewProjection.value.copy(previous);
+			uniforms.velocityValid.value = 1;
+		},
+		captureDepth(renderer) {
+			renderer.copyFramebufferToTexture(historyDepthTexture as unknown as FramebufferTexture);
 		},
 		nextJitter() {
 			const previousIndex = jitterIndex === 0 ? 16 : jitterIndex;
@@ -541,6 +634,7 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			if (patch.grain !== undefined) uniforms.grain.value = patch.grain;
 			if (patch.vignette !== undefined) uniforms.vignette.value = patch.vignette;
 			if (patch.exposure !== undefined) uniforms.exposure.value = patch.exposure;
+			if (patch.shoulder !== undefined) uniforms.shoulder.value = patch.shoulder;
 			if (patch.contrast !== undefined) uniforms.contrast.value = patch.contrast;
 			if (patch.saturation !== undefined) uniforms.saturation.value = patch.saturation;
 			if (patch.temporalBlend !== undefined) uniforms.temporalBlend.value = patch.temporalBlend;
@@ -548,6 +642,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 				uniforms.temporalReactive.value = patch.temporalReactive;
 			if (patch.temporalClamp !== undefined) uniforms.temporalClamp.value = patch.temporalClamp;
 			if (patch.worldVelocity) uniforms.worldVelocity.value.set(...patch.worldVelocity);
+			if (patch.cameraMotionBlur !== undefined) {
+				uniforms.cameraMotionBlur.value = patch.cameraMotionBlur ? 1 : 0;
+			}
 			if (patch.focusDepth !== undefined) uniforms.focusDepth.value = patch.focusDepth;
 			if (patch.focusBlur !== undefined) uniforms.focusBlur.value = patch.focusBlur;
 			if (patch.focusPoint) uniforms.focusPoint.value.set(...patch.focusPoint);

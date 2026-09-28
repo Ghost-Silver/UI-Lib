@@ -228,6 +228,19 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/motion:
+    dependencies:
+      '@ui-lib/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/particles:
     devDependencies:
       '@types/three':
@@ -244,6 +257,10 @@ importers:
         version: 5.9.3
 
   packages/post:
+    dependencies:
+      '@ui-lib/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/three':
         specifier: ^0.186.0
@@ -263,6 +280,9 @@ importers:
       '@ui-lib/core':
         specifier: workspace:*
         version: link:../core
+      '@ui-lib/motion':
+        specifier: workspace:*
+        version: link:../motion
       '@ui-lib/particles':
         specifier: workspace:*
         version: link:../particles

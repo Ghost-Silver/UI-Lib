@@ -8,7 +8,10 @@
  * `opts.shift[0]` read. This merge enforces the real contract: "not provided"
  * — `undefined` — means "use the default".
  */
-export function mergeDefined<T extends object, P extends Partial<T>>(defaults: T, partial: P): T {
+export function mergeDefined<T extends object, P extends Partial<T>>(
+	defaults: T,
+	partial: P,
+): T {
 	const out: T = { ...defaults };
 	for (const key of Object.keys(partial) as (keyof P)[]) {
 		const value = partial[key];

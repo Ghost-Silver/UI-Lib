@@ -1,5 +1,5 @@
 import type { ParticleSystemOptions } from "@ui-lib/particles";
-import { GlassPanel, GlassStage, ParticleField, useGlassStage } from "@ui-lib/react";
+import { GlassPanel, GlassStage, Magnetic, ParticleField, useGlassStage } from "@ui-lib/react";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -20,8 +20,12 @@ import {
 	MeshBasicNodeMaterial,
 } from "three/webgpu";
 import { AcceptanceDemo, type AcceptanceDemoId } from "./AcceptanceDemo.js";
+import { AuroraFlowPage } from "./AuroraFlow.js";
+import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
+import { ProductHeroPage } from "./ProductHero.js";
+import { ScrollCinemaPage } from "./ScrollCinema.js";
 
 const PALETTES = {
 	aurora: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"],
@@ -273,6 +277,28 @@ function Scene(props: SceneProps) {
 					<span className="brand__mark" aria-hidden="true" />
 					UI·LIB <span className="brand__sub">/ liquid glass</span>
 				</div>
+				<nav className="toplinks" aria-label="Demos">
+					<Magnetic strength={0.4} radius={100}>
+						<a className="navlink" href="/?demo=aurora-flow">
+							Aurora
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={100}>
+						<a className="navlink" href="/?demo=product-hero">
+							Lumen
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={110}>
+						<a className="navlink" href="/?demo=scroll-cinema">
+							Scroll Cinema
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={120}>
+						<a className="navlink" href="/?demo=cursor-field">
+							Cursor Field
+						</a>
+					</Magnetic>
+				</nav>
 				<GlassPanel className="pill" {...pill}>
 					{stats?.backend === "webgpu"
 						? "WebGPU"
@@ -296,22 +322,26 @@ function Scene(props: SceneProps) {
 						per-channel scale for chromatic dispersion and a golden-angle disc blur for frost.
 					</p>
 					<div className="hero__actions">
-						<GlassPanel
-							as="button"
-							className="cta"
-							{...pill}
-							onClick={() => setParams(DEFAULT_PARAMS)}
-						>
-							Reset parameters
-						</GlassPanel>
-						<GlassPanel
-							as="button"
-							className="cta cta--ghost"
-							{...pill}
-							onClick={() => setForceFallback(!forceFallback)}
-						>
-							{forceFallback ? "Back to GPU glass" : "Compare with CSS"}
-						</GlassPanel>
+						<Magnetic strength={0.42} radius={120}>
+							<GlassPanel
+								as="button"
+								className="cta"
+								{...pill}
+								onClick={() => setParams(DEFAULT_PARAMS)}
+							>
+								Reset parameters
+							</GlassPanel>
+						</Magnetic>
+						<Magnetic strength={0.42} radius={120}>
+							<GlassPanel
+								as="button"
+								className="cta cta--ghost"
+								{...pill}
+								onClick={() => setForceFallback(!forceFallback)}
+							>
+								{forceFallback ? "Back to GPU glass" : "Compare with CSS"}
+							</GlassPanel>
+						</Magnetic>
 					</div>
 				</div>
 
@@ -573,15 +603,22 @@ const ACCEPTANCE_IDS: readonly AcceptanceDemoId[] = [
 	"liquid-glass",
 	"aurora-flow",
 	"product-hero",
-	"scroll-cinema",
 	"cursor-field",
 ];
+
+function isAcceptanceDemo(value: string): value is AcceptanceDemoId {
+	return (ACCEPTANCE_IDS as readonly string[]).includes(value);
+}
 
 export default function App() {
 	if (typeof window !== "undefined") {
 		const query = new URLSearchParams(window.location.search);
-		const demo = query.get("demo") as AcceptanceDemoId | null;
-		if (demo && ACCEPTANCE_IDS.includes(demo)) return <AcceptanceDemo id={demo} />;
+		const demo = query.get("demo");
+		if (demo === "scroll-cinema") return <ScrollCinemaPage />;
+		if (demo === "product-hero") return <ProductHeroPage />;
+		if (demo === "cursor-field") return <CursorFieldPage />;
+		if (demo === "aurora-flow") return <AuroraFlowPage />;
+		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;
 }

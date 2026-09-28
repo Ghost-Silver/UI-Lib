@@ -171,21 +171,24 @@
 - `@ui-lib/react`：`<ParticleField>`，粒子进入 `GlassStage` 的同一 canvas，DOM 玻璃可以折射粒子
 - Demo **Aurora Flow** 首版已在 playground：24k 粒子；WebGPU native compute / WebGL2 transform feedback 自动切换
 - `<ParticleField count="auto">`（options 里的 `count: "auto"`）已按后端选择 WebGPU 1M / WebGL2 80k；
-  **下一小步**是基准机压测、动态 LOD、trail buffer 与真实 pointer→world ray
+  **下一小步**是基准机压测、动态 LOD 与 per-particle trail buffer。pointer→world ray 已在共享 scheduler 上。Aurora Flow 旗舰页用固定 36k 的 `fieldOptions("aurora")`，不把未经基准的 1M 写成完成
 - **验收**：1M 粒子 @60fps（WebGPU 基准机）+ 掉落帧 < 1% + dispose 后资源归零
 
 ### M3 · 后处理与相机 🚧 首个链路已完成
-- `@ui-lib/post`：TSL viewport chain 已交付 multi-scale separable bloom / wide halo / lens streak / chromatic aberration / grain / exposure / contrast / saturation / vignette / depth-aware focus blur / directional motion blur / 16-step Halton full TAA / world-object velocity / depth history disocclusion / 3×3 variance clipping / reactive history rejection；支持 `quality: 1 | 2 | 3` 的编译期 tap budget，可通过 `GlassStage post` 动态改 uniform 或关闭，不重建 renderer
+- `@ui-lib/post`：TSL viewport chain 已交付 multi-scale separable bloom / wide halo / lens streak / chromatic aberration / grain / exposure / contrast / saturation / vignette / `shoulder` 高光肩 / depth-aware focus blur / directional motion blur / 16-step Halton full TAA / world-object velocity / depth history disocclusion / 3×3 variance clipping / reactive history rejection；支持 `quality: 1 | 2 | 3` 的编译期 tap budget，可通过 `GlassStage post` 动态改 uniform 或关闭，不重建 renderer。`LOOKS` 把 product / cinema / bright / quiet 收成命名 grade，`resolveLook` 让页面只覆盖相机项
 - 静态 color / texture backdrop 且没有动态 world / pointer 时跳过整帧重绘与 history copy；auto quality tier 变化会同步重建 post graph tap budget
 - 现在的链路作用于 backdrop + particles + liquid glass 的**已经合成画面**，仍然只有一个 canvas；RenderPipeline 负责最后一次 tone mapping / sRGB；history 在 resize / dispose 时显式清理
-- **下一步**：world-only per-pixel velocity MRT（复杂 deforming particle fields）、真正的多 pass bloom pyramid、自定义 pass 插槽、路径相机与 **Glass Product Hero** demo
+- 相机重投影已接入离屏 world depth：未抖动的 view-projection 在 CPU 求逆，历史偏移只乘深度遮罩；`cameraMotionBlur` 用注视点屏幕位移缩放作者给定的上限，不改 playground 的常量 motion blur。变形粒子场的 per-pixel velocity MRT 仍未做
+- **下一步**：world-only per-pixel velocity MRT（复杂 deforming particle fields）、真正的多 pass bloom pyramid、自定义 pass 插槽。路径相机与 **Glass Product Hero** 已在 `/?demo=product-hero`（Lumen）：`look="product"`，`<Optics look="crystal" mote="quiet" />`，HTML 规格，pin 松开后文档继续。世界透镜采样同一张安静的工作室 equirect（`reflectVector` + `equirectUV`），强度在 `LENS_LOOKS`，Cinema 更弱。页面不传 cubemap
 - **验收**：后处理链可拼装、可关闭；关闭前后不崩、不变色（色彩管线统一 sRGB）
 
 ### M4 · DOM 桥与滚动叙事
-- `@ui-lib/dom`：element→texture、3D→DOM 跟随、图片转场、磁吸光标
-- `@ui-lib/motion`：scroll-linked、FLIP、MSDF 逐字揭示、stagger 编排
-- Demo **Scroll Cinema** + **Cursor Field**
-- **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用
+- `@ui-lib/motion` 第一切片已落地：`ScrollTrack` 在共享 scheduler 的 input 相位采样进度（无第二 rAF），`beatWeight` / `sampleTrack` 做章节与相机轨道。React 侧是 `<ScrollTrack>` + `<ScrollPin>`。
+- `GlassStage mode="section"` 已落地：canvas 绝对定位在 stage 内，面板坐标相对该元素。默认仍是 `viewport`，避免破坏整页 playground。
+- Demo **Scroll Cinema** 已从验收壳换成旗舰页（`/?demo=scroll-cinema`）：sticky pin、相机轨道、章节玻璃、会折光的世界透镜、滚出后文档继续。MSDF、FLIP 仍未做。磁吸已落地：`<Magnetic />`，共享 scheduler，不另开 rAF。HTML 逐词出现已落地：`<Reveal>`，同一时钟；这不是 MSDF。
+- `GlassLayer.createLensMaterial()` + `addWorldObject(..., { refractive: true })`，React 侧是 `<Lens />` 与 `<Optics />`。粒子 `depth="inside"` 只进入透镜拷贝，不盖住页面；`depth="front"` 在透镜之后绘制并做深度测试。光学常数在 `LENS_LOOKS` / `FIELD_LOOKS` / `GLASS_LOOKS`，页面不再抄一墙数字。Cinema 默认 `look="cinema"` + `crystal`，把高光压进肩部；`optic=flare` 仍是原来的热光学。透镜与 Lumen 共用一张工作室探针，Cinema 的 `environment` 更低。DOM 玻璃走同一张探针：`GLASS_LOOKS` 定强度，文字面比 bevel 弱。
+- 世界物体跟随 DOM 槽位已落地（不是 element→texture）：`GlassLayer.worldAt` / `follow` 在 render 相位、相机更新之后、TAA jitter 之前把槽位中心解到世界坐标。`fit` 按槽位短边解距离，变焦不呼吸；`distance` 锁射线距离，推拉仍变大。挂锚的粒子在锚点之后 step，与透镜同一帧。不写 React state，粒子系统不因位移重建。Lumen 的空列和 Cinema 的空场都用它。`@ui-lib/dom` 的 HTML 快照、3D→DOM（Html bind）、图片转场仍未开始
+- **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用 — 仍待真机
 
 ### M5 · 多框架与发布
 - Vue / Svelte 适配、SSR examples（Next / Nuxt / SvelteKit）
@@ -276,3 +279,7 @@
 11. **world object 也复用 particle scene 与统一 scheduler。** `GlassLayer.addWorldObject(object,
     onFrame)` 给 3D demo 一个受控插槽：对象在 backdrop 之后、glass 之前绘制，DOM 仍然保持真实
     HTML；动画回调走 scheduler 的 update priority，不允许 demo 自己偷偷开第二个 rAF。
+
+12. **DOM 槽位跟随不采样 framebuffer，也不猜世界坐标。** `worldAt` 用当前 `particleCamera.unproject`
+    把客户区像素打到 `z = plane`。`follow` 在 `frame()` 里、`syncViewport` 之后、jitter 之前调用，
+    所以相机写在 update 相位也不会让透镜晚一帧。平行光或命中在相机背后时保留上一个点。

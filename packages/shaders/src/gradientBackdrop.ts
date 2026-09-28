@@ -1,7 +1,7 @@
+import { mergeDefined } from "@ui-lib/core";
 import { dot, float, fract, length, mix, sin, uniform, uv, vec2, vec3 } from "three/tsl";
 import { Color, type ColorRepresentation, MeshBasicNodeMaterial, Vector2 } from "three/webgpu";
 import type { ColorUniform, FloatUniform, SharedUniforms } from "./nodeTypes.js";
-import { mergeDefined } from "@ui-lib/core";
 
 export interface GradientBackdropOptions {
 	/** Four blob colours, blended by proximity. */

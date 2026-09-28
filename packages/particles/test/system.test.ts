@@ -11,9 +11,16 @@ describe("particle system", () => {
 		expect(PARTICLE_DEFAULTS.count).toBeGreaterThan(1_000);
 
 		system.update({
-			forces: { turbulence: 0.4, gravity: [0, -1, 0] },
+			forces: { turbulence: 0.4, gravity: [0, -1, 0], stir: 1.2, stirRadius: 2.6 },
 			colors: ["#fff", "#0ff", "#f0f"],
+			stirColor: "#efe6b0",
+			stirTint: 0,
 		});
+		expect(PARTICLE_DEFAULTS.stirTint).toBe(0);
+		system.setStir(-1.5, 0.4, 0.2);
+		system.setAttractor(0, 0, 0);
+		expect(PARTICLE_DEFAULTS.forces.stir).toBe(0);
+		expect(PARTICLE_DEFAULTS.forces.stirRadius).toBe(0);
 		system.dispose();
 	});
 });

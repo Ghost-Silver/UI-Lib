@@ -1,6 +1,10 @@
 import { DataTexture, RGBAFormat, UnsignedByteType } from "three/webgpu";
 import { describe, expect, it } from "vitest";
-import { createGradientBackdropMaterial, createLiquidGlassMaterial } from "../src/index.js";
+import {
+	createGradientBackdropMaterial,
+	createLiquidGlassMaterial,
+	createWorldLensMaterial,
+} from "../src/index.js";
 
 /**
  * Node-side smoke tests.
@@ -20,6 +24,7 @@ describe("createLiquidGlassMaterial", () => {
 		expect(material.uniforms.size.value.x).toBe(640);
 		expect(material.uniforms.size.value.y).toBe(480);
 		expect(material.uniforms.radius.value).toBe(32);
+		expect(material.uniforms.pointerVelocity.value.length()).toBe(0);
 	});
 
 	it("builds with every supported blur tap count", () => {
@@ -45,6 +50,24 @@ describe("createLiquidGlassMaterial", () => {
 		expect(material.uniforms.tint.value.getHexString()).toBe("ff0088");
 		expect(material.uniforms.lightDirection.value.x).toBe(0.5);
 		expect(material.uniforms.shift.value.y).toBe(-3);
+		expect(material.uniforms.environment.value).toBeCloseTo(0.28, 6);
+		material.update({ environment: 3 });
+		expect(material.uniforms.environment.value).toBe(1);
+		material.update({ environment: -1 });
+		expect(material.uniforms.environment.value).toBe(0);
+		const room = new DataTexture(
+			new Uint8Array([1, 2, 3, 255]),
+			1,
+			1,
+			RGBAFormat,
+			UnsignedByteType,
+		);
+		material.update({ environmentMap: room, environment: 0.15 });
+		expect(material.environmentMap).toBe(room);
+		expect(material.uniforms.environment.value).toBeCloseTo(0.15, 6);
+		material.update({ environmentMap: null });
+		expect(material.environmentMap).not.toBe(room);
+		room.dispose();
 	});
 
 	it("shares time/resolution uniforms across materials", () => {
@@ -72,6 +95,51 @@ describe("createLiquidGlassMaterial", () => {
 		);
 		expect(() => material.setBackdrop(texture)).not.toThrow();
 		expect(material.usesPlaceholderBackdrop).toBe(true);
+	});
+});
+
+describe("createWorldLensMaterial", () => {
+	it("builds an opaque depth-writing lens graph", () => {
+		const backdrop = new DataTexture(
+			new Uint8Array([8, 16, 32, 255]),
+			1,
+			1,
+			RGBAFormat,
+			UnsignedByteType,
+		);
+		const material = createWorldLensMaterial({ backdrop, refraction: 40, dispersion: 0.2 });
+		expect(material.colorNode).toBeTruthy();
+		expect(material.transparent).toBe(false);
+		expect(material.depthWrite).toBe(true);
+		expect(material.toneMapped).toBe(false);
+		expect(material.uniforms.refraction.value).toBe(40);
+		material.update({ refraction: 12, lightDirection: [0.2, -0.4], caustic: 0.05 });
+		expect(material.uniforms.refraction.value).toBe(12);
+		expect(material.uniforms.lightDirection.value.y).toBe(-0.4);
+		expect(material.uniforms.caustic.value).toBeCloseTo(0.05, 6);
+		expect(material.uniforms.environment.value).toBeCloseTo(0.44, 6);
+		expect(material.uniforms.pointerVelocity.value.length()).toBe(0);
+		expect(material.environmentMap).toBeTruthy();
+		material.update({ environment: 4 });
+		expect(material.uniforms.environment.value).toBe(1);
+		material.update({ environment: -2 });
+		expect(material.uniforms.environment.value).toBe(0);
+		const custom = new DataTexture(
+			new Uint8Array([4, 8, 12, 255]),
+			1,
+			1,
+			RGBAFormat,
+			UnsignedByteType,
+		);
+		material.update({ environmentMap: custom, environment: 0.2 });
+		expect(material.environmentMap).toBe(custom);
+		expect(material.uniforms.environment.value).toBeCloseTo(0.2, 6);
+		material.update({ environmentMap: null });
+		expect(material.environmentMap).not.toBe(custom);
+		expect(() => material.setBackdrop(backdrop)).not.toThrow();
+		material.dispose();
+		backdrop.dispose();
+		custom.dispose();
 	});
 });
 

@@ -14,6 +14,28 @@ const CSS = `
 	background: rgba(255, 255, 255, 0.06);
 	border: 1px solid rgba(255, 255, 255, 0.14);
 }
+.ui-lib-magnetic {
+	display: inline-flex;
+	max-width: 100%;
+	vertical-align: top;
+}
+.ui-lib-magnetic__mover {
+	width: 100%;
+	height: 100%;
+}
+.ui-lib-reveal__word {
+	display: inline-block;
+	white-space: pre;
+}
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-magnetic__mover {
+		transform: none !important;
+	}
+	.ui-lib-reveal__word {
+		opacity: 1 !important;
+		transform: none !important;
+	}
+}
 `;
 
 /**

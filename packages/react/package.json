@@ -29,6 +29,7 @@
 	},
 	"dependencies": {
 		"@ui-lib/core": "workspace:*",
+		"@ui-lib/motion": "workspace:*",
 		"@ui-lib/particles": "workspace:*",
 		"@ui-lib/renderer": "workspace:*",
 		"@ui-lib/shaders": "workspace:*"

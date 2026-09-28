@@ -1,6 +1,8 @@
+import { mergeDefined } from "@ui-lib/core";
 import {
 	abs,
 	dot,
+	equirectUV,
 	float,
 	fract,
 	length,
@@ -9,12 +11,16 @@ import {
 	min,
 	mix,
 	normalize,
+	oneMinus,
 	pow,
+	radians,
+	reflect,
 	saturate,
 	screenUV,
 	select,
 	sin,
 	smoothstep,
+	tan,
 	texture,
 	uniform,
 	uv,
@@ -29,9 +35,17 @@ import {
 	type Node,
 	type Texture,
 	Vector2,
+	Vector3,
 } from "three/webgpu";
-import type { ColorUniform, FloatUniform, SharedUniforms, Vec2Uniform } from "./nodeTypes.js";
-import { mergeDefined } from "@ui-lib/core";
+import type {
+	ColorUniform,
+	FloatUniform,
+	SharedUniforms,
+	Vec2Uniform,
+	Vec3Uniform,
+} from "./nodeTypes.js";
+import { pointerSheen } from "./pointerSheen.js";
+import { studioEnvironment } from "./studioEnvironment.js";
 
 /** Golden angle — gives an even, low-discrepancy disc sampling pattern. */
 const GOLDEN_ANGLE = 2.399963229728653;
@@ -78,6 +92,17 @@ export interface LiquidGlassOptions {
 	/** Radius of the cursor influence in device pixels. */
 	pointerRadius?: number;
 	/**
+	 * Mix of the shared studio probe. The face stays nearly clear so type
+	 * remains readable; the bevel carries the window. `0` keeps only the
+	 * white rim. Clamped to 1 — this is a mix, not a gain.
+	 */
+	environment?: number;
+	/**
+	 * Replaces the shared studio. Omit it. Looks carry the probe, and pages
+	 * do not author a cubemap.
+	 */
+	environmentMap?: Texture | null;
+	/**
 	 * Texture the panel refracts. Leave `null` (the default) to refract whatever
 	 * the layer already drew this frame via `viewportSharedTexture()` — that is
 	 * the mode the glass layer uses, and it costs exactly one framebuffer copy
@@ -86,7 +111,9 @@ export interface LiquidGlassOptions {
 	backdrop?: Texture | null;
 }
 
-export const LIQUID_GLASS_DEFAULTS: Required<Omit<LiquidGlassOptions, "size" | "backdrop">> & {
+export const LIQUID_GLASS_DEFAULTS: Required<
+	Omit<LiquidGlassOptions, "size" | "backdrop" | "environmentMap">
+> & {
 	size: [number, number];
 	backdrop: Texture | null;
 } = {
@@ -115,6 +142,7 @@ export const LIQUID_GLASS_DEFAULTS: Required<Omit<LiquidGlassOptions, "size" | "
 	blurTaps: 8,
 	pointerStrength: 0.35,
 	pointerRadius: 320,
+	environment: 0.28,
 	backdrop: null,
 };
 
@@ -143,13 +171,21 @@ export interface LiquidGlassUniforms {
 	opacity: FloatUniform;
 	pointerStrength: FloatUniform;
 	pointerRadius: FloatUniform;
+	environment: FloatUniform;
+	cameraRight: Vec3Uniform;
+	cameraUp: Vec3Uniform;
+	cameraBack: Vec3Uniform;
+	cameraFov: FloatUniform;
 	time: FloatUniform;
 	resolution: Vec2Uniform;
 	pointer: Vec2Uniform;
+	pointerVelocity: Vec2Uniform;
 }
 
 export interface LiquidGlassMaterial extends MeshBasicNodeMaterial {
 	readonly uniforms: LiquidGlassUniforms;
+	/** The probe currently sampled. The shared studio unless a map was passed. */
+	readonly environmentMap: Texture;
 	/**
 	 * Point the panel at an explicit texture. No-op in viewport mode, where the
 	 * panel refracts the live framebuffer instead.
@@ -173,6 +209,8 @@ export interface LiquidGlassMaterial extends MeshBasicNodeMaterial {
  * 3. that normal offsets screen-space UVs to sample the backdrop, with a
  *    per-channel scale for chromatic dispersion;
  * 4. `roughness` cross-fades to a golden-angle disc blur (frosted glass).
+ * 5. the same normal reflects the shared studio. DOM glass is drawn with an
+ *    ortho camera, so the ray uses the perspective basis from the layer.
  *
  * Written in TSL, so the same graph compiles to WGSL on WebGPU and GLSL on the
  * WebGL 2 fallback with no second implementation.
@@ -213,9 +251,15 @@ export function createLiquidGlassMaterial(
 		opacity: uniform(opts.opacity),
 		pointerStrength: uniform(opts.pointerStrength),
 		pointerRadius: uniform(opts.pointerRadius),
+		environment: uniform(quietEnvironment(opts.environment)),
+		cameraRight: shared.cameraRight ?? uniform(new Vector3(1, 0, 0)),
+		cameraUp: shared.cameraUp ?? uniform(new Vector3(0, 1, 0)),
+		cameraBack: shared.cameraBack ?? uniform(new Vector3(0, 0, 1)),
+		cameraFov: shared.cameraFov ?? uniform(52),
 		time: shared.time ?? uniform(0),
 		resolution: shared.resolution ?? uniform(new Vector2(1, 1)),
 		pointer: shared.pointer ?? uniform(new Vector2(-1e5, -1e5)),
+		pointerVelocity: shared.pointerVelocity ?? uniform(new Vector2()),
 	};
 
 	/**
@@ -228,6 +272,13 @@ export function createLiquidGlassMaterial(
 		if (useViewport) return viewportSharedTexture(uvNode);
 		const node = texture(backdropTexture as Texture, uvNode);
 		backdropNodes.push(node as unknown as { value: Texture });
+		return node;
+	};
+	let environmentTexture = options.environmentMap ?? studioEnvironment();
+	const environmentNodes: { value: Texture }[] = [];
+	const sampleRoom = (uvNode: Node<"vec2">) => {
+		const node = texture(environmentTexture, uvNode);
+		environmentNodes.push(node as unknown as { value: Texture });
 		return node;
 	};
 
@@ -308,26 +359,55 @@ export function createLiquidGlassMaterial(
 		uniforms.specular,
 	);
 
-	const fresnel = pow(saturate(float(1).sub(normal.z)), uniforms.fresnelPower).mul(
-		uniforms.fresnel,
+	const grazing = pow(saturate(float(1).sub(normal.z)), uniforms.fresnelPower);
+	// The room takes some of the white rim's energy, so a catching bevel
+	// changes colour instead of stacking a second highlight on the type.
+	const env = saturate(uniforms.environment);
+	const fresnel = grazing.mul(uniforms.fresnel).mul(oneMinus(env.mul(0.85)));
+	// Panel UV y is up. screenUV y is down. The ray is the perspective camera,
+	// not the ortho camera this quad is drawn with.
+	const ndc = vec2(screenUV.x.mul(2).sub(1), oneMinus(screenUV.y).mul(2).sub(1));
+	const tanHalf = tan(radians(uniforms.cameraFov).mul(0.5));
+	const aspect = uniforms.resolution.x.div(max(uniforms.resolution.y, float(1)));
+	const incident = normalize(
+		vec3(ndc.x.mul(tanHalf).mul(aspect), ndc.y.mul(tanHalf), float(-1)),
 	);
+	const reflected = reflect(incident, normal);
+	const roomDir = uniforms.cameraRight
+		.mul(reflected.x)
+		.add(uniforms.cameraUp.mul(reflected.y))
+		.add(uniforms.cameraBack.mul(reflected.z));
+	const softened = normalize(mix(roomDir, uniforms.cameraBack, uniforms.roughness.mul(0.35)));
+	const roomUv = equirectUV(softened);
+	const fringe = uniforms.dispersion.mul(0.03);
+	const room = vec3(
+		sampleRoom(roomUv.add(vec2(fringe, float(0)))).r,
+		sampleRoom(roomUv).g,
+		sampleRoom(roomUv.sub(vec2(fringe, float(0)))).b,
+	);
+	// Walls are near black, so a higher face weight shows the horizon and the
+	// pane without laying a veil over the type.
+	const roomWeight = env.mul(mix(float(0.4), float(1), grazing));
 
 	// Thin ring right at the border — the "polished edge" cue.
 	const edge = smoothstep(float(0.62), float(1), float(1).sub(t)).mul(uniforms.edgeGlow);
 
-	// Cursor proximity: a soft specular bloom that follows the pointer.
-	const pointerDist = length(screenUV.mul(res).sub(uniforms.pointer));
-	const pointerGlow = saturate(
-		float(1).sub(pointerDist.div(max(uniforms.pointerRadius, float(1)))),
-	)
-		.pow(2)
-		.mul(uniforms.pointerStrength);
+	// Same sample as the world ray. Zero velocity is the old circle.
+	const pointerGlow = pointerSheen(
+		screenUV,
+		res,
+		uniforms.pointer,
+		uniforms.pointerVelocity,
+		uniforms.pointerRadius,
+		uniforms.pointerStrength,
+	);
 
 	// Bevel self-shading gives the slab thickness.
 	const bevelShade = mix(float(0.78), float(1), t);
 
 	color = color.mul(bevelShade);
 	color = color.add(uniforms.highlight.mul(specular.add(fresnel).add(edge).add(pointerGlow)));
+	color = color.add(room.mul(roomWeight));
 
 	/* -------------------------------------------------------- film grain -- */
 	const grainNoise = fract(
@@ -349,6 +429,10 @@ export function createLiquidGlassMaterial(
 
 	Object.defineProperties(material, {
 		uniforms: { value: uniforms, enumerable: true },
+		environmentMap: {
+			get: () => environmentTexture,
+			enumerable: true,
+		},
 		usesPlaceholderBackdrop: { value: useViewport, enumerable: true },
 		setBackdrop: {
 			value: (next: Texture | null) => {
@@ -387,10 +471,23 @@ export function createLiquidGlassMaterial(
 					uniforms.pointerStrength.value = patch.pointerStrength;
 				if (patch.pointerRadius !== undefined)
 					uniforms.pointerRadius.value = patch.pointerRadius;
+				if (patch.environment !== undefined) {
+					uniforms.environment.value = quietEnvironment(patch.environment);
+				}
+				if (patch.environmentMap !== undefined) {
+					environmentTexture = patch.environmentMap ?? studioEnvironment();
+					for (const node of environmentNodes) node.value = environmentTexture;
+				}
 			},
 			enumerable: false,
 		},
 	});
 
 	return material;
+}
+
+/** Strength is a mix. Above 1 would punch through the probe cap. */
+function quietEnvironment(value: number): number {
+	if (!Number.isFinite(value)) return 0;
+	return Math.min(1, Math.max(0, value));
 }

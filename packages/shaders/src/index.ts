@@ -20,6 +20,19 @@ export type {
 	LiquidGlassUniforms,
 } from "./liquidGlass.js";
 export { createLiquidGlassMaterial, LIQUID_GLASS_DEFAULTS } from "./liquidGlass.js";
-export type { ColorUniform, FloatUniform, SharedUniforms, Vec2Uniform } from "./nodeTypes.js";
+export type {
+	ColorUniform,
+	FloatUniform,
+	SharedUniforms,
+	Vec2Uniform,
+	Vec3Uniform,
+} from "./nodeTypes.js";
 export type { FullscreenQuad } from "./quad.js";
 export { createFullscreenQuad } from "./quad.js";
+export {
+	STUDIO_ENVIRONMENT_PEAK,
+	STUDIO_ENVIRONMENT_SIZE,
+	studioEnvironment,
+} from "./studioEnvironment.js";
+export type { WorldLensMaterial, WorldLensOptions, WorldLensUniforms } from "./worldLens.js";
+export { createWorldLensMaterial, WORLD_LENS_DEFAULTS } from "./worldLens.js";

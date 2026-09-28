@@ -8,5 +8,13 @@ export default defineConfig({
 	clean: true,
 	treeshake: true,
 	target: "es2022",
-	external: ["three", "three/webgpu", "three/tsl"],
+	external: [
+		"three",
+		"three/webgpu",
+		"three/tsl",
+		"@ui-lib/core",
+		"@ui-lib/particles",
+		"@ui-lib/post",
+		"@ui-lib/shaders",
+	],
 });

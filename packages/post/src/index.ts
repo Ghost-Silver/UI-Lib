@@ -1,3 +1,4 @@
+export { LOOKS, type LookName, resolveLook } from "./looks.js";
 export {
 	createPostProcessing,
 	POST_DEFAULTS,
@@ -5,3 +6,4 @@ export {
 	type PostProcessingOptions,
 	type PostProcessingUniforms,
 } from "./postProcessing.js";
+export { compressHighlight } from "./shoulder.js";

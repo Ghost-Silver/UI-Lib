@@ -2,8 +2,11 @@ import {
 	type BackdropSpec,
 	createGlassLayer,
 	type GlassLayer,
+	type GlassLayerMode,
 	type GlassLayerOptions,
 	type GlassLayerStats,
+	type LookName,
+	resolveLook,
 } from "@ui-lib/renderer";
 import {
 	type CSSProperties,
@@ -18,13 +21,27 @@ import { GlassStageContext, type GlassStageStatus, type GlassStageValue } from "
 import { ensureStyles } from "./injectStyles.js";
 import { stableKey, useIsomorphicLayoutEffect } from "./utils.js";
 
-export interface GlassStageProps extends Omit<GlassLayerOptions, "parent" | "onStats"> {
+export interface GlassStageProps
+	extends Omit<GlassLayerOptions, "parent" | "onStats" | "mode"> {
 	children?: ReactNode;
 	className?: string;
 	style?: CSSProperties;
+	/**
+	 * `"viewport"` (default) mounts one fixed canvas for the page.
+	 * `"section"` mounts the canvas inside this element and sizes it to the
+	 * element's box. Give the element an explicit height — a sticky pin, a
+	 * hero — or the canvas has nothing to fill.
+	 */
+	mode?: GlassLayerMode;
 	onStats?: (stats: GlassLayerStats) => void;
 	/** Skip the GPU layer entirely and render the CSS fallback (demo switch). */
 	forceFallback?: boolean;
+	/**
+	 * Named grade from `@ui-lib/post`. Merged under `post`, so a page can keep
+	 * camera blur while the look owns bloom and the highlight shoulder.
+	 * Omitted means the stage keeps the library defaults.
+	 */
+	look?: LookName;
 }
 
 interface StageState {
@@ -41,10 +58,10 @@ function backdropKeyOf(spec: BackdropSpec | undefined): string {
 /**
  * Boots the shared glass layer for a subtree.
  *
- * A single fixed canvas is created for the whole stage, so fifty glass panels
- * still cost one WebGPU device. Children are wrapped in a `position: relative;
- * z-index: 1` box so DOM content always sits above the canvas — the same
- * layering Apple uses for text on glass.
+ * One canvas per stage, so fifty glass panels still cost one WebGPU device.
+ * Children sit in a `z-index: 1` box above that canvas — the same layering
+ * Apple uses for text on glass. `"section"` keeps the canvas inside this
+ * element; `"viewport"` pins it to the page.
  */
 export function GlassStage({
 	children,
@@ -52,8 +69,10 @@ export function GlassStage({
 	style,
 	onStats,
 	forceFallback = false,
+	mode = "viewport",
 	backdrop,
 	post,
+	look,
 	zIndex = 0,
 	dprCap,
 	antialias = true,
@@ -65,6 +84,7 @@ export function GlassStage({
 	onDeviceLost,
 	onContextRestored,
 }: GlassStageProps) {
+	const rootRef = useRef<HTMLDivElement>(null);
 	const [state, setState] = useState<StageState>({ layer: null, error: null });
 	const [status, setStatus] = useState<GlassStageStatus>("idle");
 	const [stats, setStats] = useState<GlassLayerStats | null>(null);
@@ -72,8 +92,9 @@ export function GlassStage({
 
 	const backdropRef = useRef<BackdropSpec | undefined>(backdrop);
 	backdropRef.current = backdrop;
-	const postRef = useRef<GlassLayerOptions["post"]>(post);
-	postRef.current = post;
+	const resolvedPost = resolveLook(look, post);
+	const postRef = useRef<GlassLayerOptions["post"]>(resolvedPost);
+	postRef.current = resolvedPost;
 	const onStatsRef = useRef(onStats);
 	onStatsRef.current = onStats;
 
@@ -82,7 +103,7 @@ export function GlassStage({
 	}, []);
 
 	const backdropKey = backdropKeyOf(backdrop);
-	const postKey = stableKey(post);
+	const postKey = stableKey(resolvedPost);
 
 	useEffect(() => {
 		if (forceFallback) {
@@ -90,11 +111,16 @@ export function GlassStage({
 			return;
 		}
 
+		const parent = mode === "section" ? (rootRef.current ?? undefined) : undefined;
+		if (mode === "section" && !parent) return;
+
 		let cancelled = false;
 		let created: GlassLayer | null = null;
 		setStatus("loading");
 
 		createGlassLayer({
+			parent,
+			mode,
 			backdrop: backdropRef.current ?? { type: "gradient" },
 			post: postRef.current ?? {},
 			zIndex,
@@ -141,6 +167,7 @@ export function GlassStage({
 		};
 	}, [
 		forceFallback,
+		mode,
 		zIndex,
 		dprCap,
 		antialias,
@@ -181,15 +208,32 @@ export function GlassStage({
 	return (
 		<GlassStageContext.Provider value={value}>
 			<div
+				ref={rootRef}
 				data-ui-lib-stage={status}
+				data-ui-lib-mode={mode}
 				data-ui-lib-backend={stats?.backend ?? "unknown"}
 				data-ui-lib-fps={stats?.fps ?? ""}
 				data-ui-lib-dropped-frames={stats?.droppedFrames ?? ""}
 				data-ui-lib-resource-count={stats?.resources.total ?? ""}
 				className={className}
-				style={{ position: "relative", zIndex: 1, ...style }}
+				style={{
+					position: "relative",
+					isolation: "isolate",
+					zIndex: 1,
+					...(mode === "section" ? { overflow: "hidden" } : null),
+					...style,
+				}}
 			>
-				{children}
+				<div
+					style={{
+						position: "relative",
+						zIndex: 1,
+						height: mode === "section" ? "100%" : undefined,
+						minHeight: mode === "section" ? "100%" : undefined,
+					}}
+				>
+					{children}
+				</div>
 			</div>
 		</GlassStageContext.Provider>
 	);

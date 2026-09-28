@@ -76,6 +76,13 @@ export interface ParticleForceOptions {
 	attractorRadius?: number;
 	/** Falloff exponent: higher = tighter influence. */
 	attractorFalloff?: number;
+	/**
+	 * Local swirl around `setStir`, in the world XY plane. `0` adds nothing,
+	 * so existing fields keep the global Y vortex only.
+	 */
+	stir?: number;
+	/** World-unit reach of `stir`. `0` disables the local eddy. */
+	stirRadius?: number;
 }
 
 export interface ParticleSystemOptions {
@@ -93,6 +100,13 @@ export interface ParticleSystemOptions {
 	/** Colour mixed in by speed — makes fast particles glow. */
 	hotColor?: string;
 	hotAmount?: number;
+	/**
+	 * Colour of the local eddy. Mixed by distance to `setStir`. `stirTint` of 0
+	 * leaves the life ramp untouched, so a field with no heart does not change.
+	 */
+	stirColor?: string;
+	/** 0–1 mix toward `stirColor` at the eddy core. Does not scale intensity. */
+	stirTint?: number;
 	/** Speed that maps to a full `hotColor` mix. */
 	speedReference?: number;
 	intensity?: number;
@@ -129,6 +143,8 @@ export const PARTICLE_DEFAULTS = {
 		attractor: 3.2,
 		attractorRadius: 7,
 		attractorFalloff: 2.2,
+		stir: 0,
+		stirRadius: 0,
 	},
 	life: [2.5, 7] as [number, number],
 	size: [0.02, 0.075] as [number, number],
@@ -136,6 +152,8 @@ export const PARTICLE_DEFAULTS = {
 	colors: ["#5eead4", "#a78bfa", "#f472b6"] as [string, string, string],
 	hotColor: "#fff7d6",
 	hotAmount: 0.55,
+	stirColor: "#ffffff",
+	stirTint: 0,
 	speedReference: 3.5,
 	intensity: 1.25,
 	opacity: 0.9,
@@ -163,6 +181,8 @@ export interface ParticleSystem {
 	update(options: Partial<ParticleSystemOptions>): void;
 	/** World-space position used by the attractor force. */
 	setAttractor(x: number, y: number, z: number): void;
+	/** World-space center of the local stir. Does not move the attractor. */
+	setStir(x: number, y: number, z: number): void;
 	dispose(): void;
 }
 
@@ -210,6 +230,9 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		attractorRadius: uniform(forces.attractorRadius),
 		attractorFalloff: uniform(forces.attractorFalloff),
 		attractorPosition: uniform(new Vector3(0, 0, 0)),
+		stir: uniform(forces.stir),
+		stirRadius: uniform(forces.stirRadius),
+		stirCenter: uniform(new Vector3(0, 0, 0)),
 		emitterPosition: uniform(new Vector3(...emitter.position)),
 		emitterRadius: uniform(emitter.radius),
 		emitterInnerRadius: uniform(emitter.innerRadius),
@@ -230,6 +253,8 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		colorC: uniform(new Color(colors[2])),
 		hotColor: uniform(new Color(options.hotColor ?? PARTICLE_DEFAULTS.hotColor)),
 		hotAmount: uniform(options.hotAmount ?? PARTICLE_DEFAULTS.hotAmount),
+		stirColor: uniform(new Color(options.stirColor ?? PARTICLE_DEFAULTS.stirColor)),
+		stirTint: uniform(options.stirTint ?? PARTICLE_DEFAULTS.stirTint),
 		speedReference: uniform(options.speedReference ?? PARTICLE_DEFAULTS.speedReference),
 		intensity: uniform(options.intensity ?? PARTICLE_DEFAULTS.intensity),
 		opacity: uniform(options.opacity ?? PARTICLE_DEFAULTS.opacity),
@@ -337,11 +362,21 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		);
 		vel.assign(vel.add(flow.mul(u.turbulence).mul(dt)));
 
-		// Vortex: tangential velocity around the Y axis.
+		// Vortex: tangential velocity around the Y axis. Unchanged for fields
+		// that never set a local stir.
 		const radial = vec3(pos.x, float(0), pos.z);
 		const radialLength = max(length(radial), float(0.001));
 		const tangent = vec3(radial.z.negate(), float(0), radial.x).div(radialLength);
 		vel.assign(vel.add(tangent.mul(u.vortex).mul(dt)));
+
+		// Local eddy in the view-ish XY plane. Radius 0 or strength 0 is a no-op.
+		const fromStir = pos.sub(u.stirCenter);
+		const planar = vec3(fromStir.x, fromStir.y, float(0));
+		const planarLength = max(length(planar), float(0.001));
+		const stirTangent = vec3(planar.y.negate(), planar.x, float(0)).div(planarLength);
+		const stirReach = max(u.stirRadius, float(0.001));
+		const stirFalloff = smoothstep(stirReach, stirReach.mul(0.22), length(fromStir));
+		vel.assign(vel.add(stirTangent.mul(u.stir).mul(stirFalloff).mul(dt)));
 
 		// Pointer attractor with a smooth radial falloff.
 		const toAttractor = u.attractorPosition.sub(pos);
@@ -417,13 +452,22 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		mix(u.colorB, u.colorC, age.sub(0.5).mul(2)),
 	);
 	const color = mix(ramp, u.hotColor, speedNormalised.mul(u.hotAmount));
+	// A colour shift at the eddy, not a brightness lift. Tint 0 is the old ramp.
+	const heartReach = max(u.stirRadius, float(0.001));
+	const heart = smoothstep(
+		heartReach,
+		heartReach.mul(0.22),
+		length(positionAttribute.sub(u.stirCenter)),
+	).mul(u.stirTint);
+	const stirred = mix(color, u.stirColor, heart);
 
 	const material = new SpriteNodeMaterial();
 	material.positionNode = positionAttribute;
 	material.scaleNode = mix(u.sizeMin, u.sizeMax, attributeNode.w)
 		.mul(lifeCurve)
-		.mul(u.sizeScale);
-	material.colorNode = color.mul(u.intensity);
+		.mul(u.sizeScale)
+		.mul(mix(float(1), float(1.1), heart));
+	material.colorNode = stirred.mul(u.intensity);
 	material.opacityNode = (shapeCircle(uv()) as Node<"float">).mul(u.opacity).mul(lifeCurve);
 	material.transparent = true;
 	material.depthWrite = false;
@@ -465,6 +509,8 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 				if (f.attractor !== undefined) u.attractor.value = f.attractor;
 				if (f.attractorRadius !== undefined) u.attractorRadius.value = f.attractorRadius;
 				if (f.attractorFalloff !== undefined) u.attractorFalloff.value = f.attractorFalloff;
+				if (f.stir !== undefined) u.stir.value = f.stir;
+				if (f.stirRadius !== undefined) u.stirRadius.value = f.stirRadius;
 			}
 			const e = patch.emitter;
 			if (e) {
@@ -492,6 +538,8 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			}
 			if (patch.hotColor) u.hotColor.value.set(patch.hotColor);
 			if (patch.hotAmount !== undefined) u.hotAmount.value = patch.hotAmount;
+			if (patch.stirColor) u.stirColor.value.set(patch.stirColor);
+			if (patch.stirTint !== undefined) u.stirTint.value = patch.stirTint;
 			if (patch.speedReference !== undefined) u.speedReference.value = patch.speedReference;
 			if (patch.intensity !== undefined) u.intensity.value = patch.intensity;
 			if (patch.opacity !== undefined) u.opacity.value = patch.opacity;
@@ -501,6 +549,9 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		},
 		setAttractor(x: number, y: number, z: number) {
 			u.attractorPosition.value.set(x, y, z);
+		},
+		setStir(x: number, y: number, z: number) {
+			u.stirCenter.value.set(x, y, z);
 		},
 		dispose() {
 			material.dispose();

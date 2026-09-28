@@ -31,7 +31,8 @@ export interface GlassPanelProps
  * semantics — and the glass is painted by the stage's canvas underneath it.
  * Before the GPU layer is ready (or on unsupported devices, or when the user
  * asked for reduced motion) the element renders with a CSS `backdrop-filter`
- * fallback instead, so nothing ever appears broken.
+ * fallback instead, so nothing ever appears broken. The look carries the
+ * studio reflection; pass `environment` to scale it, not a cubemap.
  */
 export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 	function GlassPanel(props, ref) {
@@ -64,6 +65,7 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 			opacity,
 			pointerStrength,
 			pointerRadius,
+			environment,
 			z,
 			...domProps
 		} = props;
@@ -97,6 +99,7 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 				opacity,
 				pointerStrength,
 				pointerRadius,
+				environment,
 				z,
 			}),
 			[
@@ -123,6 +126,7 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 				opacity,
 				pointerStrength,
 				pointerRadius,
+				environment,
 				z,
 			],
 		);
