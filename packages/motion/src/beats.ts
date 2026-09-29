@@ -38,6 +38,59 @@ export function beatWeight(progress: number, start: number, end: number, fade = 
 	return clamp01(Math.min(fadeIn, fadeOut));
 }
 
+export interface BeatWindow {
+	start: number;
+	end: number;
+}
+
+/** Brightest chapter at `progress`. Empty input is 0, not 1. */
+export function brightestBeat(
+	progress: number,
+	windows: readonly BeatWindow[],
+	fade = 0.08,
+): number {
+	let max = 0;
+	for (const window of windows) {
+		max = Math.max(max, beatWeight(progress, window.start, window.end, fade));
+	}
+	return max;
+}
+
+/**
+ * Lowest brightest-chapter weight on `[0, 1]`. This is the blank-frame scan:
+ * a seam where every chapter is 0 shows up here.
+ */
+export function minBrightestBeat(
+	windows: readonly BeatWindow[],
+	fade = 0.08,
+	steps = 400,
+): number {
+	const count = Math.max(1, Math.floor(steps));
+	let min = 1;
+	for (let i = 0; i <= count; i++) {
+		min = Math.min(min, brightestBeat(i / count, windows, fade));
+	}
+	return min;
+}
+
+/**
+ * Scroll Cinema chapters. Adjacent windows overlap by 0.10, and the last one
+ * ends past 1.
+ *
+ * A 0.02 overlap (the Liquid Glass Pro gap) is not enough here. `fade` is
+ * 0.07, so each chapter is already at 0 for 0.07 before the next one starts.
+ * Overlap has to cover that ramp or the seam is blank. These windows keep
+ * the brightest chapter at or above 0.6 across `[0, 1]`.
+ */
+export const SCROLL_CINEMA_FADE = 0.07;
+
+export const SCROLL_CINEMA_BEATS = [
+	{ start: -0.12, end: 0.31 },
+	{ start: 0.21, end: 0.57 },
+	{ start: 0.47, end: 0.83 },
+	{ start: 0.73, end: 1.08 },
+] as const;
+
 /** 0 at `start`, 1 at `end`, clamped outside. The local clock of a chapter. */
 export function beatLocal(progress: number, start: number, end: number): number {
 	if (!(end > start)) return progress >= end ? 1 : 0;

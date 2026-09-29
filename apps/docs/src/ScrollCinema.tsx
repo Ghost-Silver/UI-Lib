@@ -8,6 +8,8 @@ import {
 	type LensLookName,
 	Magnetic,
 	Optics,
+	SCROLL_CINEMA_BEATS,
+	SCROLL_CINEMA_FADE,
 	ScrollPin,
 	type ScrollState,
 	ScrollTrack,
@@ -46,36 +48,34 @@ const CAMERA = [
 	{ at: 1, value: [0.05, 0.3, 13.2, 0, 0.05, 0, 50] },
 ] as const;
 
-const CHAPTERS = [
+const CHAPTER_COPY = [
 	{
 		index: "01",
 		title: "Hold the light",
 		body: "This canvas belongs to the pin, not the page. Scroll far enough and it leaves with the section.",
-		start: -0.12,
-		end: 0.26,
 	},
 	{
 		index: "02",
 		title: "Then it bends",
 		body: "One clock moves the camera, the glass and the type. Refraction is not a second animation loop catching up.",
-		start: 0.26,
-		end: 0.52,
 	},
 	{
 		index: "03",
 		title: "Stay in the document",
 		body: "The sentence you are reading is HTML. The crystal behind it is not. Focus, selection and the heading order never enter the canvas.",
-		start: 0.52,
-		end: 0.78,
 	},
 	{
 		index: "04",
 		title: "Let it go",
 		body: "The pin releases. The device does not follow you into the next section.",
-		start: 0.78,
-		end: 1,
 	},
 ] as const;
+
+const CHAPTERS = CHAPTER_COPY.map((chapter, index) => {
+	const beat = SCROLL_CINEMA_BEATS[index];
+	if (!beat) throw new Error("Scroll Cinema is missing a chapter window.");
+	return { ...chapter, start: beat.start, end: beat.end };
+});
 
 function readFlag(name: string, value: string): boolean {
 	if (typeof window === "undefined") return false;
@@ -198,7 +198,8 @@ function CinemaOverlay({
 	const bend = beatLocal(scroll.progress, 0.08, 0.72);
 	const hint = 1 - beatLocal(scroll.progress, 0.01, 0.12);
 	const activeIndex = CHAPTERS.findIndex(
-		(chapter) => beatWeight(scroll.progress, chapter.start, chapter.end, 0.06) > 0.45,
+		(chapter) =>
+			beatWeight(scroll.progress, chapter.start, chapter.end, SCROLL_CINEMA_FADE) > 0.45,
 	);
 
 	return (
@@ -252,7 +253,12 @@ function CinemaOverlay({
 					]}
 				>
 					{CHAPTERS.map((chapter) => {
-						const weight = beatWeight(scroll.progress, chapter.start, chapter.end, 0.07);
+						const weight = beatWeight(
+							scroll.progress,
+							chapter.start,
+							chapter.end,
+							SCROLL_CINEMA_FADE,
+						);
 						return (
 							<div
 								key={chapter.index}

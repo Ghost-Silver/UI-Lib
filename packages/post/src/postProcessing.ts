@@ -34,6 +34,12 @@ import {
 	Vector2,
 	type WebGPURenderer,
 } from "three/webgpu";
+import {
+	alignDepthHistory,
+	assertDepthHistoryFormats,
+	depthHistoryCompatible,
+	readGpuTextureFormat,
+} from "./depthCopy.js";
 
 export interface PostProcessingOptions {
 	enabled?: boolean;
@@ -190,7 +196,10 @@ export interface PostProcessing {
 	 * does not depend on a mat4 inverse opcode.
 	 */
 	setViewProjection(inverseViewProjection: Matrix4, previousViewProjection: Matrix4): void;
-	/** Copy the currently bound render target's depth into next frame's history. */
+	/**
+	 * Copy the world depth texture into next frame's history. Does not read
+	 * the bound framebuffer — that copy is the format mismatch.
+	 */
 	captureDepth(renderer: WebGPURenderer): void;
 	update(options: Partial<PostProcessingOptions>): void;
 	/** Advance animated effects from the page scheduler's single clock. */
@@ -503,8 +512,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const historyDepth = lineariseDepth(texture(historyDepthTexture, historyUv).r);
 
 	// Full TAA resolve: reproject, reject disocclusions, variance-clip an 3x3
-	// current neighbourhood, then apply reactive history feedback. The depth
-	// history is copied from the same canvas target as the colour history, so a
+	// current neighbourhood, then apply reactive history feedback. Depth
+	// history is a copy of the world depth texture, not the present-quad, so a
 	// moving object cannot borrow colour from a newly exposed background pixel.
 	const depthDifference = abs(historyDepth.sub(sceneDepth));
 	const depthAgreement = oneMinus(smoothstep(0.0015, 0.035, depthDifference));
@@ -574,13 +583,10 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			}
 		},
 		commit(renderer) {
+			// Colour history is a framebuffer texture, so three sizes its GPU
+			// format to the canvas. Depth is not copied here: the screen depth
+			// is the present quad, and a depth texture cannot accept that copy.
 			renderer.copyFramebufferToTexture(historyTexture);
-			// World depth is copied by `captureDepth` while the offscreen target
-			// is still bound. Copying the screen depth here would replace that
-			// with the present-quad and make disocclusion rejection meaningless.
-			if (!depthTexture) {
-				renderer.copyFramebufferToTexture(historyDepthTexture as unknown as FramebufferTexture);
-			}
 			uniforms.historyValid.value = 1;
 		},
 		resetHistory() {
@@ -595,7 +601,22 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			uniforms.velocityValid.value = 1;
 		},
 		captureDepth(renderer) {
-			renderer.copyFramebufferToTexture(historyDepthTexture as unknown as FramebufferTexture);
+			if (!depthTexture) {
+				throw new Error(
+					"ui-lib: captureDepth needs the world depth texture. Copying the bound framebuffer into a depth history is the WebGPU format mismatch.",
+				);
+			}
+			alignDepthHistory(historyDepthTexture, depthTexture);
+			if (!depthHistoryCompatible(historyDepthTexture, depthTexture)) {
+				throw new Error(
+					"ui-lib: depth history could not be aligned to the world depth texture.",
+				);
+			}
+			renderer.copyTextureToTexture(depthTexture, historyDepthTexture);
+			assertDepthHistoryFormats(
+				readGpuTextureFormat(renderer, depthTexture),
+				readGpuTextureFormat(renderer, historyDepthTexture),
+			);
 		},
 		nextJitter() {
 			const previousIndex = jitterIndex === 0 ? 16 : jitterIndex;

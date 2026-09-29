@@ -1,4 +1,4 @@
-import type { ParticleSystemOptions } from "@ui-lib/particles";
+import { PLAYGROUND_FIELD, PLAYGROUND_FIELD_CAMERA } from "@ui-lib/particles";
 import { GlassPanel, GlassStage, Magnetic, ParticleField, useGlassStage } from "@ui-lib/react";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect, useMemo, useState } from "react";
@@ -90,36 +90,7 @@ const DEFAULT_PARAMS: Params = {
 	vignette: 0.12,
 };
 
-const PARTICLES: ParticleSystemOptions = {
-	count: 24_000,
-	emitter: {
-		shape: "sphere",
-		radius: 3.8,
-		direction: [0, 0.15, 0],
-		speed: 0.8,
-		spread: 0.92,
-	},
-	forces: {
-		gravity: [0, 0.06, 0],
-		drag: 0.12,
-		turbulence: 2.2,
-		noiseScale: 0.3,
-		noiseDrift: 0.24,
-		vortex: 1.8,
-		attractor: 0.8,
-		attractorRadius: 7,
-	},
-	life: [4, 10],
-	size: [0.035, 0.12],
-	colors: ["#4de8d5", "#8d7bff", "#f778c8"],
-	hotColor: "#ffffff",
-	hotAmount: 0.32,
-	intensity: 1.8,
-	opacity: 0.82,
-	bounds: "sphere",
-	boundsRadius: 8,
-	blending: "additive",
-};
+const PARTICLES = PLAYGROUND_FIELD;
 
 /** A deliberately small hero object: the library owns the world scene and clock,
  * while the example owns the look. This is the extension point for product demos. */
@@ -141,6 +112,8 @@ function HeroCrystal() {
 		const crystal = new Mesh(geometry, material);
 		crystal.name = "ui-lib:hero-crystal";
 		crystal.scale.setScalar(1.08);
+		// The origin sits under the headline. Keep the crystal with the cloud.
+		crystal.position.x = 4.2;
 		const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 		const attachment = layer.addWorldObject(crystal, (info) => {
 			if (prefersReducedMotion) return;
@@ -213,7 +186,11 @@ function Playground() {
 			<HeroCrystal />
 			<ParticleField
 				options={PARTICLES}
-				camera={{ cameraPosition: [0, 0.5, 13], cameraTarget: [0, 0.3, 0], fov: 50 }}
+				camera={{
+					cameraPosition: PLAYGROUND_FIELD_CAMERA.position,
+					cameraTarget: PLAYGROUND_FIELD_CAMERA.target,
+					fov: PLAYGROUND_FIELD_CAMERA.fov,
+				}}
 				pointer
 			/>
 			<Scene
@@ -553,9 +530,9 @@ function Scene(props: SceneProps) {
 					<h2 className="panel__title">Compute particles</h2>
 					<p>
 						24,000 points are born, advected through a noise-derived flow field, pulled by a
-						soft attractor and respawned entirely on the GPU. WebGL 2 uses transform feedback;
-						WebGPU uses a native compute pass. The glass above refracts them through the same
-						canvas.
+						soft attractor and respawned entirely on the GPU. The volume sits to the right of
+						this headline, so the copy stays on the gradient. WebGL 2 uses transform feedback;
+						WebGPU uses a native compute pass. The glass beside them refracts the same canvas.
 					</p>
 				</GlassPanel>
 				<GlassPanel className="panel" {...card}>

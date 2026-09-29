@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
 	beatLocal,
 	beatWeight,
+	brightestBeat,
+	minBrightestBeat,
 	revealWeight,
+	SCROLL_CINEMA_BEATS,
+	SCROLL_CINEMA_FADE,
 	sampleTrack,
 	scrollProgress,
 } from "../src/index.js";
@@ -58,6 +62,27 @@ describe("beats", () => {
 
 	it("still peaks when fade is wider than the chapter", () => {
 		expect(beatWeight(0.5, 0.4, 0.6, 0.5)).toBeCloseTo(1, 5);
+	});
+
+	it("keeps a cinema chapter readable across the whole scroll", () => {
+		// 0.02 of overlap with this fade still goes blank. The shipped windows
+		// are wider than that on purpose.
+		const touching = [
+			{ start: -0.12, end: 0.28 },
+			{ start: 0.26, end: 0.54 },
+			{ start: 0.52, end: 0.8 },
+			{ start: 0.78, end: 1.02 },
+		];
+		expect(minBrightestBeat(touching, SCROLL_CINEMA_FADE, 1000)).toBeLessThan(0.6);
+		expect(
+			minBrightestBeat(SCROLL_CINEMA_BEATS, SCROLL_CINEMA_FADE, 1000),
+		).toBeGreaterThanOrEqual(0.6);
+		expect(brightestBeat(0, SCROLL_CINEMA_BEATS, SCROLL_CINEMA_FADE)).toBeGreaterThanOrEqual(
+			0.6,
+		);
+		expect(brightestBeat(1, SCROLL_CINEMA_BEATS, SCROLL_CINEMA_FADE)).toBeGreaterThanOrEqual(
+			0.6,
+		);
 	});
 
 	it("maps a chapter to a local 0..1 clock", () => {

@@ -14,6 +14,8 @@ export {
 	beatLocal,
 	beatWeight,
 	revealWeight,
+	SCROLL_CINEMA_BEATS,
+	SCROLL_CINEMA_FADE,
 	sampleTrack,
 	scrollProgress,
 } from "@ui-lib/motion";

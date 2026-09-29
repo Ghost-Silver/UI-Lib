@@ -1,3 +1,10 @@
+export {
+	alignDepthHistory,
+	assertDepthHistoryFormats,
+	type DepthHistoryTexture,
+	depthHistoryCompatible,
+	readGpuTextureFormat,
+} from "./depthCopy.js";
 export { LOOKS, type LookName, resolveLook } from "./looks.js";
 export {
 	createPostProcessing,

@@ -116,6 +116,12 @@ export interface ParticleSystemOptions {
 	boundsSize?: [number, number, number];
 	/** Restitution against the bounds, 0–1. */
 	bounce?: number;
+	/**
+	 * World-space center of the bounds volume. Defaults to the origin, so
+	 * existing fields do not shift. A playground that needs a clean copy
+	 * column moves this, not the camera.
+	 */
+	boundsCenter?: [number, number, number];
 	blending?: ParticleBlending;
 }
 
@@ -161,6 +167,7 @@ export const PARTICLE_DEFAULTS = {
 	boundsRadius: 11,
 	boundsSize: [16, 10, 16] as [number, number, number],
 	bounce: 0.55,
+	boundsCenter: [0, 0, 0] as [number, number, number],
 	blending: "additive" as ParticleBlending,
 };
 
@@ -246,6 +253,9 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		sizeMax: uniform(sizeRange[1]),
 		sizeScale: uniform(options.sizeScale ?? PARTICLE_DEFAULTS.sizeScale),
 		boundsRadius: uniform(options.boundsRadius ?? PARTICLE_DEFAULTS.boundsRadius),
+		boundsCenter: uniform(
+			new Vector3(...(options.boundsCenter ?? PARTICLE_DEFAULTS.boundsCenter)),
+		),
 		boundsSize: uniform(new Vector3(...(options.boundsSize ?? PARTICLE_DEFAULTS.boundsSize))),
 		bounce: uniform(options.bounce ?? PARTICLE_DEFAULTS.bounce),
 		colorA: uniform(new Color(colors[0])),
@@ -362,9 +372,10 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		);
 		vel.assign(vel.add(flow.mul(u.turbulence).mul(dt)));
 
-		// Vortex: tangential velocity around the Y axis. Unchanged for fields
-		// that never set a local stir.
-		const radial = vec3(pos.x, float(0), pos.z);
+		// Vortex: tangential velocity around the bounds center, not the world
+		// origin. A field shifted off center still swirls in place. Center
+		// `[0, 0, 0]` is the old orbit.
+		const radial = vec3(pos.x.sub(u.boundsCenter.x), float(0), pos.z.sub(u.boundsCenter.z));
 		const radialLength = max(length(radial), float(0.001));
 		const tangent = vec3(radial.z.negate(), float(0), radial.x).div(radialLength);
 		vel.assign(vel.add(tangent.mul(u.vortex).mul(dt)));
@@ -391,14 +402,22 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 
 		pos.assign(pos.add(vel.mul(dt)));
 
-		if (bounds === "sphere") {
-			const distance = length(pos);
+		// Called after integration and again after a respawn. A pointer can
+		// move the emitter outside the volume; without the second clamp that
+		// particle is visible over the copy for a frame.
+		const clampSphere = (nextPos: Node<"vec3">, nextVel: Node<"vec3">) => {
+			const fromCenter = nextPos.sub(u.boundsCenter);
+			const distance = length(fromCenter);
 			If(distance.greaterThan(u.boundsRadius), () => {
-				const n = pos.div(max(distance, float(0.001)));
-				pos.assign(n.mul(u.boundsRadius));
-				const into = dot(vel, n);
-				vel.assign(vel.sub(n.mul(into.mul(float(1).add(u.bounce)))));
+				const n = fromCenter.div(max(distance, float(0.001)));
+				nextPos.assign(u.boundsCenter.add(n.mul(u.boundsRadius)));
+				const into = dot(nextVel, n);
+				nextVel.assign(nextVel.sub(n.mul(into.mul(float(1).add(u.bounce)))));
 			});
+		};
+
+		if (bounds === "sphere") {
+			clampSphere(pos, vel);
 		} else if (bounds === "box") {
 			const limit = u.boundsSize;
 			If(pos.x.abs().greaterThan(limit.x), () => {
@@ -425,6 +444,7 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			// Golden-ratio scramble: a cheap new seed for the next life.
 			att.z.assign(fract(att.z.mul(1.6180339887).add(0.3183098861)));
 			spawn(pos, vel, att, false);
+			if (bounds === "sphere") clampSphere(pos, vel);
 		});
 	})().compute(count);
 
@@ -544,6 +564,7 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			if (patch.intensity !== undefined) u.intensity.value = patch.intensity;
 			if (patch.opacity !== undefined) u.opacity.value = patch.opacity;
 			if (patch.boundsRadius !== undefined) u.boundsRadius.value = patch.boundsRadius;
+			if (patch.boundsCenter) u.boundsCenter.value.set(...patch.boundsCenter);
 			if (patch.boundsSize) u.boundsSize.value.set(...patch.boundsSize);
 			if (patch.bounce !== undefined) u.bounce.value = patch.bounce;
 		},

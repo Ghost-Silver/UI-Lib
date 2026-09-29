@@ -15,10 +15,12 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 | 页面 | 地址 | 现在是什么 |
 |---|---|---|
 | Lumen | `/?demo=product-hero` | 产品页。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。这轮不再调亮度。 |
-| Scroll Cinema | `/?demo=scroll-cinema` | 滚动叙事。钉住、章节、滚完松开。MSDF 仍未做。 |
+| Scroll Cinema | `/?demo=scroll-cinema` | 滚动叙事。钉住、章节窗口互相重叠，滚完松开。接缝不再整屏没字。MSDF 仍未做。静止亮度没动。 |
 | Cursor Field | `/?demo=cursor-field` | 同一条射线驱动玻璃高光、短 ribbon 和粒子。手停后 ribbon 散掉，粒子走过去，不跳到指针上。静止时高光仍是圆，至多在移动时加 22% 强度。 |
 | Aurora Flow | `/?demo=aurora-flow` | 整页流场，不是参数面板。`<ParticleField flow />` 把局部涡旋沿同一条射线走近。中心有一颗浅色的心，是换色，不抬 `intensity`。手快时涡流略变宽，停住回到原来的半径。后面有一层更暗、更慢的雾。字用 `<Reveal>`。 |
 | Liquid Glass Pro | `/?demo=liquid-glass` | section pin。三块命名玻璃贴在真实 DOM 上，后面是一张会走的套准纸。`look="quiet"`。页面不传 cubemap。 |
+
+文档站首页不是上表里的一页。粒子云和那颗小晶体都收在标题右侧，`intensity` 从 1.8 降到 0.62，`opacity` 从 0.82 降到 0.38，字留在渐变上。HUD 的 `Panels` 是「视口内 / 已注册」：这一页注册了 12 块玻璃，首屏通常只画到其中几块，其余在折线下面，不是预算没满。
 
 验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
 
@@ -26,7 +28,7 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 pnpm build && pnpm typecheck && pnpm test
 ```
 
-这一轮 `pnpm typecheck` 通过（8 个包），`pnpm build && pnpm exec vitest run` 通过，14 个文件 73 项。没有在这台机器上检查真实 GPU 像素。仓库里没有截图基线，测试文件里也没有 `toHaveScreenshot`，所以 `pnpm test:e2e` 不是视觉门禁。
+这一轮 `pnpm typecheck` 通过（8 个包），`pnpm test` 通过，16 个文件 77 项。没有在这台机器上检查真实 GPU 像素，也没有生成截图基线。仓库里没有 `toHaveScreenshot`，所以 `pnpm test:e2e` 不是视觉门禁。
 
 ## 下一步
 
@@ -34,7 +36,7 @@ Liquid Glass Pro 已经是旗舰页。按这个顺序，不要插队：
 
 1. 动态 particle LOD。Aurora 现在是固定 36k 的页面负载，不是 1M 基准。
 2. per-particle trail buffer。Cursor Field 的 ribbon 不是这个。
-3. 真机 WebGPU / WebGL2 截图基线、FPS 和掉帧。没有这些数字，不写性能结论。
+3. 真机 WebGPU / WebGL2 截图基线、FPS 和掉帧。这台机器装不了 Playwright 浏览器，不能在这里生成基线，也不用软件渲染的 PNG 冒充 Metal 上的画面。没有这些数字，不写性能结论。
 
 先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
 

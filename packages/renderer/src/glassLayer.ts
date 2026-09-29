@@ -1630,9 +1630,9 @@ export class GlassLayer implements Disposable {
 			renderer.outputColorSpace = previousColorSpace;
 			this.postPipeline?.render();
 			this.postProcessing?.commit(renderer);
-			// History depth must be the world target, not the present-quad that
-			// now owns the default framebuffer. Skip the copy when this frame
-			// drew no world depth.
+			// History depth is a texture copy of `worldDepth`, not a framebuffer
+			// copy. The target is bound first so the world pass has stored
+			// its depth attachment. Skip the copy when this frame drew none.
 			if (depth.captureDepth) {
 				renderer.setRenderTarget(this.backdropRT);
 				this.postProcessing?.captureDepth(renderer);

@@ -15,6 +15,7 @@ describe("particle system", () => {
 			colors: ["#fff", "#0ff", "#f0f"],
 			stirColor: "#efe6b0",
 			stirTint: 0,
+			boundsCenter: [1, 0, 0],
 		});
 		expect(PARTICLE_DEFAULTS.stirTint).toBe(0);
 		system.setStir(-1.5, 0.4, 0.2);

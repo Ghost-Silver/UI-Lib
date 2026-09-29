@@ -284,3 +284,7 @@
 12. **DOM 槽位跟随不采样 framebuffer，也不猜世界坐标。** `worldAt` 用当前 `particleCamera.unproject`
     把客户区像素打到 `z = plane`。`follow` 在 `frame()` 里、`syncViewport` 之后、jitter 之前调用，
     所以相机写在 update 相位也不会让透镜晚一帧。平行光或命中在相机背后时保留上一个点。
+
+13. **深度历史不走 `copyFramebufferToTexture`。** 那条 API 拷的是当前绑定的 framebuffer。WebGPU 上颜色附件和深度纹理格式对不上时，拷贝被拒绝，历史一直是空的，控制台每帧报 `rgba16float` / `bgra8unorm`。历史深度改成和世界深度同一份 `DepthTexture` 设置，用 `copyTextureToTexture`。格式仍然不同就直接抛错，不再沉默失败。
+
+14. **首页粒子和 Cinema 章节是结构问题，不是再调亮度。** 首页云的 `boundsCenter` 在标题右侧，曝光下调。Cinema 章节窗口重叠到最亮权重始终 ≥ 0.6；0.02 的重叠配 0.07 的 fade 仍然会空。Lumen / Cursor Field / Aurora 的静止亮度没动。
