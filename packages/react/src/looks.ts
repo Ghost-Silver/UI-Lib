@@ -335,6 +335,43 @@ export const GLASS_LOOKS = {
 		environment: 0.22,
 	},
 	/**
+	 * The clear registration pane. Wide bevel, strong bend, almost no frost,
+	 * so a hairline behind it reads as refraction. `environment` scales the
+	 * shared studio probe; it is not a gain and not a cubemap.
+	 */
+	press: {
+		radius: 18,
+		bevel: 34,
+		refraction: 58,
+		dispersion: 0.55,
+		roughness: 0.02,
+		frost: 2,
+		specular: 0.36,
+		edgeGlow: 0.2,
+		tintAmount: 0.02,
+		pointerStrength: 0.2,
+		pointerRadius: 180,
+		environment: 0.26,
+	},
+	/**
+	 * The frosted pane beside `press`. The DOM sentence stays sharp; the
+	 * sampled sheet goes soft. Lower probe mix than `press`, still not a gain.
+	 */
+	milk: {
+		radius: 18,
+		bevel: 14,
+		refraction: 10,
+		dispersion: 0.02,
+		roughness: 0.78,
+		frost: 42,
+		specular: 0.14,
+		edgeGlow: 0.05,
+		tintAmount: 0.06,
+		pointerStrength: 0.12,
+		pointerRadius: 160,
+		environment: 0.16,
+	},
+	/**
 	 * A pane the curtain can bend through. Quieter than cinema, so the sentence
 	 * stays readable while the field is still visible in the glass.
 	 */

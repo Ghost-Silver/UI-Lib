@@ -19,7 +19,7 @@ import {
 	MeshBasicNodeMaterial,
 } from "three/webgpu";
 
-export type AcceptanceDemoId = "liquid-glass" | "aurora-flow" | "product-hero" | "cursor-field";
+export type AcceptanceDemoId = "aurora-flow" | "product-hero" | "cursor-field";
 
 type GradientColors = [string, string, string, string];
 
@@ -27,11 +27,6 @@ const DEMOS: Record<
 	AcceptanceDemoId,
 	{ title: string; eyebrow: string; colors: GradientColors }
 > = {
-	"liquid-glass": {
-		title: "Liquid Glass Pro",
-		eyebrow: "P0 visual acceptance · DOM-attached refraction",
-		colors: ["#071a34", "#3b1d80", "#be185d", "#0891b2"],
-	},
 	"aurora-flow": {
 		title: "Aurora Flow",
 		eyebrow: "P0 visual acceptance · GPU particles",
@@ -91,7 +86,7 @@ export function AcceptanceDemo({ id }: { id: AcceptanceDemoId }) {
 			bloomStrength: id === "product-hero" ? 0.48 : 0.28,
 			haloStrength: 0.16,
 			flareStrength: id === "cursor-field" ? 0.2 : 0.1,
-			chromaticAberration: id === "liquid-glass" ? 0.45 : 0.22,
+			chromaticAberration: 0.22,
 			focusBlur: id === "product-hero" ? 2.2 : 0.8,
 			motionBlur: 0.03,
 			grain: 0.012,
@@ -195,8 +190,6 @@ function AcceptanceStatus() {
 
 function contentFor(id: AcceptanceDemoId) {
 	switch (id) {
-		case "liquid-glass":
-			return <LiquidGlassContent />;
 		case "aurora-flow":
 			return <AuroraContent />;
 		case "product-hero":
@@ -204,36 +197,6 @@ function contentFor(id: AcceptanceDemoId) {
 		case "cursor-field":
 			return <CursorContent />;
 	}
-}
-
-function LiquidGlassContent() {
-	return (
-		<div
-			style={{
-				display: "grid",
-				gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-				gap: 18,
-				marginTop: 72,
-			}}
-		>
-			{["Refraction", "Dispersion", "Frost", "DOM semantics"].map((label, index) => (
-				<GlassPanel
-					key={label}
-					style={glassStyle}
-					radius={index === 3 ? 34 : 22}
-					refraction={42 + index * 8}
-					dispersion={0.25 + index * 0.05}
-				>
-					<span style={{ opacity: 0.6, fontSize: 13 }}>0{index + 1}</span>
-					<h2 style={{ fontSize: 24, margin: "28px 0 10px" }}>{label}</h2>
-					<p style={{ opacity: 0.7, lineHeight: 1.55 }}>
-						The content remains a normal, focusable DOM element while the shared glass surface
-						bends the rendered backdrop.
-					</p>
-				</GlassPanel>
-			))}
-		</div>
-	);
 }
 
 function AuroraContent() {

@@ -24,6 +24,7 @@ import { AuroraFlowPage } from "./AuroraFlow.js";
 import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
+import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
 
@@ -296,6 +297,11 @@ function Scene(props: SceneProps) {
 					<Magnetic strength={0.4} radius={120}>
 						<a className="navlink" href="/?demo=cursor-field">
 							Cursor Field
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={120}>
+						<a className="navlink" href="/?demo=liquid-glass">
+							Liquid Glass
 						</a>
 					</Magnetic>
 				</nav>
@@ -600,7 +606,6 @@ function Scene(props: SceneProps) {
 }
 
 const ACCEPTANCE_IDS: readonly AcceptanceDemoId[] = [
-	"liquid-glass",
 	"aurora-flow",
 	"product-hero",
 	"cursor-field",
@@ -618,6 +623,7 @@ export default function App() {
 		if (demo === "product-hero") return <ProductHeroPage />;
 		if (demo === "cursor-field") return <CursorFieldPage />;
 		if (demo === "aurora-flow") return <AuroraFlowPage />;
+		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;

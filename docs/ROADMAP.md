@@ -186,6 +186,7 @@
 - `@ui-lib/motion` 第一切片已落地：`ScrollTrack` 在共享 scheduler 的 input 相位采样进度（无第二 rAF），`beatWeight` / `sampleTrack` 做章节与相机轨道。React 侧是 `<ScrollTrack>` + `<ScrollPin>`。
 - `GlassStage mode="section"` 已落地：canvas 绝对定位在 stage 内，面板坐标相对该元素。默认仍是 `viewport`，避免破坏整页 playground。
 - Demo **Scroll Cinema** 已从验收壳换成旗舰页（`/?demo=scroll-cinema`）：sticky pin、相机轨道、章节玻璃、会折光的世界透镜、滚出后文档继续。MSDF、FLIP 仍未做。磁吸已落地：`<Magnetic />`，共享 scheduler，不另开 rAF。HTML 逐词出现已落地：`<Reveal>`，同一时钟；这不是 MSDF。
+- Demo **Liquid Glass Pro** 已从验收壳换成旗舰页（`/?demo=liquid-glass`）：同一个 section pin，三块命名玻璃贴在真实 DOM 上，后面一张套准纸作为世界物体走过。不是 element-to-texture，页面不传 cubemap。`GLASS_LOOKS.press` / `milk` 只加档位，不改已有 look 的静止亮度。
 - `GlassLayer.createLensMaterial()` + `addWorldObject(..., { refractive: true })`，React 侧是 `<Lens />` 与 `<Optics />`。粒子 `depth="inside"` 只进入透镜拷贝，不盖住页面；`depth="front"` 在透镜之后绘制并做深度测试。光学常数在 `LENS_LOOKS` / `FIELD_LOOKS` / `GLASS_LOOKS`，页面不再抄一墙数字。Cinema 默认 `look="cinema"` + `crystal`，把高光压进肩部；`optic=flare` 仍是原来的热光学。透镜与 Lumen 共用一张工作室探针，Cinema 的 `environment` 更低。DOM 玻璃走同一张探针：`GLASS_LOOKS` 定强度，文字面比 bevel 弱。
 - 世界物体跟随 DOM 槽位已落地（不是 element→texture）：`GlassLayer.worldAt` / `follow` 在 render 相位、相机更新之后、TAA jitter 之前把槽位中心解到世界坐标。`fit` 按槽位短边解距离，变焦不呼吸；`distance` 锁射线距离，推拉仍变大。挂锚的粒子在锚点之后 step，与透镜同一帧。不写 React state，粒子系统不因位移重建。Lumen 的空列和 Cinema 的空场都用它。`@ui-lib/dom` 的 HTML 快照、3D→DOM（Html bind）、图片转场仍未开始
 - **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用 — 仍待真机

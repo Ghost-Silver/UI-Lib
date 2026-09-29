@@ -84,6 +84,20 @@ describe("optics looks", () => {
 		expect(FIELD_LOOKS.aurora.stirTint ?? 1).toBeLessThanOrEqual(1);
 		expect(GLASS_LOOKS.veil.environment).toBeLessThanOrEqual(GLASS_LOOKS.cinema.environment);
 	});
+
+	it("keeps the registration panes as mix scales, not a retune of the other looks", () => {
+		expect(GLASS_LOOKS.product.refraction).toBe(36);
+		expect(GLASS_LOOKS.quiet.frost).toBe(6);
+		expect(GLASS_LOOKS.press.refraction).toBeGreaterThan(GLASS_LOOKS.product.refraction);
+		expect(GLASS_LOOKS.press.dispersion).toBeGreaterThan(GLASS_LOOKS.cinema.dispersion);
+		expect(GLASS_LOOKS.press.frost).toBeLessThan(GLASS_LOOKS.quiet.frost);
+		expect(GLASS_LOOKS.milk.frost).toBeGreaterThan(GLASS_LOOKS.press.frost * 8);
+		expect(GLASS_LOOKS.milk.dispersion).toBeLessThan(GLASS_LOOKS.press.dispersion);
+		expect(GLASS_LOOKS.press.environment).toBeLessThanOrEqual(0.5);
+		expect(GLASS_LOOKS.milk.environment).toBeLessThan(GLASS_LOOKS.press.environment);
+		expect(GLASS_LOOKS.press.environment).toBeLessThanOrEqual(1);
+		expect(GLASS_LOOKS.milk.environment).toBeGreaterThan(0);
+	});
 });
 
 function asCount(value: number | "auto" | undefined): number {

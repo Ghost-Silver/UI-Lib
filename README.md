@@ -4,13 +4,13 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。五个旗舰里，Lumen、Scroll Cinema、Cursor Field、Aurora Flow 已是可看的页面；Liquid Glass Pro 仍是验收壳。Node 侧 typecheck 与 Vitest 不能代替真机画面。
+> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。五张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面。
 
 [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
 
 ## 当前情况
 
-这一轮把文档站从参数 Playground 推进到四张旗舰页。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
+五张旗舰页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
 
 | 页面 | 地址 | 现在是什么 |
 |---|---|---|
@@ -18,7 +18,7 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 | Scroll Cinema | `/?demo=scroll-cinema` | 滚动叙事。钉住、章节、滚完松开。MSDF 仍未做。 |
 | Cursor Field | `/?demo=cursor-field` | 同一条射线驱动玻璃高光、短 ribbon 和粒子。手停后 ribbon 散掉，粒子走过去，不跳到指针上。静止时高光仍是圆，至多在移动时加 22% 强度。 |
 | Aurora Flow | `/?demo=aurora-flow` | 整页流场，不是参数面板。`<ParticleField flow />` 把局部涡旋沿同一条射线走近。中心有一颗浅色的心，是换色，不抬 `intensity`。手快时涡流略变宽，停住回到原来的半径。后面有一层更暗、更慢的雾。字用 `<Reveal>`。 |
-| Liquid Glass Pro | `/?demo=liquid-glass` | 仍是验收壳，不是旗舰页。 |
+| Liquid Glass Pro | `/?demo=liquid-glass` | section pin。三块命名玻璃贴在真实 DOM 上，后面是一张会走的套准纸。`look="quiet"`。页面不传 cubemap。 |
 
 验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
 
@@ -26,13 +26,11 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 pnpm build && pnpm typecheck && pnpm test
 ```
 
-修完 section 可见性和深度历史后再跑，8 个包 typecheck 通过，Vitest 12 个文件 67 项通过。五个 demo 路由能返回 200。没有在这台机器上检查真实 GPU 像素，所以亮度和心是否看得清，要以浏览器里的画面为准。仓库里没有截图基线，`pnpm test:e2e` 第一次跑会因为 `toHaveScreenshot` 失败，它现在不是可回归的验收门禁。
+这一轮 `pnpm typecheck` 通过（8 个包），`pnpm build && pnpm exec vitest run` 通过，14 个文件 73 项。没有在这台机器上检查真实 GPU 像素。仓库里没有截图基线，测试文件里也没有 `toHaveScreenshot`，所以 `pnpm test:e2e` 不是视觉门禁。
 
 ## 下一步
 
-下一张页是 **Liquid Glass Pro**。把它从验收壳做成和 Lumen 同级的旗舰页：真实 DOM 上的折射，字仍是 HTML，一个 canvas。不做参数墙。
-
-做完那一页之后，按这个顺序，不要插队：
+Liquid Glass Pro 已经是旗舰页。按这个顺序，不要插队：
 
 1. 动态 particle LOD。Aurora 现在是固定 36k 的页面负载，不是 1M 基准。
 2. per-particle trail buffer。Cursor Field 的 ribbon 不是这个。
@@ -159,7 +157,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件和五个 demo 的 acceptance surface 已经加入仓库，但仓库里没有截图 baseline。首次 `pnpm test:e2e` 会因 `toHaveScreenshot` 失败，在基线生成之前不要把它当成合并门禁。WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
+在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件覆盖五个 demo 的语义表面，但仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`。不要把 `pnpm test:e2e` 当成像素门禁。WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
 
 ## React 用法
 
@@ -310,7 +308,7 @@ if (card) {
 通过 query 参数访问：
 
 ```text
-/?demo=liquid-glass
+/?demo=liquid-glass    Liquid Glass Pro。section pin，DOM 玻璃，仍带 data-ui-lib-acceptance="liquid-glass"
 /?demo=aurora-flow     Aurora Flow。viewport stage，仍带 data-ui-lib-acceptance="aurora-flow"
 /?demo=product-hero     Lumen，产品页。仍带 data-ui-lib-acceptance="product-hero"
 /?demo=scroll-cinema
@@ -326,26 +324,25 @@ if (card) {
 
 这五个页面目前用于建立真实浏览器截图和交互基线：
 
-1. **Liquid Glass Pro**：DOM-attached refraction、dispersion、frost。
+1. **Liquid Glass Pro**：section pin。`GLASS_LOOKS.press` / `milk` / `quiet` 贴在真实 DOM 上。后面的套准纸是世界物体，不是 element-to-texture。字是 HTML。
 2. **Aurora Flow**：整页流场、局部涡旋跟着共享射线走、HTML 逐词出现。不是动态 LOD，也不是 1M 基准。
 3. **Glass Product Hero**：world object、camera、post graph 基础路径。
 4. **Scroll Cinema**：section stage、sticky pin、共享时钟上的相机与章节。
 5. **Cursor Field**：同一帧的 pointer ray、短 ribbon、玻璃高光。不是 per-particle trail buffer。
 
-其中 Scroll Cinema 已是可滚动的旗舰页。MSDF、完整 motion timeline 和真机视觉基线仍然没有完成。
+五张都已是可打开的旗舰页。MSDF、完整 motion timeline 和真机视觉基线仍然没有完成。
 
 ### 2. Playwright 视觉与交互测试
 
 测试位于 [`tests/e2e/acceptance.spec.ts`](tests/e2e/acceptance.spec.ts)，覆盖：
 
-- 五个页面的 CSS fallback screenshot
 - accelerated / WebGL route smoke
 - scroll 后 DOM 内容仍可见
-- 语义化标题存在
+- 语义化标题存在，Liquid Glass 的校对链接可以聚焦
 - fallback 状态下没有 canvas
 - stage、backend、FPS、dropped frames 等数据属性
 
-截图按浏览器和 GPU 桶管理，不能跨 GPU 直接混用 baseline。首次在可信浏览器环境中生成 baseline：
+仓库里**没有**截图基线，测试文件里也**没有** `toHaveScreenshot`。缺基线的断言会让下一次 `pnpm test:e2e` 必失败，却又保护不了像素，所以先拿掉。`pnpm test:e2e` 因此不是视觉门禁。真机 GPU 像素、FPS 和设备矩阵仍未验证。要补基线，得在能装浏览器的机器上把断言和 PNG 同一次加回来：
 
 ```bash
 pnpm exec playwright install chromium
@@ -543,13 +540,13 @@ UI-Lib 以约束而不是营销数字为中心：
 
 目标产品面不是一个参数 Playground，而是五个可单独回归的真实页面：
 
-1. **LiquidGlass Pro**：`/?demo=liquid-glass`。仍是验收壳。下一张旗舰页做这个，不在这一轮。
+1. **LiquidGlass Pro**：`/?demo=liquid-glass`。section pin，三块命名玻璃贴在 DOM 上，套准纸在玻璃后面走。不是验收壳。页面不传 cubemap。
 2. **Aurora Flow**：`/?demo=aurora-flow`。viewport stage。`fieldOptions("aurora")` 加 `<ParticleField flow />`。字是 `<Reveal>`。reduced motion 停下粒子，字留在终态。动态 LOD 仍未做。
 3. **Glass Product Hero**：Lumen，`/?demo=product-hero`。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。环境反射由 look 自带的工作室探针提供，页面不传 cubemap。
 4. **Scroll Cinema**：section-scoped sticky pin、scroll-linked camera 和章节玻璃。MSDF 仍未做。
 5. **Cursor Field**：`/?demo=cursor-field`。viewport stage。`<ParticleField pointer />` 与 `<PointerTrail />` 共用玻璃高光的那一次平滑采样。字是 HTML。reduced motion 停下粒子和 ribbon。
 
-五个 acceptance surface 已经接入文档站。其中四张是旗舰页，Liquid Glass Pro 仍是壳。per-particle trail buffer、动态 LOD、MSDF 和 `@ui-lib/dom` 仍未做。下一步见上文。
+五个 acceptance surface 都已是旗舰页。per-particle trail buffer、动态 LOD、MSDF 和 `@ui-lib/dom` 仍未做。下一步见上文。
 
 ## 不可妥协的设计规则
 
