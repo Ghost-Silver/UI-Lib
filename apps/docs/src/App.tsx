@@ -27,6 +27,7 @@ import { StatusHud } from "./components/StatusHud.js";
 import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
+import { WakePage } from "./Wake.js";
 
 const PALETTES = {
 	aurora: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"],
@@ -279,6 +280,11 @@ function Scene(props: SceneProps) {
 					<Magnetic strength={0.4} radius={120}>
 						<a className="navlink" href="/?demo=liquid-glass">
 							Liquid Glass
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={90}>
+						<a className="navlink" href="/?demo=wake">
+							Wake
 						</a>
 					</Magnetic>
 				</nav>
@@ -601,6 +607,7 @@ export default function App() {
 		if (demo === "cursor-field") return <CursorFieldPage />;
 		if (demo === "aurora-flow") return <AuroraFlowPage />;
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
+		if (demo === "wake") return <WakePage />;
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;

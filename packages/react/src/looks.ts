@@ -1,4 +1,4 @@
-import type { ParticleSystemOptions } from "@ui-lib/particles";
+import { type ParticleSystemOptions, WAKE_FIELD } from "@ui-lib/particles";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
 
 /** Optical constants for {@link Lens}. `flare` is the previous hot optic. */
@@ -129,7 +129,7 @@ export function resolveLensLook(
 	return { ...LENS_LOOKS[look], ...definedPatch(patch) };
 }
 
-export type FieldLookName = "mote" | "spark" | "quiet" | "cursor" | "aurora";
+export type FieldLookName = "mote" | "spark" | "quiet" | "cursor" | "aurora" | "wake";
 
 /**
  * Particle clouds that belong with a lens. Counts stay high enough to read as
@@ -242,6 +242,8 @@ export const FIELD_LOOKS: Record<FieldLookName, ParticleSystemOptions> = {
 		bounce: 0.12,
 		blending: "additive",
 	},
+	/** Rising strokes with a GPU history. Not brighter than aurora's curtain. */
+	wake: WAKE_FIELD,
 };
 
 /** Shallow-merge a field look. `emitter` and `forces` merge one level down. */

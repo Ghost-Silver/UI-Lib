@@ -288,3 +288,5 @@
 13. **深度历史不走 `copyFramebufferToTexture`。** 那条 API 拷的是当前绑定的 framebuffer。WebGPU 上颜色附件和深度纹理格式对不上时，拷贝被拒绝，历史一直是空的，控制台每帧报 `rgba16float` / `bgra8unorm`。历史深度改成和世界深度同一份 `DepthTexture` 设置，用 `copyTextureToTexture`。格式仍然不同就直接抛错，不再沉默失败。
 
 14. **首页粒子和 Cinema 章节是结构问题，不是再调亮度。** 首页云的 `boundsCenter` 在标题右侧，曝光下调。Cinema 章节窗口重叠到最亮权重始终 ≥ 0.6；0.02 的重叠配 0.07 的 fade 仍然会空。Lumen / Cursor Field / Aurora 的静止亮度没动。
+
+15. **粒子预算是前缀，不是重建。** `resolveParticleLod` 把作者数量当上限，档位预算和隐藏的 stage 只降低 `active`。`count: "auto"` 按当前预算分配，不再无条件要 1M。历史轨迹默认关闭：`trail.length` 才分配每粒子的样本环，最新一段每帧拉伸，stride 才落下一笔。这不是 Cursor Field 的指针 ribbon。Wake（`/?demo=wake`）用它。没有在这台机器上测 1M @ 60fps。

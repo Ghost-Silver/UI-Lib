@@ -2,6 +2,7 @@ import {
 	createParticleSystem,
 	type ParticleSystem,
 	type ParticleSystemOptions,
+	resolveParticleLod,
 } from "@ui-lib/particles";
 import {
 	approachPoint,
@@ -10,7 +11,7 @@ import {
 	type ParticleLayerOptions,
 	stirBreath,
 } from "@ui-lib/renderer";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type DomAnchor, useAnchorFollow } from "./anchor.js";
 import { useGlassStage } from "./context.js";
 import { subscribeReducedMotion } from "./reducedMotion.js";
@@ -100,6 +101,7 @@ export function ParticleField({
 	const pointerDistanceRef = useRef(pointerDistance);
 	const stirAtRef = useRef(stirAt);
 	const systemRef = useRef<ParticleSystem | null>(null);
+	const [autoBudget, setAutoBudget] = useState<number | null>(null);
 	optionsRef.current = options;
 	cameraRef.current = camera;
 	attractorRef.current = attractor;
@@ -113,10 +115,13 @@ export function ParticleField({
 		const requestedOptions = optionsRef.current;
 		const count =
 			requestedOptions.count === "auto"
-				? layer.backend === "webgpu"
-					? 1_000_000
-					: 80_000
+				? resolveParticleLod({
+						authored: "auto",
+						budget: layer.particleBudget,
+						backend: layer.backend,
+					}).allocated
 				: requestedOptions.count;
+		if (!count) return;
 		const system = createParticleSystem({ ...requestedOptions, count });
 		systemRef.current = system;
 		const held = attractorRef.current;
@@ -163,27 +168,46 @@ export function ParticleField({
 					system.update({ forces: { stir: breath.stir, stirRadius: breath.radius } });
 				}, distanceOf)
 			: null;
-		const releaseMotion = flow
-			? subscribeReducedMotion((next) => {
-					reduced = next;
-					if (!next) return;
-					eddy[0] = rest[0];
-					eddy[1] = rest[1];
-					eddy[2] = rest[2];
-					system.setStir(eddy[0], eddy[1], eddy[2]);
-					system.update({ forces: { stir: baseStir, stirRadius: baseRadius } });
-				})
-			: null;
+		const authoredTrail =
+			typeof requestedOptions.trail === "number"
+				? requestedOptions.trail === 0
+					? 0
+					: 0.32
+				: (requestedOptions.trail?.opacity ?? (requestedOptions.trail ? 0.32 : 0));
+		const releaseMotion = subscribeReducedMotion((next) => {
+			reduced = next;
+			system.setTrailOpacity(next ? 0 : authoredTrail);
+			if (!flow || !next) return;
+			eddy[0] = rest[0];
+			eddy[1] = rest[1];
+			eddy[2] = rest[2];
+			system.setStir(eddy[0], eddy[1], eddy[2]);
+			system.update({ forces: { stir: baseStir, stirRadius: baseRadius } });
+		});
+
+		const releaseBudget =
+			requestedOptions.count === "auto"
+				? layer.subscribeQuality((_tier, budget) => {
+						const next = resolveParticleLod({
+							authored: "auto",
+							budget,
+							backend: layer.backend,
+						}).allocated;
+						if (next > system.count) setAutoBudget(budget);
+						else system.setActive(next);
+					})
+				: null;
 
 		return () => {
-			releaseMotion?.();
+			releaseBudget?.dispose();
+			releaseMotion();
 			releaseFlow?.dispose();
 			releasePointer?.dispose();
 			releaseHold?.dispose();
 			systemRef.current = null;
 			attachment.dispose();
 		};
-	}, [layer, enabled, pointer, flow, depth, optionsKey, cameraKey, anchor]);
+	}, [layer, enabled, pointer, flow, depth, optionsKey, cameraKey, anchor, autoBudget]);
 
 	// Runs every commit on purpose: scroll parents move the attractor every frame,
 	// and recreating the particle system for that would reset the simulation.

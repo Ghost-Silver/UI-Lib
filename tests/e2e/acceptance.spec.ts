@@ -6,6 +6,7 @@ const demos = [
 	"product-hero",
 	"scroll-cinema",
 	"cursor-field",
+	"wake",
 ] as const;
 
 for (const demo of demos) {

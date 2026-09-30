@@ -1,4 +1,5 @@
 import {
+	atan,
 	cos,
 	cross,
 	dot,
@@ -12,8 +13,11 @@ import {
 	length,
 	max,
 	mix,
+	mod,
+	modelViewMatrix,
 	mx_noise_vec3,
 	normalize,
+	oneMinus,
 	pow,
 	saturate,
 	select,
@@ -21,9 +25,12 @@ import {
 	sin,
 	smoothstep,
 	sqrt,
+	uint,
 	uniform,
 	uv,
+	vec2,
 	vec3,
+	vec4,
 } from "three/tsl";
 import {
 	AdditiveBlending,
@@ -35,6 +42,7 @@ import {
 	Vector3,
 	type WebGPURenderer,
 } from "three/webgpu";
+import { type ParticleTrailOptions, resolveTrail } from "./lod.js";
 
 export type ParticleEmitterShape = "point" | "sphere" | "box" | "disc" | "ring" | "cone";
 export type ParticleBounds = "none" | "sphere" | "box";
@@ -123,6 +131,11 @@ export interface ParticleSystemOptions {
 	 */
 	boundsCenter?: [number, number, number];
 	blending?: ParticleBlending;
+	/**
+	 * Per-particle history. `0` or omitted allocates no trail, so existing
+	 * fields stay a single sprite. This is not the pointer ribbon.
+	 */
+	trail?: number | ParticleTrailOptions;
 }
 
 export const PARTICLE_DEFAULTS = {
@@ -177,15 +190,29 @@ const hash11 = (x: Node<"float">) => fract(sin(x.mul(127.1)).mul(43758.5453));
 const signOf = (x: Node<"float">) => select(x.lessThan(float(0)), float(-1), float(1));
 
 export interface ParticleSystem {
-	/** Add this to a scene. */
+	/** Add this to a scene. The trail sprite, when there is one, is a child. */
 	readonly object: Sprite;
 	readonly material: SpriteNodeMaterial;
+	/** Head material plus the trail material, when a history was asked for. */
+	readonly materials: readonly SpriteNodeMaterial[];
+	/** Allocated particles. Fixed for the life of the system. */
 	readonly count: number;
+	/** Particles currently simulated and drawn. Never above `count`. */
+	readonly active: number;
+	/** History samples per particle. `0` means there is no trail buffer. */
+	readonly trailLength: number;
 	/** Advance the simulation. Call once per frame, before rendering. */
 	step(renderer: WebGPURenderer, dt: number): void;
 	/** Re-seed every particle. Call once after the renderer is initialised. */
 	reset(renderer: WebGPURenderer): void;
 	update(options: Partial<ParticleSystemOptions>): void;
+	/**
+	 * Simulate and draw only the first `next` particles. The buffer stays.
+	 * `0` skips the dispatch. Used by the tier budget and by a hidden stage.
+	 */
+	setActive(next: number): void;
+	/** Trail opacity. `0` hides strokes without touching the head intensity. */
+	setTrailOpacity(opacity: number): void;
 	/** World-space position used by the attractor force. */
 	setAttractor(x: number, y: number, z: number): void;
 	/** World-space center of the local stir. Does not move the attractor. */
@@ -340,6 +367,47 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 
 	/* ------------------------------------------------------------- kernels -- */
 
+	const trail = resolveTrail(options.trail);
+	const trailLength = trail.length;
+	const segmentA = trailLength > 0 ? instancedArray(count * trailLength, "vec3") : null;
+	const segmentB = trailLength > 0 ? instancedArray(count * trailLength, "vec4") : null;
+	const trailShift = uniform(0);
+	const trailOpacity = uniform(trail.opacity);
+	const trailWidth = uniform(Math.max(trail.width, 0.0001));
+	const trailHeadColor = uniform(new Color(colors[0]));
+	const trailTailColor = uniform(new Color(colors[2]));
+	const state = { active: count, strideTick: 1 };
+
+	const lifeLeft = (att: Node<"vec4">) =>
+		oneMinus(saturate(att.x.div(max(att.y, float(0.0001)))));
+
+	// Age 0 is the live segment. A stride frame freezes it into age 1 and
+	// starts a new point at the head, so the stroke is longer than one frame.
+	const fillTrail = (pos: Node<"vec3">) => {
+		if (!segmentA || !segmentB) return;
+		for (let age = 0; age < trailLength; age++) {
+			const slot = instanceIndex.mul(trailLength).add(age);
+			segmentA.element(slot).assign(pos);
+			segmentB.element(slot).assign(vec4(pos, float(1)));
+		}
+	};
+	const pushTrail = (pos: Node<"vec3">, att: Node<"vec4">) => {
+		if (!segmentA || !segmentB) return;
+		const head = instanceIndex.mul(trailLength);
+		const life = lifeLeft(att);
+		segmentB.element(head).assign(vec4(pos, life));
+		If(trailShift.greaterThan(0.5), () => {
+			for (let age = trailLength - 1; age >= 1; age--) {
+				const dst = head.add(age);
+				const src = head.add(age - 1);
+				segmentA.element(dst).assign(segmentA.element(src));
+				segmentB.element(dst).assign(segmentB.element(src));
+			}
+			segmentA.element(head).assign(pos);
+			segmentB.element(head).assign(vec4(pos, life));
+		});
+	};
+
 	const computeInit = Fn(() => {
 		const pos = positions.element(instanceIndex);
 		const vel = velocities.element(instanceIndex);
@@ -347,6 +415,7 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 
 		att.z.assign(hash(instanceIndex.add(3)));
 		spawn(pos, vel, att, true);
+		fillTrail(pos);
 	})().compute(count);
 
 	const computeUpdate = Fn(() => {
@@ -445,7 +514,9 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			att.z.assign(fract(att.z.mul(1.6180339887).add(0.3183098861)));
 			spawn(pos, vel, att, false);
 			if (bounds === "sphere") clampSphere(pos, vel);
+			fillTrail(pos);
 		});
+		pushTrail(pos, att);
 	})().compute(count);
 
 	/* ------------------------------------------------------------ material -- */
@@ -499,14 +570,70 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 	sprite.frustumCulled = false;
 	sprite.name = "ui-lib:particles";
 
+	const materials: SpriteNodeMaterial[] = [material];
+	let trailSprite: (Sprite & { count: number }) | null = null;
+	if (segmentA && segmentB && trailLength > 0) {
+		const trailMaterial = new SpriteNodeMaterial();
+		const older = (segmentA as unknown as WithToAttribute).toAttribute();
+		const newer = (segmentB as unknown as WithToAttribute).toAttribute();
+		const olderView = modelViewMatrix.mul(vec4(older.xyz, 1)).xy;
+		const newerView = modelViewMatrix.mul(vec4(newer.xyz, 1)).xy;
+		const delta = newerView.sub(olderView);
+		const segLen = length(delta);
+		const ageIndex = float(mod(instanceIndex, uint(trailLength)));
+		const along = oneMinus(ageIndex.div(float(Math.max(trailLength - 1, 1))));
+		trailMaterial.positionNode = older.xyz.add(newer.xyz).mul(0.5);
+		trailMaterial.scaleNode = vec2(max(segLen, float(0.0001)), trailWidth);
+		trailMaterial.rotationNode = atan(delta.y, delta.x);
+		trailMaterial.colorNode = mix(trailTailColor, trailHeadColor, along).mul(u.intensity);
+		trailMaterial.opacityNode = along
+			.mul(newer.w)
+			.mul(trailOpacity)
+			.mul(smoothstep(float(0.0015), float(0.012), segLen));
+		trailMaterial.transparent = true;
+		trailMaterial.depthWrite = false;
+		trailMaterial.blending = blending === "additive" ? AdditiveBlending : NormalBlending;
+		trailMaterial.toneMapped = false;
+		trailSprite = new Sprite(trailMaterial) as Sprite & { count: number };
+		trailSprite.count = count * trailLength;
+		trailSprite.frustumCulled = false;
+		trailSprite.renderOrder = -1;
+		trailSprite.name = "ui-lib:particle-trail";
+		sprite.add(trailSprite);
+		materials.push(trailMaterial);
+	}
+
+	const applyActive = (next: number) => {
+		const active = Math.max(0, Math.min(count, Math.floor(next)));
+		state.active = active;
+		sprite.count = Math.max(active, 1);
+		sprite.visible = active > 0;
+		if (trailSprite) {
+			trailSprite.count = Math.max(active, 1) * trailLength;
+			trailSprite.visible = active > 0;
+		}
+		// three injects `if (instanceIndex >= count) return` when this is a number.
+		computeUpdate.count = Math.max(active, 1);
+	};
+
 	return {
 		object: sprite,
 		material,
+		materials,
 		count,
+		get active() {
+			return state.active;
+		},
+		trailLength,
 		step(renderer: WebGPURenderer, dt: number) {
 			// Clamp: a two-second stall must not teleport every particle.
 			u.dt.value = Math.min(Math.max(dt, 0), 1 / 20);
 			u.time.value += u.dt.value;
+			if (state.active <= 0) return;
+			if (trailLength > 0) {
+				state.strideTick = (state.strideTick + 1) % trail.stride;
+				trailShift.value = state.strideTick === 0 ? 1 : 0;
+			}
 			renderer.compute(computeUpdate);
 		},
 		reset(renderer: WebGPURenderer) {
@@ -555,6 +682,8 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 				u.colorA.value.set(patch.colors[0]);
 				u.colorB.value.set(patch.colors[1]);
 				u.colorC.value.set(patch.colors[2]);
+				trailHeadColor.value.set(patch.colors[0]);
+				trailTailColor.value.set(patch.colors[2]);
 			}
 			if (patch.hotColor) u.hotColor.value.set(patch.hotColor);
 			if (patch.hotAmount !== undefined) u.hotAmount.value = patch.hotAmount;
@@ -567,6 +696,22 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			if (patch.boundsCenter) u.boundsCenter.value.set(...patch.boundsCenter);
 			if (patch.boundsSize) u.boundsSize.value.set(...patch.boundsSize);
 			if (patch.bounce !== undefined) u.bounce.value = patch.bounce;
+			if (patch.trail !== undefined) {
+				const next = resolveTrail(patch.trail);
+				if (next.length !== trailLength && next.length !== 0) {
+					console.warn(
+						"[ui-lib] particle trail length is fixed at creation; recreate the system.",
+					);
+				}
+				trailOpacity.value = next.opacity;
+				if (next.width > 0) trailWidth.value = next.width;
+			}
+		},
+		setActive(next: number) {
+			applyActive(next);
+		},
+		setTrailOpacity(opacity: number) {
+			trailOpacity.value = Math.min(1, Math.max(0, opacity));
 		},
 		setAttractor(x: number, y: number, z: number) {
 			u.attractorPosition.value.set(x, y, z);
@@ -575,7 +720,7 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			u.stirCenter.value.set(x, y, z);
 		},
 		dispose() {
-			material.dispose();
+			for (const entry of materials) entry.dispose();
 			sprite.removeFromParent();
 		},
 	};

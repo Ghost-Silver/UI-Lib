@@ -214,6 +214,10 @@ export interface GlassLayerStats {
 	bufferWidth: number;
 	bufferHeight: number;
 	reducedMotion: boolean;
+	/** Particles currently stepped, after the tier budget. */
+	particleActive: number;
+	/** Particles allocated across every attached system. */
+	particleAllocated: number;
 	/** Logical owned-resource counts; this is not a VRAM estimate. */
 	resources: ResourceSnapshot;
 }
@@ -288,6 +292,7 @@ export class GlassLayer implements Disposable {
 	private readonly disposer = new Disposer();
 	private readonly resource = resourceRegistry.track("layer");
 	private readonly quality: QualityManager;
+	private readonly qualityListeners = new Set<(tier: QualityTier, budget: number) => void>();
 
 	private readonly sharedTime = uniform(0);
 	private readonly sharedResolution = uniform(new Vector2(1, 1));
@@ -405,7 +410,11 @@ export class GlassLayer implements Disposable {
 				// rebuilds the materials with the new budget.
 				this.rebuildPanelMaterials();
 				this.rebuildPostProcessing();
+				this.applyParticleLod();
 				this.dirty = true;
+				for (const listener of this.qualityListeners) {
+					listener(settings.tier, settings.particleBudget);
+				}
 				if (typeof console !== "undefined" && previous !== settings.tier) {
 					console.info(`[ui-lib] quality tier ${previous} → ${settings.tier}`);
 				}
@@ -585,6 +594,26 @@ export class GlassLayer implements Disposable {
 		return this.quality.tier;
 	}
 
+	/** Particle ceiling for the current tier. `0` means draw none. */
+	get particleBudget(): number {
+		return this.quality.settings.particleBudget;
+	}
+
+	/**
+	 * Fires immediately with the current tier, then again when auto quality
+	 * walks the tier. Used to grow an `auto` particle buffer. The active
+	 * prefix is applied here as well, so a listener is optional.
+	 */
+	subscribeQuality(listener: (tier: QualityTier, budget: number) => void): Disposable {
+		this.qualityListeners.add(listener);
+		listener(this.quality.tier, this.quality.settings.particleBudget);
+		return {
+			dispose: () => {
+				this.qualityListeners.delete(listener);
+			},
+		};
+	}
+
 	getStats(): GlassLayerStats {
 		let onScreen = 0;
 		for (const panel of this.panels) if (panel.mesh.visible) onScreen++;
@@ -603,6 +632,8 @@ export class GlassLayer implements Disposable {
 			bufferWidth: Math.round(this.width * this.dpr),
 			bufferHeight: Math.round(this.height * this.dpr),
 			reducedMotion: this.reducedMotion,
+			particleActive: this.particleActiveTotal(),
+			particleAllocated: this.particleAllocatedTotal(),
 			resources: getResourceSnapshot(),
 		};
 	}
@@ -851,7 +882,35 @@ export class GlassLayer implements Disposable {
 
 	private stepLateParticles(dt: number): void {
 		if (this.reducedMotion || this.quality.tier === 0 || this.lateParticles.size === 0) return;
-		for (const system of this.lateParticles) system.step(this.ui.renderer, dt);
+		if (this.bounds.width < 1 || this.bounds.height < 1) return;
+		for (const system of this.lateParticles) {
+			const active = Math.min(system.count, this.quality.settings.particleBudget);
+			if (system.active !== active) system.setActive(active);
+			if (active > 0) system.step(this.ui.renderer, dt);
+		}
+	}
+
+	private particleActiveCount(system: ParticleSystem): number {
+		if (this.quality.tier === 0 || this.bounds.width < 1 || this.bounds.height < 1) return 0;
+		return Math.min(system.count, this.quality.settings.particleBudget);
+	}
+
+	private applyParticleLod(): void {
+		for (const system of this.particleSystems) {
+			system.setActive(this.particleActiveCount(system));
+		}
+	}
+
+	private particleActiveTotal(): number {
+		let total = 0;
+		for (const system of this.particleSystems) total += system.active;
+		return total;
+	}
+
+	private particleAllocatedTotal(): number {
+		let total = 0;
+		for (const system of this.particleSystems) total += system.count;
+		return total;
 	}
 
 	register(element: HTMLElement, options: Partial<GlassPanelOptions> = {}): GlassPanelHandle {
@@ -913,10 +972,14 @@ export class GlassLayer implements Disposable {
 		scene.add(system.object);
 		this.particleSystems.add(system);
 		system.reset(this.ui.renderer);
+		system.setActive(this.particleActiveCount(system));
 
 		const stop = getScheduler().add((info) => {
 			if (this.lateParticles.has(system)) return;
-			if (!this.reducedMotion && this.quality.tier > 0) system.step(this.ui.renderer, info.dt);
+			const active = this.particleActiveCount(system);
+			if (system.active !== active) system.setActive(active);
+			if (active <= 0 || this.reducedMotion) return;
+			system.step(this.ui.renderer, info.dt);
 		}, "compute");
 		this.particleStops.set(system, stop);
 		this.particleResources.set(system, resourceRegistry.track("particle-system"));
@@ -1505,10 +1568,12 @@ export class GlassLayer implements Disposable {
 	}
 
 	private prepareParticleDepth(system: ParticleSystem, depth: ParticleDepth): void {
-		system.material.depthWrite = false;
-		// Front motes test against the lens. Inside motes draw into a color
-		// copy that has no depth buffer, so a depth test would discard them.
-		system.material.depthTest = depth === "front";
+		for (const material of system.materials) {
+			material.depthWrite = false;
+			// Front motes test against the lens. Inside motes draw into a color
+			// copy that has no depth buffer, so a depth test would discard them.
+			material.depthTest = depth === "front";
+		}
 	}
 
 	private silenceDepth(material: Material | Material[]): void {
