@@ -8,5 +8,16 @@ export default defineConfig({
 	clean: true,
 	treeshake: true,
 	target: "es2022",
-	external: ["react", "react-dom", "three", "three/webgpu", "three/tsl"],
+	external: [
+		"react",
+		"react-dom",
+		"three",
+		"three/webgpu",
+		"three/tsl",
+		"@ui-lib/core",
+		"@ui-lib/motion",
+		"@ui-lib/particles",
+		"@ui-lib/renderer",
+		"@ui-lib/shaders",
+	],
 });

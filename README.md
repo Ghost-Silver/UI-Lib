@@ -4,9 +4,40 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 当前已经实现渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、运行时质量降级、资源诊断、SSR smoke test 和五个浏览器验收入口。真实 WebGPU/WebGL2 截图、FPS、掉帧和 GPU 设备矩阵仍需要在具备浏览器与 GPU 的环境中运行，不能把 Node 侧 typecheck 当成视觉完成。
+> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。五张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面。
 
 [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
+
+## 当前情况
+
+五张旗舰页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
+
+| 页面 | 地址 | 现在是什么 |
+|---|---|---|
+| Lumen | `/?demo=product-hero` | 产品页。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。这轮不再调亮度。 |
+| Scroll Cinema | `/?demo=scroll-cinema` | 滚动叙事。钉住、章节窗口互相重叠，滚完松开。接缝不再整屏没字。MSDF 仍未做。静止亮度没动。 |
+| Cursor Field | `/?demo=cursor-field` | 同一条射线驱动玻璃高光、短 ribbon 和粒子。手停后 ribbon 散掉，粒子走过去，不跳到指针上。静止时高光仍是圆，至多在移动时加 22% 强度。 |
+| Aurora Flow | `/?demo=aurora-flow` | 整页流场，不是参数面板。`<ParticleField flow />` 把局部涡旋沿同一条射线走近。中心有一颗浅色的心，是换色，不抬 `intensity`。手快时涡流略变宽，停住回到原来的半径。后面有一层更暗、更慢的雾。字用 `<Reveal>`。 |
+| Liquid Glass Pro | `/?demo=liquid-glass` | section pin。三块命名玻璃贴在真实 DOM 上，后面是一张会走的套准纸。`look="quiet"`。页面不传 cubemap。 |
+| Wake | `/?demo=wake` | 每颗粒子自己的历史，不是指针 ribbon。笔画在标题右侧。`intensity` 0.46。档位预算会裁掉多出来的粒子，桌面档位盖得住现有页面。 |
+
+文档站首页不是上表里的一页。粒子云和那颗小晶体都收在标题右侧，`intensity` 从 1.8 降到 0.62，`opacity` 从 0.82 降到 0.38，字留在渐变上。HUD 的 `Panels` 是「视口内 / 已注册」：这一页注册了 12 块玻璃，首屏通常只画到其中几块，其余在折线下面，不是预算没满。
+
+验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
+
+```bash
+pnpm build && pnpm typecheck && pnpm test
+```
+
+这一轮 `pnpm typecheck` 通过（8 个包），`pnpm test` 通过，18 个文件 83 项。没有在这台机器上检查真实 GPU 像素，也没有生成截图基线。仓库里没有 `toHaveScreenshot`，所以 `pnpm test:e2e` 不是视觉门禁。
+
+## 下一步
+
+Liquid Glass Pro 已经是旗舰页。还没做的是：
+
+1. 真机 WebGPU / WebGL2 截图基线、FPS 和掉帧。这台机器装不了 Playwright 浏览器，不能在这里生成基线，也不用软件渲染的 PNG 冒充 Metal 上的画面。没有这些数字，不写性能结论。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。1M @ 60fps 仍然没测。
+
+先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
 
 ---
 
@@ -49,13 +80,17 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 - gravity、drag、turbulence、vortex、attractor、bounds
 - color-over-life、speed heat、soft sprite、additive blending
 - 与 Liquid Glass 共享同一个 stage、renderer 和 scheduler
+- `depth="scene" | "inside" | "front"`：粒子可以留在页面上、只活在透镜里，或画在透镜前面并被它挡住
 
 #### TSL 后处理
 
 - bloom、atmospheric halo、lens streak
 - chromatic aberration、grain、exposure、contrast、saturation
+- `shoulder`：只压缩大于 1 的高光，中间调不动。默认 0，所以未命名的 stage 不变色
 - vignette、focus blur、directional motion blur
 - Halton jitter temporal accumulation
+- 离屏 world depth 上的相机重投影；`cameraMotionBlur` 只模糊写了深度的世界像素
+- 世界透镜与 DOM 玻璃共用一张安静的工作室探针。透镜用世界反射，玻璃用透视射线加 bevel，文字面保持安静。页面不传 cubemap
 - depth history、disocclusion rejection、variance clipping、reactive rejection
 - `quality: 1 | 2 | 3` 编译期后处理预算
 - 静态场景跳过重复 redraw 与 TAA history copy
@@ -78,12 +113,13 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 - 真机 WebGPU / WebGL2 视觉回归基线
 - 跨浏览器 FPS、掉帧和交互延迟门禁
 - 真实 GPU VRAM 统计与 device-specific benchmark
-- world-only per-pixel velocity MRT
+- 变形粒子场的 world-only per-pixel velocity MRT（刚体相机重投影已有，不是完整速度缓冲）
 - 可复用的真正 multi-pass bloom pyramid
 - 自定义 post-pass 插槽
-- DOM ↔ GPU bridge 与 scroll-linked motion package
+- DOM ↔ GPU bridge（element→texture、3D→DOM 跟随）
+- 完整 timeline / gesture / MSDF；滚动进度与章节轨道已有第一切片
 - MSDF text
-- 动态 particle LOD、trail buffer 和稳定 pointer-to-world ray
+- 动态 particle LOD 与 per-particle trail buffer。pointer-to-world ray 已在共享 scheduler 上，按固定距离取样
 - 最终版 imperative `createEffect()` API
 - R3F、Vue、Svelte adapter
 - Next.js / Nuxt / SvelteKit SSR 与 hydration example
@@ -109,11 +145,11 @@ pnpm dev
 执行仓库级验证：
 
 ```bash
-pnpm typecheck
-pnpm test
+pnpm build && pnpm typecheck && pnpm test
 pnpm lint
-pnpm build
 ```
+
+`pnpm test` 自己也会先 `pnpm build`。包入口指向 `dist/`，跳过构建的话跨包测试解析不到。
 
 执行浏览器验收：
 
@@ -122,7 +158,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件和 five-demo acceptance surface 已经加入仓库，但截图 baseline、WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
+在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件覆盖五个 demo 的语义表面，但仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`。不要把 `pnpm test:e2e` 当成像素门禁。WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
 
 ## React 用法
 
@@ -169,6 +205,73 @@ export function ProductHero() {
 
 `ParticleField` 在同一个 stage 内模拟并渲染，玻璃可以同时折射 backdrop 与粒子层，不会为每个效果创建第二个 canvas 或 renderer。
 
+### 嵌进一个 section，而不是接管整页
+
+`mode="viewport"`（默认）仍是一整页一张 fixed canvas。产品页里的 hero 或滚动叙事应该用 `mode="section"`：canvas 绝对定位在 stage 元素内，面板坐标相对这个元素，而不是窗口。浏览器对并发 WebGPU context 有硬上限，所以一个页面只放少数几个 stage。
+
+```tsx
+import { GlassPanel, GlassStage, Lens, ParticleField, ScrollPin, ScrollTrack } from "@ui-lib/react";
+
+export function Story() {
+  return (
+    <ScrollTrack length={4}>
+      {(scroll) => (
+        <ScrollPin>
+          <GlassStage mode="section" style={{ height: "100%" }}>
+            <Lens refraction={28 + scroll.progress * 40} />
+            <ParticleField depth="inside" options={{ count: 1200 }} />
+            <GlassPanel>
+              <h2>Hold the light</h2>
+              <p>{scroll.progress.toFixed(2)}</p>
+            </GlassPanel>
+          </GlassStage>
+        </ScrollPin>
+      )}
+    </ScrollTrack>
+  );
+}
+```
+
+`ScrollTrack` 在共享 scheduler 的 `input` 相位采样进度，不另开 `requestAnimationFrame`。`length={4}` 是 400vh；里面的 sticky pin 在滚完后松开，canvas 跟着 section 离开，不会盖住后面的文档。旗舰页在 `/?demo=scroll-cinema`。产品页在 `/?demo=product-hero`：同一套 section stage，grade 用 `look="product"`，透镜用 `<Optics look="crystal" mote="quiet" />`。字是 HTML。滚完 pin 松开，规格表留在文档里。
+
+指针场不要自己听 `pointermove`，也不要去打相机朝向的平面。平面在画面边缘会跑远。`<ParticleField pointer />` 和 `<PointerTrail />` 省略距离时都用相机到目标的长度。它们和玻璃高光用同一次平滑采样，在 render 相位、late particle step 之前解析成固定距离的射线。速度也来自这次采样：移动时高光沿笔势拉长，至多加 22% 强度；静止时回到原来的圆，亮度不变。手停住后 ribbon 在半秒内散掉，不会留一条冻住的线。粒子的出生点跟着射线走过去，不会在指针上突然出现。旗舰页在 `/?demo=cursor-field`，仍是 viewport stage。这不是 per-particle trail buffer。
+
+`<ParticleField flow />` 不搬家、不吸成一团。它只把局部涡旋的中心沿同一条射线走近，手停住之后流场继续走。涡旋中心有一颗浅色的心，是换色，不抬 `intensity`。手快的时候涡流略变宽，停住就回到原来的半径。字用 `<Reveal>`，仍是 HTML，按共享时钟逐词进来；reduced motion 下字停在终态，粒子不再 step，心回到休息点。旗舰页在 `/?demo=aurora-flow`。这不是百万粒子承诺，也不是 MSDF。
+
+### 一个 look，而不是一墙参数
+
+亮度问题用高光肩，不靠把透镜删掉。`look="cinema"` 提高 bloom 门槛并滚掉大于 1 的峰值；`LOOKS.bright` 仍是原来那套不封顶的 grade。透镜本身用 `crystal`（默认，压住核心和高光）或 `flare`（原来的热光学）。`/?demo=scroll-cinema&optic=flare` 可以对照。
+
+```tsx
+import { GLASS_LOOKS, GlassPanel, GlassStage, Magnetic, Optics } from "@ui-lib/react";
+
+export function Instrument() {
+  return (
+    <GlassStage look="cinema" mode="section" style={{ height: "100%" }}>
+      <Optics look="crystal" />
+      <Magnetic strength={0.35} radius={140}>
+        <GlassPanel {...GLASS_LOOKS.cinema}>
+          <h2>Hold the light</h2>
+        </GlassPanel>
+      </Magnetic>
+    </GlassStage>
+  );
+}
+```
+
+`<Optics />` 把透镜、内部粒子和前景火花包在一起，火花跟着透镜走，不会另开时钟。`<Magnetic />` 用共享 scheduler 的弹簧追指针；外框不动，所以弹簧不会追自己的位移。里面如果是 GPU 玻璃，它会在同一帧把 stage 标脏，折射框跟着 DOM 走。`prefers-reduced-motion` 时位移为 0。
+
+透镜要让开排版时，不要猜一个世界坐标。空的布局盒子就是槽，光学中心贴着它的中心。跟随发生在共享 scheduler 的 render 相位：视口和相机都已经是这一帧的，TAA jitter 还没加上。命中写进 GPU uniform，不 `setState`，所以粒子系统不会因为槽位在动而重建。挂了锚的粒子改在锚点解算之后才 step，云和透镜同一帧。
+
+`fit` 让投影直径贴着槽位短边的一个比例，相机变焦或槽位重排时大小跟着布局走，不再呼吸。`distance` 则锁住离相机的距离，中心留在槽里，推拉仍然会变大。
+
+```tsx
+const slot = useRef<HTMLDivElement>(null);
+
+<Optics look="crystal" mote="quiet" anchor={slot} fit={0.8} />
+<div ref={slot} />
+```
+
 ### 非 React 的 imperative 入口
 
 目前 renderer 可以脱离 React 使用：
@@ -206,11 +309,11 @@ if (card) {
 通过 query 参数访问：
 
 ```text
-/?demo=liquid-glass
-/?demo=aurora-flow
-/?demo=product-hero
+/?demo=liquid-glass    Liquid Glass Pro。section pin，DOM 玻璃，仍带 data-ui-lib-acceptance="liquid-glass"
+/?demo=aurora-flow     Aurora Flow。viewport stage，仍带 data-ui-lib-acceptance="aurora-flow"
+/?demo=product-hero     Lumen，产品页。仍带 data-ui-lib-acceptance="product-hero"
 /?demo=scroll-cinema
-/?demo=cursor-field
+/?demo=cursor-field     Cursor Field。viewport stage，仍带 data-ui-lib-acceptance="cursor-field"
 ```
 
 每个页面都使用一个 `GlassStage`，保留真实 DOM 内容，并可使用：
@@ -222,26 +325,25 @@ if (card) {
 
 这五个页面目前用于建立真实浏览器截图和交互基线：
 
-1. **Liquid Glass Pro**：DOM-attached refraction、dispersion、frost。
-2. **Aurora Flow**：GPU particles、force field、glass compositing。
+1. **Liquid Glass Pro**：section pin。`GLASS_LOOKS.press` / `milk` / `quiet` 贴在真实 DOM 上。后面的套准纸是世界物体，不是 element-to-texture。字是 HTML。
+2. **Aurora Flow**：整页流场、局部涡旋跟着共享射线走、HTML 逐词出现。不是动态 LOD，也不是 1M 基准。
 3. **Glass Product Hero**：world object、camera、post graph 基础路径。
-4. **Scroll Cinema**：布局 invalidation、offscreen culling、可滚动 DOM 内容。
-5. **Cursor Field**：pointer activity、粒子 attractor、glass highlight。
+4. **Scroll Cinema**：section stage、sticky pin、共享时钟上的相机与章节。
+5. **Cursor Field**：同一帧的 pointer ray、短 ribbon、玻璃高光。不是 per-particle trail buffer。
 
-它们是 P0 验收 surface，不代表 Scroll Cinema、MSDF 或 motion timeline 已经全部完成。
+五张都已是可打开的旗舰页。MSDF、完整 motion timeline 和真机视觉基线仍然没有完成。
 
 ### 2. Playwright 视觉与交互测试
 
 测试位于 [`tests/e2e/acceptance.spec.ts`](tests/e2e/acceptance.spec.ts)，覆盖：
 
-- 五个页面的 CSS fallback screenshot
 - accelerated / WebGL route smoke
 - scroll 后 DOM 内容仍可见
-- 语义化标题存在
+- 语义化标题存在，Liquid Glass 的校对链接可以聚焦
 - fallback 状态下没有 canvas
 - stage、backend、FPS、dropped frames 等数据属性
 
-截图按浏览器和 GPU 桶管理，不能跨 GPU 直接混用 baseline。首次在可信浏览器环境中生成 baseline：
+仓库里**没有**截图基线，测试文件里也**没有** `toHaveScreenshot`。缺基线的断言会让下一次 `pnpm test:e2e` 必失败，却又保护不了像素，所以先拿掉。`pnpm test:e2e` 因此不是视觉门禁。真机 GPU 像素、FPS 和设备矩阵仍未验证。要补基线，得在能装浏览器的机器上把断言和 PNG 同一次加回来：
 
 ```bash
 pnpm exec playwright install chromium
@@ -335,8 +437,8 @@ input → GPU compute → DOM/state update → backdrop → particles → glass 
 | [`@ui-lib/particles`](packages/particles) | peer | GPU simulation、emitter、force、bounds、particle rendering | 已实现切片 |
 | [`@ui-lib/post`](packages/post) | peer | TSL post graph、quality budget、temporal history、color processing | 已实现切片 |
 | [`@ui-lib/renderer`](packages/renderer) | peer | WebGPU/WebGL2 bootstrap、stage orchestration、DOM-attached glass | 已实现切片 |
-| [`@ui-lib/react`](packages/react) | peer | `GlassStage`、`GlassPanel`、`ParticleField`、CSS fallback、SSR-safe adapter | 第一适配层 |
-| `@ui-lib/motion` | — | timeline、spring orchestration、gesture、scroll-linked motion | 规划中 |
+| [`@ui-lib/react`](packages/react) | peer | `GlassStage`、`GlassPanel`、`Lens`、`Optics`、`Magnetic`、`ParticleField`、`PointerTrail`、`ScrollTrack`、CSS fallback、SSR-safe adapter | 第一适配层 |
+| [`@ui-lib/motion`](packages/motion) | 无 | 滚动进度、章节权重、数值轨道；挂在 core 的同一帧时钟上 | 第一切片 |
 | `@ui-lib/dom` | — | DOM ↔ GPU tracking、snapshot、transition | 规划中 |
 | `@ui-lib/vue` / `@ui-lib/svelte` | — | 额外框架 adapter | 规划中 |
 
@@ -408,18 +510,24 @@ UI-Lib 以约束而不是营销数字为中心：
 - [ ] world-only per-pixel velocity MRT
 - [ ] 真正 multi-pass bloom pyramid
 - [ ] custom post-pass 插槽
-- [ ] environment reflection 与更完整的 glass material composition
-- [ ] dynamic particle LOD 与 trail buffer
-- [ ] 稳定 pointer-to-world ray
-- [ ] camera path 与完整 Glass Product Hero
+- [x] 世界透镜的安静环境反射（look 自带同一张工作室探针，页面不传 cubemap）
+- [x] DOM 玻璃与透镜共用同一张探针（bevel 反射，文字面更弱，页面不传 cubemap）
+- [ ] dynamic particle LOD 与 per-particle trail buffer
+- [x] 稳定 pointer-to-world ray（固定距离，与玻璃高光同一采样，render 相位、late step 之前）
+- [x] camera path 与 Glass Product Hero（`/?demo=product-hero`，Lumen）
 
 ### P1：补齐动效叙事层
 
 - [ ] `@ui-lib/dom`：element-to-texture、DOM/3D tracking
-- [ ] `@ui-lib/motion`：timeline、gesture、spring、scroll-linked choreography
-- [ ] cursor field 与 magnetic interaction
+- [x] `@ui-lib/motion` 第一切片：scroll progress、beat、sampleTrack，与 renderer 共用 scheduler
+- [x] `GlassStage mode="section"`：canvas 归属嵌入元素，而不是 fixed 到窗口
+- [x] Scroll Cinema 旗舰页（sticky pin、相机轨道、章节，DOM 文本保持 HTML）
+- [ ] `@ui-lib/motion`：timeline、gesture、完整编排
+- [x] magnetic interaction（`<Magnetic />`，与 stage 同一帧）
+- [x] cursor field 的短 ribbon 与同一帧 motion-aware glass（静止时高光不变，`/?demo=cursor-field`）。per-particle trail buffer 仍未做
+- [x] HTML 逐词出现（`<Reveal>`，共享时钟；不是 MSDF）
 - [ ] MSDF text 与 character / word / line animation
-- [ ] 完整 Scroll Cinema demo
+- [ ] MSDF 与完整 Scroll Cinema 分镜（相机轨道与章节已在旗舰页）
 
 ### P2：生态与发布
 
@@ -433,13 +541,13 @@ UI-Lib 以约束而不是营销数字为中心：
 
 目标产品面不是一个参数 Playground，而是五个可单独回归的真实页面：
 
-1. **LiquidGlass Pro**：折射、色散、frost 和 DOM 内容。
-2. **Aurora Flow**：GPU 粒子、flow field、cursor force、dynamic LOD。
-3. **Glass Product Hero**：product object、camera path、environment lighting、post graph。
-4. **Scroll Cinema**：scroll-linked DOM/3D choreography 和 MSDF text。
-5. **Cursor Field**：pointer field、trail、magnetic UI 和 motion-aware glass。
+1. **LiquidGlass Pro**：`/?demo=liquid-glass`。section pin，三块命名玻璃贴在 DOM 上，套准纸在玻璃后面走。不是验收壳。页面不传 cubemap。
+2. **Aurora Flow**：`/?demo=aurora-flow`。viewport stage。`fieldOptions("aurora")` 加 `<ParticleField flow />`。字是 `<Reveal>`。reduced motion 停下粒子，字留在终态。动态 LOD 仍未做。
+3. **Glass Product Hero**：Lumen，`/?demo=product-hero`。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。环境反射由 look 自带的工作室探针提供，页面不传 cubemap。
+4. **Scroll Cinema**：section-scoped sticky pin、scroll-linked camera 和章节玻璃。MSDF 仍未做。
+5. **Cursor Field**：`/?demo=cursor-field`。viewport stage。`<ParticleField pointer />` 与 `<PointerTrail />` 共用玻璃高光的那一次平滑采样。字是 HTML。reduced motion 停下粒子和 ribbon。
 
-当前五个 acceptance surface 已经接入文档站，完整的 scroll timeline、MSDF、trail 和 environment reflection 仍按路线图实现。
+五个 acceptance surface 都已是旗舰页。per-particle trail buffer、动态 LOD、MSDF 和 `@ui-lib/dom` 仍未做。下一步见上文。
 
 ## 不可妥协的设计规则
 
@@ -456,8 +564,8 @@ UI-Lib 以约束而不是营销数字为中心：
 ```bash
 pnpm install
 pnpm dev              # Vite Playground
-pnpm typecheck        # 全 workspace TypeScript
-pnpm test             # Vitest
+pnpm build && pnpm typecheck && pnpm test   # 干净 clone 的门禁
+pnpm test             # 先构建 dist，再跑 Vitest
 pnpm lint             # Biome check
 pnpm build            # 包构建
 pnpm test:e2e         # Playwright 浏览器验收

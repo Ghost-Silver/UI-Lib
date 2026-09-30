@@ -1,4 +1,5 @@
 import {
+	atan,
 	cos,
 	cross,
 	dot,
@@ -12,8 +13,11 @@ import {
 	length,
 	max,
 	mix,
+	mod,
+	modelViewMatrix,
 	mx_noise_vec3,
 	normalize,
+	oneMinus,
 	pow,
 	saturate,
 	select,
@@ -21,9 +25,12 @@ import {
 	sin,
 	smoothstep,
 	sqrt,
+	uint,
 	uniform,
 	uv,
+	vec2,
 	vec3,
+	vec4,
 } from "three/tsl";
 import {
 	AdditiveBlending,
@@ -35,6 +42,7 @@ import {
 	Vector3,
 	type WebGPURenderer,
 } from "three/webgpu";
+import { type ParticleTrailOptions, resolveTrail } from "./lod.js";
 
 export type ParticleEmitterShape = "point" | "sphere" | "box" | "disc" | "ring" | "cone";
 export type ParticleBounds = "none" | "sphere" | "box";
@@ -76,6 +84,13 @@ export interface ParticleForceOptions {
 	attractorRadius?: number;
 	/** Falloff exponent: higher = tighter influence. */
 	attractorFalloff?: number;
+	/**
+	 * Local swirl around `setStir`, in the world XY plane. `0` adds nothing,
+	 * so existing fields keep the global Y vortex only.
+	 */
+	stir?: number;
+	/** World-unit reach of `stir`. `0` disables the local eddy. */
+	stirRadius?: number;
 }
 
 export interface ParticleSystemOptions {
@@ -93,6 +108,13 @@ export interface ParticleSystemOptions {
 	/** Colour mixed in by speed — makes fast particles glow. */
 	hotColor?: string;
 	hotAmount?: number;
+	/**
+	 * Colour of the local eddy. Mixed by distance to `setStir`. `stirTint` of 0
+	 * leaves the life ramp untouched, so a field with no heart does not change.
+	 */
+	stirColor?: string;
+	/** 0–1 mix toward `stirColor` at the eddy core. Does not scale intensity. */
+	stirTint?: number;
 	/** Speed that maps to a full `hotColor` mix. */
 	speedReference?: number;
 	intensity?: number;
@@ -102,7 +124,18 @@ export interface ParticleSystemOptions {
 	boundsSize?: [number, number, number];
 	/** Restitution against the bounds, 0–1. */
 	bounce?: number;
+	/**
+	 * World-space center of the bounds volume. Defaults to the origin, so
+	 * existing fields do not shift. A playground that needs a clean copy
+	 * column moves this, not the camera.
+	 */
+	boundsCenter?: [number, number, number];
 	blending?: ParticleBlending;
+	/**
+	 * Per-particle history. `0` or omitted allocates no trail, so existing
+	 * fields stay a single sprite. This is not the pointer ribbon.
+	 */
+	trail?: number | ParticleTrailOptions;
 }
 
 export const PARTICLE_DEFAULTS = {
@@ -129,6 +162,8 @@ export const PARTICLE_DEFAULTS = {
 		attractor: 3.2,
 		attractorRadius: 7,
 		attractorFalloff: 2.2,
+		stir: 0,
+		stirRadius: 0,
 	},
 	life: [2.5, 7] as [number, number],
 	size: [0.02, 0.075] as [number, number],
@@ -136,6 +171,8 @@ export const PARTICLE_DEFAULTS = {
 	colors: ["#5eead4", "#a78bfa", "#f472b6"] as [string, string, string],
 	hotColor: "#fff7d6",
 	hotAmount: 0.55,
+	stirColor: "#ffffff",
+	stirTint: 0,
 	speedReference: 3.5,
 	intensity: 1.25,
 	opacity: 0.9,
@@ -143,6 +180,7 @@ export const PARTICLE_DEFAULTS = {
 	boundsRadius: 11,
 	boundsSize: [16, 10, 16] as [number, number, number],
 	bounce: 0.55,
+	boundsCenter: [0, 0, 0] as [number, number, number],
 	blending: "additive" as ParticleBlending,
 };
 
@@ -152,17 +190,33 @@ const hash11 = (x: Node<"float">) => fract(sin(x.mul(127.1)).mul(43758.5453));
 const signOf = (x: Node<"float">) => select(x.lessThan(float(0)), float(-1), float(1));
 
 export interface ParticleSystem {
-	/** Add this to a scene. */
+	/** Add this to a scene. The trail sprite, when there is one, is a child. */
 	readonly object: Sprite;
 	readonly material: SpriteNodeMaterial;
+	/** Head material plus the trail material, when a history was asked for. */
+	readonly materials: readonly SpriteNodeMaterial[];
+	/** Allocated particles. Fixed for the life of the system. */
 	readonly count: number;
+	/** Particles currently simulated and drawn. Never above `count`. */
+	readonly active: number;
+	/** History samples per particle. `0` means there is no trail buffer. */
+	readonly trailLength: number;
 	/** Advance the simulation. Call once per frame, before rendering. */
 	step(renderer: WebGPURenderer, dt: number): void;
 	/** Re-seed every particle. Call once after the renderer is initialised. */
 	reset(renderer: WebGPURenderer): void;
 	update(options: Partial<ParticleSystemOptions>): void;
+	/**
+	 * Simulate and draw only the first `next` particles. The buffer stays.
+	 * `0` skips the dispatch. Used by the tier budget and by a hidden stage.
+	 */
+	setActive(next: number): void;
+	/** Trail opacity. `0` hides strokes without touching the head intensity. */
+	setTrailOpacity(opacity: number): void;
 	/** World-space position used by the attractor force. */
 	setAttractor(x: number, y: number, z: number): void;
+	/** World-space center of the local stir. Does not move the attractor. */
+	setStir(x: number, y: number, z: number): void;
 	dispose(): void;
 }
 
@@ -210,6 +264,9 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		attractorRadius: uniform(forces.attractorRadius),
 		attractorFalloff: uniform(forces.attractorFalloff),
 		attractorPosition: uniform(new Vector3(0, 0, 0)),
+		stir: uniform(forces.stir),
+		stirRadius: uniform(forces.stirRadius),
+		stirCenter: uniform(new Vector3(0, 0, 0)),
 		emitterPosition: uniform(new Vector3(...emitter.position)),
 		emitterRadius: uniform(emitter.radius),
 		emitterInnerRadius: uniform(emitter.innerRadius),
@@ -223,6 +280,9 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		sizeMax: uniform(sizeRange[1]),
 		sizeScale: uniform(options.sizeScale ?? PARTICLE_DEFAULTS.sizeScale),
 		boundsRadius: uniform(options.boundsRadius ?? PARTICLE_DEFAULTS.boundsRadius),
+		boundsCenter: uniform(
+			new Vector3(...(options.boundsCenter ?? PARTICLE_DEFAULTS.boundsCenter)),
+		),
 		boundsSize: uniform(new Vector3(...(options.boundsSize ?? PARTICLE_DEFAULTS.boundsSize))),
 		bounce: uniform(options.bounce ?? PARTICLE_DEFAULTS.bounce),
 		colorA: uniform(new Color(colors[0])),
@@ -230,6 +290,8 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		colorC: uniform(new Color(colors[2])),
 		hotColor: uniform(new Color(options.hotColor ?? PARTICLE_DEFAULTS.hotColor)),
 		hotAmount: uniform(options.hotAmount ?? PARTICLE_DEFAULTS.hotAmount),
+		stirColor: uniform(new Color(options.stirColor ?? PARTICLE_DEFAULTS.stirColor)),
+		stirTint: uniform(options.stirTint ?? PARTICLE_DEFAULTS.stirTint),
 		speedReference: uniform(options.speedReference ?? PARTICLE_DEFAULTS.speedReference),
 		intensity: uniform(options.intensity ?? PARTICLE_DEFAULTS.intensity),
 		opacity: uniform(options.opacity ?? PARTICLE_DEFAULTS.opacity),
@@ -305,6 +367,47 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 
 	/* ------------------------------------------------------------- kernels -- */
 
+	const trail = resolveTrail(options.trail);
+	const trailLength = trail.length;
+	const segmentA = trailLength > 0 ? instancedArray(count * trailLength, "vec3") : null;
+	const segmentB = trailLength > 0 ? instancedArray(count * trailLength, "vec4") : null;
+	const trailShift = uniform(0);
+	const trailOpacity = uniform(trail.opacity);
+	const trailWidth = uniform(Math.max(trail.width, 0.0001));
+	const trailHeadColor = uniform(new Color(colors[0]));
+	const trailTailColor = uniform(new Color(colors[2]));
+	const state = { active: count, strideTick: 1 };
+
+	const lifeLeft = (att: Node<"vec4">) =>
+		oneMinus(saturate(att.x.div(max(att.y, float(0.0001)))));
+
+	// Age 0 is the live segment. A stride frame freezes it into age 1 and
+	// starts a new point at the head, so the stroke is longer than one frame.
+	const fillTrail = (pos: Node<"vec3">) => {
+		if (!segmentA || !segmentB) return;
+		for (let age = 0; age < trailLength; age++) {
+			const slot = instanceIndex.mul(trailLength).add(age);
+			segmentA.element(slot).assign(pos);
+			segmentB.element(slot).assign(vec4(pos, float(1)));
+		}
+	};
+	const pushTrail = (pos: Node<"vec3">, att: Node<"vec4">) => {
+		if (!segmentA || !segmentB) return;
+		const head = instanceIndex.mul(trailLength);
+		const life = lifeLeft(att);
+		segmentB.element(head).assign(vec4(pos, life));
+		If(trailShift.greaterThan(0.5), () => {
+			for (let age = trailLength - 1; age >= 1; age--) {
+				const dst = head.add(age);
+				const src = head.add(age - 1);
+				segmentA.element(dst).assign(segmentA.element(src));
+				segmentB.element(dst).assign(segmentB.element(src));
+			}
+			segmentA.element(head).assign(pos);
+			segmentB.element(head).assign(vec4(pos, life));
+		});
+	};
+
 	const computeInit = Fn(() => {
 		const pos = positions.element(instanceIndex);
 		const vel = velocities.element(instanceIndex);
@@ -312,6 +415,7 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 
 		att.z.assign(hash(instanceIndex.add(3)));
 		spawn(pos, vel, att, true);
+		fillTrail(pos);
 	})().compute(count);
 
 	const computeUpdate = Fn(() => {
@@ -337,11 +441,22 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		);
 		vel.assign(vel.add(flow.mul(u.turbulence).mul(dt)));
 
-		// Vortex: tangential velocity around the Y axis.
-		const radial = vec3(pos.x, float(0), pos.z);
+		// Vortex: tangential velocity around the bounds center, not the world
+		// origin. A field shifted off center still swirls in place. Center
+		// `[0, 0, 0]` is the old orbit.
+		const radial = vec3(pos.x.sub(u.boundsCenter.x), float(0), pos.z.sub(u.boundsCenter.z));
 		const radialLength = max(length(radial), float(0.001));
 		const tangent = vec3(radial.z.negate(), float(0), radial.x).div(radialLength);
 		vel.assign(vel.add(tangent.mul(u.vortex).mul(dt)));
+
+		// Local eddy in the view-ish XY plane. Radius 0 or strength 0 is a no-op.
+		const fromStir = pos.sub(u.stirCenter);
+		const planar = vec3(fromStir.x, fromStir.y, float(0));
+		const planarLength = max(length(planar), float(0.001));
+		const stirTangent = vec3(planar.y.negate(), planar.x, float(0)).div(planarLength);
+		const stirReach = max(u.stirRadius, float(0.001));
+		const stirFalloff = smoothstep(stirReach, stirReach.mul(0.22), length(fromStir));
+		vel.assign(vel.add(stirTangent.mul(u.stir).mul(stirFalloff).mul(dt)));
 
 		// Pointer attractor with a smooth radial falloff.
 		const toAttractor = u.attractorPosition.sub(pos);
@@ -356,14 +471,22 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 
 		pos.assign(pos.add(vel.mul(dt)));
 
-		if (bounds === "sphere") {
-			const distance = length(pos);
+		// Called after integration and again after a respawn. A pointer can
+		// move the emitter outside the volume; without the second clamp that
+		// particle is visible over the copy for a frame.
+		const clampSphere = (nextPos: Node<"vec3">, nextVel: Node<"vec3">) => {
+			const fromCenter = nextPos.sub(u.boundsCenter);
+			const distance = length(fromCenter);
 			If(distance.greaterThan(u.boundsRadius), () => {
-				const n = pos.div(max(distance, float(0.001)));
-				pos.assign(n.mul(u.boundsRadius));
-				const into = dot(vel, n);
-				vel.assign(vel.sub(n.mul(into.mul(float(1).add(u.bounce)))));
+				const n = fromCenter.div(max(distance, float(0.001)));
+				nextPos.assign(u.boundsCenter.add(n.mul(u.boundsRadius)));
+				const into = dot(nextVel, n);
+				nextVel.assign(nextVel.sub(n.mul(into.mul(float(1).add(u.bounce)))));
 			});
+		};
+
+		if (bounds === "sphere") {
+			clampSphere(pos, vel);
 		} else if (bounds === "box") {
 			const limit = u.boundsSize;
 			If(pos.x.abs().greaterThan(limit.x), () => {
@@ -390,7 +513,10 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 			// Golden-ratio scramble: a cheap new seed for the next life.
 			att.z.assign(fract(att.z.mul(1.6180339887).add(0.3183098861)));
 			spawn(pos, vel, att, false);
+			if (bounds === "sphere") clampSphere(pos, vel);
+			fillTrail(pos);
 		});
+		pushTrail(pos, att);
 	})().compute(count);
 
 	/* ------------------------------------------------------------ material -- */
@@ -417,13 +543,22 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 		mix(u.colorB, u.colorC, age.sub(0.5).mul(2)),
 	);
 	const color = mix(ramp, u.hotColor, speedNormalised.mul(u.hotAmount));
+	// A colour shift at the eddy, not a brightness lift. Tint 0 is the old ramp.
+	const heartReach = max(u.stirRadius, float(0.001));
+	const heart = smoothstep(
+		heartReach,
+		heartReach.mul(0.22),
+		length(positionAttribute.sub(u.stirCenter)),
+	).mul(u.stirTint);
+	const stirred = mix(color, u.stirColor, heart);
 
 	const material = new SpriteNodeMaterial();
 	material.positionNode = positionAttribute;
 	material.scaleNode = mix(u.sizeMin, u.sizeMax, attributeNode.w)
 		.mul(lifeCurve)
-		.mul(u.sizeScale);
-	material.colorNode = color.mul(u.intensity);
+		.mul(u.sizeScale)
+		.mul(mix(float(1), float(1.1), heart));
+	material.colorNode = stirred.mul(u.intensity);
 	material.opacityNode = (shapeCircle(uv()) as Node<"float">).mul(u.opacity).mul(lifeCurve);
 	material.transparent = true;
 	material.depthWrite = false;
@@ -435,14 +570,70 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 	sprite.frustumCulled = false;
 	sprite.name = "ui-lib:particles";
 
+	const materials: SpriteNodeMaterial[] = [material];
+	let trailSprite: (Sprite & { count: number }) | null = null;
+	if (segmentA && segmentB && trailLength > 0) {
+		const trailMaterial = new SpriteNodeMaterial();
+		const older = (segmentA as unknown as WithToAttribute).toAttribute();
+		const newer = (segmentB as unknown as WithToAttribute).toAttribute();
+		const olderView = modelViewMatrix.mul(vec4(older.xyz, 1)).xy;
+		const newerView = modelViewMatrix.mul(vec4(newer.xyz, 1)).xy;
+		const delta = newerView.sub(olderView);
+		const segLen = length(delta);
+		const ageIndex = float(mod(instanceIndex, uint(trailLength)));
+		const along = oneMinus(ageIndex.div(float(Math.max(trailLength - 1, 1))));
+		trailMaterial.positionNode = older.xyz.add(newer.xyz).mul(0.5);
+		trailMaterial.scaleNode = vec2(max(segLen, float(0.0001)), trailWidth);
+		trailMaterial.rotationNode = atan(delta.y, delta.x);
+		trailMaterial.colorNode = mix(trailTailColor, trailHeadColor, along).mul(u.intensity);
+		trailMaterial.opacityNode = along
+			.mul(newer.w)
+			.mul(trailOpacity)
+			.mul(smoothstep(float(0.0015), float(0.012), segLen));
+		trailMaterial.transparent = true;
+		trailMaterial.depthWrite = false;
+		trailMaterial.blending = blending === "additive" ? AdditiveBlending : NormalBlending;
+		trailMaterial.toneMapped = false;
+		trailSprite = new Sprite(trailMaterial) as Sprite & { count: number };
+		trailSprite.count = count * trailLength;
+		trailSprite.frustumCulled = false;
+		trailSprite.renderOrder = -1;
+		trailSprite.name = "ui-lib:particle-trail";
+		sprite.add(trailSprite);
+		materials.push(trailMaterial);
+	}
+
+	const applyActive = (next: number) => {
+		const active = Math.max(0, Math.min(count, Math.floor(next)));
+		state.active = active;
+		sprite.count = Math.max(active, 1);
+		sprite.visible = active > 0;
+		if (trailSprite) {
+			trailSprite.count = Math.max(active, 1) * trailLength;
+			trailSprite.visible = active > 0;
+		}
+		// three injects `if (instanceIndex >= count) return` when this is a number.
+		computeUpdate.count = Math.max(active, 1);
+	};
+
 	return {
 		object: sprite,
 		material,
+		materials,
 		count,
+		get active() {
+			return state.active;
+		},
+		trailLength,
 		step(renderer: WebGPURenderer, dt: number) {
 			// Clamp: a two-second stall must not teleport every particle.
 			u.dt.value = Math.min(Math.max(dt, 0), 1 / 20);
 			u.time.value += u.dt.value;
+			if (state.active <= 0) return;
+			if (trailLength > 0) {
+				state.strideTick = (state.strideTick + 1) % trail.stride;
+				trailShift.value = state.strideTick === 0 ? 1 : 0;
+			}
 			renderer.compute(computeUpdate);
 		},
 		reset(renderer: WebGPURenderer) {
@@ -465,6 +656,8 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 				if (f.attractor !== undefined) u.attractor.value = f.attractor;
 				if (f.attractorRadius !== undefined) u.attractorRadius.value = f.attractorRadius;
 				if (f.attractorFalloff !== undefined) u.attractorFalloff.value = f.attractorFalloff;
+				if (f.stir !== undefined) u.stir.value = f.stir;
+				if (f.stirRadius !== undefined) u.stirRadius.value = f.stirRadius;
 			}
 			const e = patch.emitter;
 			if (e) {
@@ -489,21 +682,45 @@ export function createParticleSystem(options: ParticleSystemOptions = {}): Parti
 				u.colorA.value.set(patch.colors[0]);
 				u.colorB.value.set(patch.colors[1]);
 				u.colorC.value.set(patch.colors[2]);
+				trailHeadColor.value.set(patch.colors[0]);
+				trailTailColor.value.set(patch.colors[2]);
 			}
 			if (patch.hotColor) u.hotColor.value.set(patch.hotColor);
 			if (patch.hotAmount !== undefined) u.hotAmount.value = patch.hotAmount;
+			if (patch.stirColor) u.stirColor.value.set(patch.stirColor);
+			if (patch.stirTint !== undefined) u.stirTint.value = patch.stirTint;
 			if (patch.speedReference !== undefined) u.speedReference.value = patch.speedReference;
 			if (patch.intensity !== undefined) u.intensity.value = patch.intensity;
 			if (patch.opacity !== undefined) u.opacity.value = patch.opacity;
 			if (patch.boundsRadius !== undefined) u.boundsRadius.value = patch.boundsRadius;
+			if (patch.boundsCenter) u.boundsCenter.value.set(...patch.boundsCenter);
 			if (patch.boundsSize) u.boundsSize.value.set(...patch.boundsSize);
 			if (patch.bounce !== undefined) u.bounce.value = patch.bounce;
+			if (patch.trail !== undefined) {
+				const next = resolveTrail(patch.trail);
+				if (next.length !== trailLength && next.length !== 0) {
+					console.warn(
+						"[ui-lib] particle trail length is fixed at creation; recreate the system.",
+					);
+				}
+				trailOpacity.value = next.opacity;
+				if (next.width > 0) trailWidth.value = next.width;
+			}
+		},
+		setActive(next: number) {
+			applyActive(next);
+		},
+		setTrailOpacity(opacity: number) {
+			trailOpacity.value = Math.min(1, Math.max(0, opacity));
 		},
 		setAttractor(x: number, y: number, z: number) {
 			u.attractorPosition.value.set(x, y, z);
 		},
+		setStir(x: number, y: number, z: number) {
+			u.stirCenter.value.set(x, y, z);
+		},
 		dispose() {
-			material.dispose();
+			for (const entry of materials) entry.dispose();
 			sprite.removeFromParent();
 		},
 	};

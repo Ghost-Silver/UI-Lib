@@ -9,7 +9,8 @@
 			"@ui-lib/react": ["../../packages/react/src/index.ts"],
 			"@ui-lib/renderer": ["../../packages/renderer/src/index.ts"],
 			"@ui-lib/shaders": ["../../packages/shaders/src/index.ts"],
-			"@ui-lib/core": ["../../packages/core/src/index.ts"]
+			"@ui-lib/core": ["../../packages/core/src/index.ts"],
+			"@ui-lib/motion": ["../../packages/motion/src/index.ts"]
 		}
 	},
 	"include": ["src", "vite.config.ts"]

@@ -1,8 +1,8 @@
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -44,6 +44,7 @@ export default defineConfig({
 			"@ui-lib/renderer": r("../../packages/renderer/src/index.ts"),
 			"@ui-lib/shaders": r("../../packages/shaders/src/index.ts"),
 			"@ui-lib/core": r("../../packages/core/src/index.ts"),
+			"@ui-lib/motion": r("../../packages/motion/src/index.ts"),
 		},
 		dedupe: ["three", "react", "react-dom"],
 	},

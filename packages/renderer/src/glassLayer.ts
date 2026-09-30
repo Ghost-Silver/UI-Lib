@@ -1,10 +1,12 @@
 import {
 	type Disposable,
 	Disposer,
+	damp,
 	type FrameInfo,
 	type GpuBackend,
 	getResourceSnapshot,
 	getScheduler,
+	mergeDefined,
 	onReducedMotionChange,
 	PointerTracker,
 	QualityManager,
@@ -22,13 +24,20 @@ import {
 import {
 	createFullscreenQuad,
 	createLiquidGlassMaterial,
+	createWorldLensMaterial,
 	type LiquidGlassMaterial,
 	type SharedUniforms,
+	type WorldLensMaterial,
+	type WorldLensOptions,
 } from "@ui-lib/shaders";
-import { mergeDefined } from "@ui-lib/core";
 import { uniform } from "three/tsl";
 import {
+	ClampToEdgeWrapping,
+	DepthTexture,
+	LinearFilter,
 	LinearSRGBColorSpace,
+	type Material,
+	Matrix4,
 	Mesh,
 	MeshBasicMaterial,
 	NoToneMapping,
@@ -43,12 +52,22 @@ import {
 	WebGLRenderTarget,
 } from "three/webgpu";
 import {
+	type AnchorPlacement,
+	clientToNdc,
+	pointAtDistance,
+	pointerClient,
+	pointForSpan,
+	rayPlanePoint,
+} from "./anchor.js";
+import {
 	type BackdropInstance,
 	type BackdropSpec,
 	createBackdrop,
 	DEFAULT_BACKDROP,
 } from "./backdrop.js";
 import { createRenderer, type UiRenderer } from "./createRenderer.js";
+import { stepDepthHistory } from "./depthHistory.js";
+import { stepSectionViewport } from "./sectionViewport.js";
 
 /** Panel tuning knobs, all in **CSS pixels** — the layer scales them by DPR. */
 export interface GlassPanelOptions {
@@ -75,6 +94,11 @@ export interface GlassPanelOptions {
 	opacity?: number;
 	pointerStrength?: number;
 	pointerRadius?: number;
+	/**
+	 * Mix of the shared studio probe. Looks set this. The face stays quiet;
+	 * the bevel carries the window. Pages do not pass a cubemap.
+	 */
+	environment?: number;
 	/** Stacking order between panels (higher draws later). */
 	z?: number;
 }
@@ -103,6 +127,7 @@ export const GLASS_PANEL_DEFAULTS: Required<GlassPanelOptions> = {
 	opacity: 1,
 	pointerStrength: 0.3,
 	pointerRadius: 320,
+	environment: 0.28,
 	z: 0,
 };
 
@@ -113,10 +138,20 @@ export interface GlassPanelHandle extends Disposable {
 	readonly visible: boolean;
 }
 
+/** `"viewport"` is a page overlay. `"section"` is an embed sized to `parent`. */
+export type GlassLayerMode = "viewport" | "section";
+
 export interface GlassLayerOptions {
 	/** Stacking context of the generated canvas. Content should sit above it. */
 	zIndex?: number;
 	parent?: HTMLElement;
+	/**
+	 * `"viewport"` (default) covers the page with one fixed canvas.
+	 * `"section"` sizes that canvas to `parent` and positions panels in the
+	 * parent's coordinate space, so a hero or sticky pin owns the effect
+	 * without painting over the rest of the document. Requires `parent`.
+	 */
+	mode?: GlassLayerMode;
 	backdrop?: BackdropSpec;
 	/** TSL post chain. Pass `false` to keep the raw scene output. */
 	post?: PostProcessingOptions | false;
@@ -135,12 +170,34 @@ export interface GlassLayerOptions {
 	onContextRestored?: () => void;
 }
 
+/**
+ * Where a particle system composites relative to refractive lenses.
+ *
+ * - `scene` — the visible world. DOM glass refracts it. Default, so existing
+ *   pages keep their field.
+ * - `inside` — drawn only into the lens copy. A lens reveals the motes; the
+ *   page around the lens stays clear.
+ * - `front` — drawn after the lens and depth-tested, so the lens occludes them.
+ */
+export type ParticleDepth = "scene" | "inside" | "front";
+
 export interface ParticleLayerOptions {
 	/** Camera position in particle world units. */
 	cameraPosition?: [number, number, number];
 	/** Camera target in particle world units. */
 	cameraTarget?: [number, number, number];
 	fov?: number;
+	/** Defaults to `scene`. */
+	depth?: ParticleDepth;
+}
+
+export interface WorldObjectOptions {
+	/**
+	 * Draw after the backdrop and ordinary world objects have been copied.
+	 * The material can then refract that copy. Objects in this pass must not
+	 * sample `backdropRT` while it is bound.
+	 */
+	refractive?: boolean;
 }
 
 export interface GlassLayerStats {
@@ -157,6 +214,10 @@ export interface GlassLayerStats {
 	bufferWidth: number;
 	bufferHeight: number;
 	reducedMotion: boolean;
+	/** Particles currently stepped, after the tier budget. */
+	particleActive: number;
+	/** Particles allocated across every attached system. */
+	particleAllocated: number;
 	/** Logical owned-resource counts; this is not a VRAM estimate. */
 	resources: ResourceSnapshot;
 }
@@ -176,6 +237,28 @@ interface WorldVelocitySample {
 	initialized: boolean;
 }
 
+interface AnchorFollow {
+	element: HTMLElement | (() => HTMLElement | null);
+	apply: (point: readonly [number, number, number]) => void;
+	placement: number | AnchorPlacement | (() => number | AnchorPlacement);
+	last: [number, number, number] | null;
+}
+
+/** One pointer sample. Glass, the ray and the ribbon read this in the same frame. */
+export interface PointerRay {
+	readonly point: readonly [number, number, number];
+	/** Smoothed speed in CSS pixels per second. Zero at rest. */
+	readonly speed: number;
+	/** Frame delta, clamped by the caller. Followers share this clock. */
+	readonly dt: number;
+}
+
+interface PointerFollow {
+	apply: (ray: PointerRay) => void;
+	distance: number | (() => number);
+	last: [number, number, number] | null;
+}
+
 const OFFSCREEN_MARGIN = 96;
 const STATS_INTERVAL = 0.25;
 
@@ -185,34 +268,60 @@ const STATS_INTERVAL = 0.25;
  *
  * Design notes:
  *
- * - **One canvas for the whole page.** N glass effects do not mean N WebGPU
- *   contexts (browsers cap those hard, usually around 8–16).
+ * - **One canvas per stage.** N glass effects do not mean N WebGPU contexts
+ *   (browsers cap those hard, usually around 8–16). Viewport mode is one
+ *   canvas for the page; section mode is one canvas for the embedding element.
  * - **The backdrop is ours.** True refraction needs pixels to bend, and only
- *   content we render can be sampled — so the layer owns the backdrop pass and
- *   uses three's shared viewport texture for the glass pass. Particle effects
- *   are drawn between those two passes and are refracted too. DOM content is
- *   layered *above* the canvas, which is exactly how the "text on glass" look is built.
+ *   content we render can be sampled. The backdrop is drawn into an offscreen
+ *   target the glass samples — never the live backbuffer. Particle effects
+ *   are drawn into that target and are refracted too. DOM content is layered
+ *   *above* the canvas, which is how the "text on glass" look is built.
  * - **Everything is reactive to layout.** Element rects are re-read on scroll,
  *   resize and `ResizeObserver` signals rather than assumed static.
  */
 export class GlassLayer implements Disposable {
 	readonly canvas: HTMLCanvasElement;
+	readonly mode: GlassLayerMode;
 
 	private readonly ui: UiRenderer;
+	/** The embedding element in section mode; `null` when the canvas covers the viewport. */
+	readonly boundsElement: HTMLElement | null;
+	private readonly bounds = { left: 0, top: 0, width: 1, height: 1 };
+	private readonly cameraTarget = new Vector3(0, 0, 0);
+	private pointerSeen = false;
 	private readonly disposer = new Disposer();
 	private readonly resource = resourceRegistry.track("layer");
 	private readonly quality: QualityManager;
+	private readonly qualityListeners = new Set<(tier: QualityTier, budget: number) => void>();
 
 	private readonly sharedTime = uniform(0);
 	private readonly sharedResolution = uniform(new Vector2(1, 1));
 	private readonly sharedPointer = uniform(new Vector2(-1e5, -1e5));
+	/** Damped tracker velocity, CSS px/s. The uniform is this times DPR. */
+	private readonly pointerVelocity = new Vector2();
+	private readonly sharedPointerVelocity = uniform(new Vector2());
+	private readonly sharedCameraRight = uniform(new Vector3(1, 0, 0));
+	private readonly sharedCameraUp = uniform(new Vector3(0, 1, 0));
+	private readonly sharedCameraBack = uniform(new Vector3(0, 0, 1));
+	private readonly sharedCameraFov = uniform(52);
 	private readonly shared: SharedUniforms;
 
 	private readonly glassScene = new Scene();
 	private readonly glassCamera = new OrthographicCamera(-1, 1, 1, -1, -1000, 1000);
 	private readonly backdropScene = new Scene();
 	private readonly particleScene = new Scene();
+	/** Motes that exist only in the lens copy, not on the page. */
+	private readonly insideScene = new Scene();
+	/** Motes drawn after the lens. Depth-tested so the lens occludes them. */
+	private readonly frontScene = new Scene();
+	/** Refractive objects. Drawn after the refraction copy is filled. */
+	private readonly lensScene = new Scene();
 	private readonly particleCamera = new PerspectiveCamera(52, 1, 0.1, 100);
+	private readonly anchors: AnchorFollow[] = [];
+	/** Same smoothed pointer the glass highlight writes, resolved to a ray. */
+	private readonly pointerFollowers: PointerFollow[] = [];
+	/** Systems that step after anchors resolve, so motes match the lens this frame. */
+	private readonly lateParticles = new Set<ParticleSystem>();
 	private readonly panelGeometry = new PlaneGeometry(1, 1);
 	private readonly particleSystems = new Set<ParticleSystem>();
 	private readonly particleStops = new Map<ParticleSystem, () => void>();
@@ -231,6 +340,28 @@ export class GlassLayer implements Disposable {
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
 	/** Background renders into this off-screen target; glass samples it directly. */
 	private readonly backdropRT = new WebGLRenderTarget(1, 1);
+	/** Perspective depth of that target. The canvas depth is only the present quad. */
+	private readonly worldDepth = new DepthTexture(1, 1);
+	/**
+	 * Color copy of the world target taken before refractive objects draw.
+	 * A lens samples this, never the attachment it is rendering into.
+	 */
+	private readonly refractionRT = new WebGLRenderTarget(1, 1, {
+		depthBuffer: false,
+		stencilBuffer: false,
+	});
+	private readonly refractionScene = new Scene();
+	private readonly refractionBlit: ReturnType<typeof createFullscreenQuad>;
+	private readonly currentVP = new Matrix4();
+	private readonly previousVP = new Matrix4();
+	private readonly invVP = new Matrix4();
+	private vpReady = false;
+	private cameraMotionBlur = false;
+	private authoredMotionBlur = 0;
+	private readonly motionPoint = new Vector3();
+	private readonly prevTargetScreen = new Vector2();
+	private readonly prevSideScreen = new Vector2();
+	private motionPointsReady = false;
 	private readonly presentScene = new Scene();
 	private readonly presentQuad: ReturnType<typeof createFullscreenQuad>;
 	private postOptions: PostProcessingOptions | false = {};
@@ -246,11 +377,26 @@ export class GlassLayer implements Disposable {
 	private reducedMotion = false;
 	private statsAccum = 0;
 	private hasRendered = false;
+	/**
+	 * True only after a frame actually drew world depth into the history.
+	 * A gradient-only frame must not copy the cleared depth attachment, or the
+	 * first world object disoccludes against empty depth and smears.
+	 */
+	private depthHistoryLive = false;
 	private readonly lastPointer = new Vector2(Number.NaN, Number.NaN);
 	private stopFrame: (() => void) | null = null;
 	private readonly onStats?: (stats: GlassLayerStats) => void;
 
 	private constructor(ui: UiRenderer, options: GlassLayerOptions) {
+		this.mode = options.mode ?? "viewport";
+		if (this.mode === "section" && !options.parent) {
+			throw new Error('[ui-lib] GlassLayer mode "section" requires options.parent.');
+		}
+		this.boundsElement = this.mode === "section" ? (options.parent ?? null) : null;
+		if (this.boundsElement && getComputedStyle(this.boundsElement).position === "static") {
+			this.boundsElement.style.position = "relative";
+		}
+
 		this.ui = ui;
 		this.canvas = ui.canvas;
 		this.onStats = options.onStats;
@@ -264,7 +410,11 @@ export class GlassLayer implements Disposable {
 				// rebuilds the materials with the new budget.
 				this.rebuildPanelMaterials();
 				this.rebuildPostProcessing();
+				this.applyParticleLod();
 				this.dirty = true;
+				for (const listener of this.qualityListeners) {
+					listener(settings.tier, settings.particleBudget);
+				}
 				if (typeof console !== "undefined" && previous !== settings.tier) {
 					console.info(`[ui-lib] quality tier ${previous} → ${settings.tier}`);
 				}
@@ -275,6 +425,11 @@ export class GlassLayer implements Disposable {
 			time: this.sharedTime,
 			resolution: this.sharedResolution,
 			pointer: this.sharedPointer,
+			pointerVelocity: this.sharedPointerVelocity,
+			cameraRight: this.sharedCameraRight,
+			cameraUp: this.sharedCameraUp,
+			cameraBack: this.sharedCameraBack,
+			cameraFov: this.sharedCameraFov,
 		};
 
 		this.backdrop = createBackdrop(options.backdrop ?? DEFAULT_BACKDROP, this.shared);
@@ -285,6 +440,26 @@ export class GlassLayer implements Disposable {
 			new MeshBasicMaterial({ map: this.backdropRT.texture }),
 		);
 		this.presentScene.add(this.presentQuad.mesh);
+		this.worldDepth.name = "ui-lib:world-depth";
+		this.backdropRT.depthTexture = this.worldDepth;
+		this.refractionRT.texture.name = "ui-lib:refraction-source";
+		this.refractionRT.texture.wrapS = ClampToEdgeWrapping;
+		this.refractionRT.texture.wrapT = ClampToEdgeWrapping;
+		this.refractionRT.texture.magFilter = LinearFilter;
+		this.refractionRT.texture.minFilter = LinearFilter;
+		this.refractionRT.texture.generateMipmaps = false;
+		this.refractionRT.texture.colorSpace = this.backdropRT.texture.colorSpace;
+		const blitMaterial = new MeshBasicMaterial({
+			map: this.backdropRT.texture,
+			toneMapped: false,
+		});
+		this.refractionBlit = createFullscreenQuad(blitMaterial);
+		this.silenceDepth(blitMaterial);
+		this.refractionScene.add(this.refractionBlit.mesh);
+		// The gradient quad must not fill the depth buffer, or every fragment
+		// looks like world geometry and camera reprojection smears the glass.
+		this.silenceDepth(this.backdropQuad.mesh.material);
+		this.silenceDepth(this.presentQuad.mesh.material);
 		this.setPostProcessing(options.post ?? {});
 
 		this.particleCamera.position.set(0, 0, 14);
@@ -302,7 +477,7 @@ export class GlassLayer implements Disposable {
 		this.resizeObserver = new ResizeObserver(() => this.markDirty());
 		this.disposer.own({ dispose: () => this.resizeObserver.disconnect() });
 		if (options.alwaysSyncLayout !== true) {
-			this.resizeObserver.observe(document.documentElement);
+			this.resizeObserver.observe(this.boundsElement ?? document.documentElement);
 		}
 		this.disposer.listen(window, "scroll", () => this.markDirty(), {
 			passive: true,
@@ -311,7 +486,7 @@ export class GlassLayer implements Disposable {
 		this.disposer.listen(window, "resize", () => this.markDirty(), { passive: true });
 
 		if (options.pointer !== false) {
-			this.pointer = new PointerTracker(window, { smoothing: 14 });
+			this.pointer = new PointerTracker(this.boundsElement ?? window, { smoothing: 14 });
 			this.disposer.own(this.pointer);
 		}
 
@@ -327,8 +502,10 @@ export class GlassLayer implements Disposable {
 			for (const [object, stop] of this.worldStops) {
 				stop();
 				this.particleScene.remove(object);
+				this.lensScene.remove(object);
 				this.worldResources.get(object)?.dispose();
 			}
+			this.lensScene.clear();
 			this.worldStops.clear();
 			this.worldResources.clear();
 			this.worldAnimations.clear();
@@ -342,11 +519,23 @@ export class GlassLayer implements Disposable {
 		this.disposer.add(() => this.backdropResource?.dispose());
 		this.disposer.add(() => this.backdropQuad.dispose());
 		this.disposer.add(() => this.backdropRT.dispose());
+		this.disposer.add(() => this.worldDepth.dispose());
+		this.disposer.add(() => this.refractionRT.dispose());
+		this.disposer.add(() => this.refractionBlit.dispose());
+		this.disposer.add(() => {
+			const material = this.refractionBlit.mesh.material;
+			if (!Array.isArray(material)) material.dispose();
+		});
 		this.disposer.add(() => this.presentQuad.dispose());
 		this.disposer.add(() => this.postPipeline?.dispose());
 		this.disposer.add(() => this.postProcessing?.dispose());
 		this.disposer.add(() => this.postResource?.dispose());
 		this.disposer.add(() => this.panelGeometry.dispose());
+		this.disposer.add(() => {
+			this.anchors.length = 0;
+			this.pointerFollowers.length = 0;
+			this.lateParticles.clear();
+		});
 		this.disposer.add(() => this.resource.dispose());
 		this.disposer.add(() => this.ui.dispose());
 
@@ -364,21 +553,35 @@ export class GlassLayer implements Disposable {
 			},
 			onContextRestored: options.onContextRestored,
 		});
-		return new GlassLayer(ui, options);
+		try {
+			return new GlassLayer(ui, options);
+		} catch (error) {
+			ui.dispose();
+			throw error;
+		}
 	}
 
 	private applyCanvasStyles(options: GlassLayerOptions): void {
 		const style = this.canvas.style;
-		style.position = "fixed";
-		style.top = "0";
-		style.left = "0";
-		style.width = "100%";
-		style.height = "100%";
 		style.pointerEvents = "none";
 		style.display = "block";
-		style.zIndex = String(options.zIndex ?? 0);
+		if (this.mode === "section") {
+			style.position = "absolute";
+			style.inset = "0";
+			style.width = "100%";
+			style.height = "100%";
+			style.zIndex = "0";
+		} else {
+			style.position = "fixed";
+			style.top = "0";
+			style.left = "0";
+			style.width = "100%";
+			style.height = "100%";
+			style.zIndex = String(options.zIndex ?? 0);
+		}
 		// Decorative: never expose the canvas to assistive technology.
 		this.canvas.setAttribute("aria-hidden", "true");
+		this.canvas.dataset.uiLibCanvas = this.mode;
 	}
 
 	/* ------------------------------------------------------------- public -- */
@@ -389,6 +592,26 @@ export class GlassLayer implements Disposable {
 
 	get tier(): QualityTier {
 		return this.quality.tier;
+	}
+
+	/** Particle ceiling for the current tier. `0` means draw none. */
+	get particleBudget(): number {
+		return this.quality.settings.particleBudget;
+	}
+
+	/**
+	 * Fires immediately with the current tier, then again when auto quality
+	 * walks the tier. Used to grow an `auto` particle buffer. The active
+	 * prefix is applied here as well, so a listener is optional.
+	 */
+	subscribeQuality(listener: (tier: QualityTier, budget: number) => void): Disposable {
+		this.qualityListeners.add(listener);
+		listener(this.quality.tier, this.quality.settings.particleBudget);
+		return {
+			dispose: () => {
+				this.qualityListeners.delete(listener);
+			},
+		};
 	}
 
 	getStats(): GlassLayerStats {
@@ -409,8 +632,285 @@ export class GlassLayer implements Disposable {
 			bufferWidth: Math.round(this.width * this.dpr),
 			bufferHeight: Math.round(this.height * this.dpr),
 			reducedMotion: this.reducedMotion,
+			particleActive: this.particleActiveTotal(),
+			particleAllocated: this.particleAllocatedTotal(),
 			resources: getResourceSnapshot(),
 		};
+	}
+
+	/** CSS-pixel bounds of the canvas. Section mode is the parent; viewport mode is the window. */
+	getBounds(): { left: number; top: number; width: number; height: number } {
+		return this.measureBounds();
+	}
+
+	getCamera(): {
+		position: [number, number, number];
+		target: [number, number, number];
+		fov: number;
+	} {
+		return {
+			position: [
+				this.particleCamera.position.x,
+				this.particleCamera.position.y,
+				this.particleCamera.position.z,
+			],
+			target: [this.cameraTarget.x, this.cameraTarget.y, this.cameraTarget.z],
+			fov: this.particleCamera.fov,
+		};
+	}
+
+	/**
+	 * Move the shared world camera. Partial updates keep the previous position,
+	 * target or fov. Identical values do not mark the frame dirty.
+	 */
+	setCamera(options: ParticleLayerOptions): void {
+		let changed = false;
+		if (options.cameraPosition) {
+			const [x, y, z] = options.cameraPosition;
+			if (
+				x !== this.particleCamera.position.x ||
+				y !== this.particleCamera.position.y ||
+				z !== this.particleCamera.position.z
+			) {
+				this.particleCamera.position.set(x, y, z);
+				changed = true;
+			}
+		}
+		if (options.cameraTarget) {
+			const [x, y, z] = options.cameraTarget;
+			if (x !== this.cameraTarget.x || y !== this.cameraTarget.y || z !== this.cameraTarget.z) {
+				this.cameraTarget.set(x, y, z);
+				changed = true;
+			}
+		}
+		if (options.fov !== undefined && options.fov !== this.particleCamera.fov) {
+			this.particleCamera.fov = options.fov;
+			changed = true;
+		}
+		if (!changed) return;
+		this.particleCamera.lookAt(this.cameraTarget);
+		this.particleCamera.updateProjectionMatrix();
+		this.postProcessing?.setDepthRange(this.particleCamera.near, this.particleCamera.far);
+		this.markDirty();
+	}
+
+	/**
+	 * World point on `z = planeZ` under a client pixel.
+	 *
+	 * Uses the live particle camera, before this frame's TAA view-offset, so
+	 * the ray matches the lens pass. A parallel ray or a hit behind the camera
+	 * returns null — keep the last point.
+	 */
+	worldAt(clientX: number, clientY: number, planeZ = 0): [number, number, number] | null {
+		return this.placeAt(clientX, clientY, { plane: planeZ });
+	}
+
+	/**
+	 * Glue a callback to a DOM element's center. Applied at the start of the
+	 * render phase, after viewport sync and after any update-phase `setCamera`,
+	 * so registration order cannot leave the follower on last frame's camera.
+	 * A number is the plane Z. An {@link AnchorPlacement} can instead lock the
+	 * distance or fit the slot. Pass a getter if the node or the fit changes
+	 * after registration.
+	 */
+	follow(
+		element: HTMLElement | (() => HTMLElement | null),
+		apply: (point: readonly [number, number, number]) => void,
+		placement: number | AnchorPlacement | (() => number | AnchorPlacement) = 0,
+	): Disposable {
+		const entry: AnchorFollow = { element, apply, placement, last: null };
+		this.anchors.push(entry);
+		this.markDirty();
+		let disposed = false;
+		return {
+			dispose: () => {
+				if (disposed) return;
+				disposed = true;
+				const index = this.anchors.indexOf(entry);
+				if (index >= 0) this.anchors.splice(index, 1);
+			},
+		};
+	}
+
+	/**
+	 * Step this system after DOM anchors resolve instead of in the compute
+	 * phase. Anchored motes then share the lens position of the frame being drawn.
+	 */
+	holdParticleStep(system: ParticleSystem): Disposable {
+		this.lateParticles.add(system);
+		let disposed = false;
+		return {
+			dispose: () => {
+				if (disposed) return;
+				disposed = true;
+				this.lateParticles.delete(system);
+			},
+		};
+	}
+
+	/**
+	 * World point on the shared pointer ray, `distance` units from the camera.
+	 *
+	 * This is the smoothed sample already written to the glass highlight this
+	 * frame — not a second listener, and not a hit on a camera-facing plane.
+	 * A plane runs away at the edge of the view; a fixed distance does not.
+	 * Returns null until the pointer has entered, or when the stage has no area.
+	 */
+	pointerAt(distance: number): [number, number, number] | null {
+		if (!this.pointer || !this.pointerSeen || !(distance > 0)) return null;
+		const bounds = this.measureBounds();
+		const [clientX, clientY] = pointerClient(
+			this.pointer.smoothX,
+			this.pointer.smoothY,
+			bounds,
+			this.boundsElement !== null,
+		);
+		return this.placeAt(clientX, clientY, { distance });
+	}
+
+	/**
+	 * Apply the pointer ray during the render phase, after the highlight sample
+	 * is written and before late particle steps. Glass, trail and attractor
+	 * then read one pointer in the frame being drawn.
+	 */
+	followPointer(
+		apply: (ray: PointerRay) => void,
+		distance: number | (() => number) = 8,
+	): Disposable {
+		const entry: PointerFollow = { apply, distance, last: null };
+		this.pointerFollowers.push(entry);
+		let disposed = false;
+		return {
+			dispose: () => {
+				if (disposed) return;
+				disposed = true;
+				const index = this.pointerFollowers.indexOf(entry);
+				if (index >= 0) this.pointerFollowers.splice(index, 1);
+			},
+		};
+	}
+
+	private prepareAnchorCamera(): {
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+	} | null {
+		const bounds = this.measureBounds();
+		if (bounds.width < 1 || bounds.height < 1) return null;
+		const aspect = bounds.width / bounds.height;
+		if (Math.abs(this.particleCamera.aspect - aspect) > 1e-4) {
+			this.particleCamera.aspect = aspect;
+			this.particleCamera.updateProjectionMatrix();
+		}
+		// Jitter is applied later in the draw. A leaked offset would walk the slot.
+		if (this.particleCamera.view !== null) this.particleCamera.clearViewOffset();
+		this.particleCamera.updateMatrixWorld();
+		return bounds;
+	}
+
+	private placeAt(
+		clientX: number,
+		clientY: number,
+		placement: AnchorPlacement,
+		slotMinPx = 0,
+	): [number, number, number] | null {
+		const bounds = this.prepareAnchorCamera();
+		if (!bounds) return null;
+		const ndc = clientToNdc(clientX, clientY, bounds);
+		if (!ndc) return null;
+		const fit = placement.fit;
+		const radius = placement.radius;
+		if (fit !== undefined && fit > 0 && radius !== undefined && radius > 0 && slotMinPx > 1) {
+			const span = Math.min(fit * slotMinPx, bounds.height * 0.92);
+			return pointForSpan(this.particleCamera, ndc[0], ndc[1], radius, span, bounds.height);
+		}
+		if (placement.distance !== undefined && placement.distance > 0) {
+			return pointAtDistance(this.particleCamera, ndc[0], ndc[1], placement.distance);
+		}
+		return rayPlanePoint(this.particleCamera, ndc[0], ndc[1], placement.plane ?? 0);
+	}
+
+	private syncAnchors(): void {
+		if (this.anchors.length === 0) return;
+		let moved = false;
+		for (const anchor of this.anchors) {
+			const element = typeof anchor.element === "function" ? anchor.element() : anchor.element;
+			if (!element?.isConnected || element.getClientRects().length === 0) continue;
+			const rect = element.getBoundingClientRect();
+			const raw =
+				typeof anchor.placement === "function" ? anchor.placement() : anchor.placement;
+			const placement = typeof raw === "number" ? { plane: raw } : raw;
+			const point = this.placeAt(
+				rect.left + rect.width * 0.5,
+				rect.top + rect.height * 0.5,
+				placement,
+				Math.min(rect.width, rect.height),
+			);
+			if (!point) continue;
+			const last = anchor.last;
+			if (
+				last === null ||
+				Math.abs(last[0] - point[0]) > 1e-4 ||
+				Math.abs(last[1] - point[1]) > 1e-4 ||
+				Math.abs(last[2] - point[2]) > 1e-4
+			) {
+				anchor.last = point;
+				moved = true;
+			}
+			anchor.apply(anchor.last ?? point);
+		}
+		if (moved) this.markDirty();
+	}
+
+	private syncPointerFollowers(dt: number): void {
+		if (this.pointerFollowers.length === 0) return;
+		for (const follower of this.pointerFollowers) {
+			const distance = follower.distance;
+			const raw = typeof distance === "function" ? distance() : distance;
+			const point = this.pointerAt(raw);
+			if (point) follower.last = [point[0], point[1], point[2]];
+			if (follower.last) {
+				follower.apply({
+					point: follower.last,
+					speed: Math.hypot(this.pointerVelocity.x, this.pointerVelocity.y),
+					dt,
+				});
+			}
+		}
+	}
+
+	private stepLateParticles(dt: number): void {
+		if (this.reducedMotion || this.quality.tier === 0 || this.lateParticles.size === 0) return;
+		if (this.bounds.width < 1 || this.bounds.height < 1) return;
+		for (const system of this.lateParticles) {
+			const active = Math.min(system.count, this.quality.settings.particleBudget);
+			if (system.active !== active) system.setActive(active);
+			if (active > 0) system.step(this.ui.renderer, dt);
+		}
+	}
+
+	private particleActiveCount(system: ParticleSystem): number {
+		if (this.quality.tier === 0 || this.bounds.width < 1 || this.bounds.height < 1) return 0;
+		return Math.min(system.count, this.quality.settings.particleBudget);
+	}
+
+	private applyParticleLod(): void {
+		for (const system of this.particleSystems) {
+			system.setActive(this.particleActiveCount(system));
+		}
+	}
+
+	private particleActiveTotal(): number {
+		let total = 0;
+		for (const system of this.particleSystems) total += system.active;
+		return total;
+	}
+
+	private particleAllocatedTotal(): number {
+		let total = 0;
+		for (const system of this.particleSystems) total += system.count;
+		return total;
 	}
 
 	register(element: HTMLElement, options: Partial<GlassPanelOptions> = {}): GlassPanelHandle {
@@ -449,26 +949,37 @@ export class GlassLayer implements Disposable {
 	}
 
 	/**
-	 * Attach a GPU particle system behind the glass panels. Simulation is
-	 * registered at the scheduler's `compute` priority, so every particle system
-	 * advances before the layer's single draw pass. The returned handle owns the
-	 * system and disposes it on removal.
+	 * Attach a GPU particle system. Simulation is registered at the scheduler's
+	 * `compute` priority, so every system advances before the layer's single
+	 * draw pass. `depth` chooses whether the sprites sit in the page, inside a
+	 * lens, or in front of one. The returned handle owns the system.
 	 */
 	addParticles(system: ParticleSystem, options: ParticleLayerOptions = {}): Disposable {
-		const position = options.cameraPosition ?? [0, 0, 14];
-		const target = options.cameraTarget ?? [0, 0, 0];
-		this.particleCamera.position.set(...position);
-		this.particleCamera.fov = options.fov ?? 52;
-		this.particleCamera.lookAt(...target);
-		this.particleCamera.updateProjectionMatrix();
-		this.postProcessing?.setDepthRange(this.particleCamera.near, this.particleCamera.far);
+		this.setCamera({
+			cameraPosition: options.cameraPosition ?? [0, 0, 14],
+			cameraTarget: options.cameraTarget ?? [0, 0, 0],
+			fov: options.fov ?? 52,
+		});
 
-		this.particleScene.add(system.object);
+		const depth = options.depth ?? "scene";
+		this.prepareParticleDepth(system, depth);
+		const scene =
+			depth === "inside"
+				? this.insideScene
+				: depth === "front"
+					? this.frontScene
+					: this.particleScene;
+		scene.add(system.object);
 		this.particleSystems.add(system);
 		system.reset(this.ui.renderer);
+		system.setActive(this.particleActiveCount(system));
 
 		const stop = getScheduler().add((info) => {
-			if (!this.reducedMotion && this.quality.tier > 0) system.step(this.ui.renderer, info.dt);
+			if (this.lateParticles.has(system)) return;
+			const active = this.particleActiveCount(system);
+			if (system.active !== active) system.setActive(active);
+			if (active <= 0 || this.reducedMotion) return;
+			system.step(this.ui.renderer, info.dt);
 		}, "compute");
 		this.particleStops.set(system, stop);
 		this.particleResources.set(system, resourceRegistry.track("particle-system"));
@@ -482,6 +993,8 @@ export class GlassLayer implements Disposable {
 				this.particleStops.delete(system);
 				this.particleSystems.delete(system);
 				this.particleScene.remove(system.object);
+				this.insideScene.remove(system.object);
+				this.frontScene.remove(system.object);
 				system.dispose();
 				this.particleResources.get(system)?.dispose();
 				this.particleResources.delete(system);
@@ -490,12 +1003,30 @@ export class GlassLayer implements Disposable {
 	}
 
 	/**
+	 * A lens material bound to this layer's scene copy and shared pointer.
+	 * It also samples the shared studio probe; `environment` only scales that.
+	 * Pair it with `addWorldObject(mesh, onFrame, { refractive: true })` so the
+	 * mesh is drawn after the copy, not into the texture it samples.
+	 */
+	createLensMaterial(options: WorldLensOptions = {}): WorldLensMaterial {
+		return createWorldLensMaterial(
+			{ ...options, backdrop: this.refractionRT.texture },
+			this.shared,
+		);
+	}
+
+	/**
 	 * Add a regular three Object3D to the world/effects scene behind DOM glass.
 	 * The optional callback runs on the shared scheduler, so examples can animate
 	 * a hero object without creating a second requestAnimationFrame loop.
+	 * `refractive` objects are drawn in a later pass and can sample the scene copy.
 	 */
-	addWorldObject(object: Object3D, onFrame?: (info: FrameInfo) => void): Disposable {
-		this.particleScene.add(object);
+	addWorldObject(
+		object: Object3D,
+		onFrame?: (info: FrameInfo) => void,
+		options: WorldObjectOptions = {},
+	): Disposable {
+		(options.refractive ? this.lensScene : this.particleScene).add(object);
 		this.worldVelocitySamples.set(object, {
 			screen: new Vector2(),
 			initialized: false,
@@ -514,6 +1045,7 @@ export class GlassLayer implements Disposable {
 				this.worldAnimations.delete(object);
 				this.worldVelocitySamples.delete(object);
 				this.particleScene.remove(object);
+				this.lensScene.remove(object);
 				this.worldResources.get(object)?.dispose();
 				this.worldResources.delete(object);
 			},
@@ -522,6 +1054,7 @@ export class GlassLayer implements Disposable {
 
 	setPostProcessing(options: PostProcessingOptions | false): void {
 		this.postOptions = options;
+		this.syncMotionAuthorship(options);
 		if (options !== false && this.postProcessing !== null && this.postPipeline !== null) {
 			this.postProcessing.update(options);
 			this.markDirty();
@@ -547,6 +1080,7 @@ export class GlassLayer implements Disposable {
 			const post = createPostProcessing({
 				...this.postOptions,
 				quality: this.postQuality(),
+				depthTexture: this.worldDepth,
 			});
 			const pipeline = new RenderPipeline(this.ui.renderer);
 			pipeline.outputNode = post.outputNode;
@@ -566,6 +1100,7 @@ export class GlassLayer implements Disposable {
 		this.backdrop = createBackdrop(spec, this.shared);
 		this.backdropResource = resourceRegistry.track("backdrop");
 		this.backdropQuad.mesh.material = this.backdrop.material;
+		this.silenceDepth(this.backdropQuad.mesh.material);
 		if (spec.type === "texture") {
 			const material = this.backdrop.material as unknown as {
 				viewportAspect?: { value: number };
@@ -614,6 +1149,7 @@ export class GlassLayer implements Disposable {
 	}
 
 	private createPanelMaterial(options: Required<GlassPanelOptions>): LiquidGlassMaterial {
+		// The studio sample uses the perspective basis, not this ortho camera.
 		// Always sample an explicit backdrop target, never the live framebuffer:
 		// `viewportSharedTexture` reads the color buffer that is being written,
 		// a read-after-write that fails WebGPU's strict pass validation (and
@@ -646,6 +1182,7 @@ export class GlassLayer implements Disposable {
 				opacity: options.opacity,
 				pointerStrength: options.pointerStrength,
 				pointerRadius: options.pointerRadius,
+				environment: options.environment,
 				blurTaps: this.quality.settings.blurTaps,
 			},
 			this.shared,
@@ -682,6 +1219,7 @@ export class GlassLayer implements Disposable {
 		u.opacity.value = panel.options.opacity;
 		u.pointerStrength.value = panel.options.pointerStrength;
 		u.pointerRadius.value = panel.options.pointerRadius;
+		u.environment.value = clamp01(panel.options.environment);
 	}
 
 	private rebuildPanelMaterials(): void {
@@ -699,13 +1237,38 @@ export class GlassLayer implements Disposable {
 		panel.resource.dispose();
 	}
 
+	private measureBounds(): { left: number; top: number; width: number; height: number } {
+		if (this.mode === "section" && this.boundsElement) {
+			const rect = this.boundsElement.getBoundingClientRect();
+			return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+		}
+		return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+	}
+
 	private syncViewport(force = false): void {
-		const width = window.innerWidth;
-		const height = window.innerHeight;
+		const measured = this.measureBounds();
+		this.bounds.left = measured.left;
+		this.bounds.top = measured.top;
+		this.bounds.width = measured.width;
+		this.bounds.height = measured.height;
+		const width = measured.width;
+		const height = measured.height;
 		const dprCap = Math.min(this.quality.settings.dprCap, Number.POSITIVE_INFINITY);
 		const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-
-		if (!force && width === this.width && height === this.height && dpr === this.dpr) return;
+		// Collapse stores 0, and a usable box shows itself before the size guard.
+		// Tier 0 stays hidden. See stepSectionViewport.
+		const step = stepSectionViewport(
+			{ width: this.width, height: this.height, dpr: this.dpr },
+			{ width, height, dpr, tier: this.quality.tier, force },
+		);
+		this.canvas.style.visibility = step.visible ? "visible" : "hidden";
+		if (step.collapsed) {
+			this.dirty = true;
+			this.width = step.width;
+			this.height = step.height;
+			return;
+		}
+		if (!step.resize) return;
 
 		this.width = width;
 		this.height = height;
@@ -718,7 +1281,10 @@ export class GlassLayer implements Disposable {
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
 		this.backdropRT.setSize(bufferWidth, bufferHeight);
+		this.refractionRT.setSize(bufferWidth, bufferHeight);
 		for (const sample of this.worldVelocitySamples.values()) sample.initialized = false;
+		this.vpReady = false;
+		this.motionPointsReady = false;
 		this.postProcessing?.setSize(bufferWidth, bufferHeight);
 		this.postProcessing?.setWorldVelocity([0, 0]);
 
@@ -737,7 +1303,9 @@ export class GlassLayer implements Disposable {
 	}
 
 	private syncLayout(): void {
-		const { dpr, width: vw, height: vh, glassCamera } = this;
+		const { dpr, bounds, glassCamera } = this;
+		const vw = bounds.width;
+		const vh = bounds.height;
 		const halfW = (glassCamera.right - glassCamera.left) / 2;
 		const halfH = (glassCamera.top - glassCamera.bottom) / 2;
 
@@ -749,11 +1317,13 @@ export class GlassLayer implements Disposable {
 			const rect = panel.element.getBoundingClientRect();
 			const w = rect.width;
 			const h = rect.height;
+			const localLeft = rect.left - bounds.left;
+			const localTop = rect.top - bounds.top;
 			const offscreen =
-				rect.bottom < -OFFSCREEN_MARGIN ||
-				rect.top > vh + OFFSCREEN_MARGIN ||
-				rect.right < -OFFSCREEN_MARGIN ||
-				rect.left > vw + OFFSCREEN_MARGIN;
+				localTop + h < -OFFSCREEN_MARGIN ||
+				localTop > vh + OFFSCREEN_MARGIN ||
+				localLeft + w < -OFFSCREEN_MARGIN ||
+				localLeft > vw + OFFSCREEN_MARGIN;
 
 			if (w <= 0 || h <= 0 || offscreen) {
 				panel.mesh.visible = false;
@@ -765,8 +1335,8 @@ export class GlassLayer implements Disposable {
 			const ph = h * dpr;
 			panel.mesh.scale.set(pw, ph, 1);
 			panel.mesh.position.set(
-				(rect.left + w / 2) * dpr - halfW,
-				halfH - (rect.top + h / 2) * dpr,
+				(localLeft + w / 2) * dpr - halfW,
+				halfH - (localTop + h / 2) * dpr,
 				panel.options.z,
 			);
 
@@ -798,9 +1368,23 @@ export class GlassLayer implements Disposable {
 
 		if (this.pointer) {
 			this.pointer.update(info.dt);
-			this.sharedPointer.value.set(
-				this.pointer.smoothX * this.dpr,
-				this.pointer.smoothY * this.dpr,
+			if (this.pointer.state.inside) this.pointerSeen = true;
+			// Stay off-canvas until the pointer has actually entered, so a
+			// section stage does not glow its top-left corner at rest.
+			if (this.pointerSeen) {
+				this.sharedPointer.value.set(
+					this.pointer.smoothX * this.dpr,
+					this.pointer.smoothY * this.dpr,
+				);
+			}
+			// Reduced motion keeps the position response and drops the stretch.
+			const targetX = this.reducedMotion ? 0 : this.pointer.state.vx;
+			const targetY = this.reducedMotion ? 0 : this.pointer.state.vy;
+			this.pointerVelocity.x = damp(this.pointerVelocity.x, targetX, 8, info.dt);
+			this.pointerVelocity.y = damp(this.pointerVelocity.y, targetY, 8, info.dt);
+			this.sharedPointerVelocity.value.set(
+				this.pointerVelocity.x * this.dpr,
+				this.pointerVelocity.y * this.dpr,
 			);
 		}
 		const pointerChanged =
@@ -809,6 +1393,17 @@ export class GlassLayer implements Disposable {
 		this.lastPointer.copy(this.sharedPointer.value);
 
 		this.syncViewport();
+		if (this.bounds.width < 1 || this.bounds.height < 1) {
+			this.canvas.style.visibility = "hidden";
+			this.reportStats(info.dt);
+			return;
+		}
+		// After the update-phase camera write, before layout skip and before
+		// TAA jitter. A moved slot must mark dirty or a static page would skip.
+		this.syncAnchors();
+		// Same smoothed pointer the highlight just wrote. Before the skip, so a
+		// trail mesh is current if we draw, and before late particle steps.
+		this.syncPointerFollowers(info.dt);
 		const layoutWasDirty = this.dirty;
 		if (this.dirty) {
 			this.syncLayout();
@@ -827,7 +1422,14 @@ export class GlassLayer implements Disposable {
 			(this.backdrop.animated ||
 				this.particleSystems.size > 0 ||
 				this.worldAnimations.size > 0);
-		if (!layoutWasDirty && this.hasRendered && !hasAnimatedSources && !pointerChanged) {
+		const sheenLive = this.sharedPointerVelocity.value.lengthSq() > 4;
+		if (
+			!layoutWasDirty &&
+			this.hasRendered &&
+			!hasAnimatedSources &&
+			!pointerChanged &&
+			!sheenLive
+		) {
 			// The framebuffer and both TAA histories already contain the finished
 			// image. Do not rerun the post graph or copy history on a truly static
 			// page; the scheduler remains alive for future pointer/layout activity.
@@ -835,6 +1437,7 @@ export class GlassLayer implements Disposable {
 			return;
 		}
 
+		this.stepLateParticles(info.dt);
 		this.renderFrame();
 		this.hasRendered = true;
 		this.reportStats(info.dt);
@@ -889,12 +1492,114 @@ export class GlassLayer implements Disposable {
 		this.postProcessing.setWorldVelocity([velocityX, velocityY]);
 	}
 
+	/**
+	 * Unjittered view-projection for per-pixel reprojection, plus a camera
+	 * motion-blur amount scaled from how fast the look-at point (and a point
+	 * one unit beside it) crosses the screen. The authored slider stays put
+	 * unless `cameraMotionBlur` is on, so a constant playground smear is unchanged.
+	 */
+	private captureViewProjection(): void {
+		if (!this.postProcessing) return;
+		this.particleCamera.updateMatrixWorld();
+		this.currentVP.multiplyMatrices(
+			this.particleCamera.projectionMatrix,
+			this.particleCamera.matrixWorldInverse,
+		);
+		if (!this.vpReady) {
+			this.previousVP.copy(this.currentVP);
+			this.vpReady = true;
+		}
+		this.invVP.copy(this.currentVP).invert();
+		this.postProcessing.setViewProjection(this.invVP, this.previousVP);
+		this.previousVP.copy(this.currentVP);
+		if (!this.cameraMotionBlur) return;
+
+		const bufferWidth = Math.max(1, Math.round(this.sharedResolution.value.x));
+		const bufferHeight = Math.max(1, Math.round(this.sharedResolution.value.y));
+		const target = this.cameraTarget;
+		const targetDelta = this.screenDelta(
+			target.x,
+			target.y,
+			target.z,
+			this.prevTargetScreen,
+			bufferWidth,
+			bufferHeight,
+		);
+		const sideDelta = this.screenDelta(
+			target.x + 1,
+			target.y,
+			target.z,
+			this.prevSideScreen,
+			bufferWidth,
+			bufferHeight,
+		);
+		const delta = Math.max(targetDelta, sideDelta);
+		const amount = this.reducedMotion ? 0 : this.authoredMotionBlur * Math.min(1, delta / 18);
+		this.motionPointsReady = true;
+		this.postProcessing.update({ motionBlur: amount });
+	}
+
+	private screenDelta(
+		x: number,
+		y: number,
+		z: number,
+		previous: Vector2,
+		bufferWidth: number,
+		bufferHeight: number,
+	): number {
+		this.motionPoint.set(x, y, z).project(this.particleCamera);
+		const currentX = this.motionPoint.x * bufferWidth * 0.5;
+		const currentY = -this.motionPoint.y * bufferHeight * 0.5;
+		const delta = this.motionPointsReady
+			? Math.hypot(currentX - previous.x, currentY - previous.y)
+			: 0;
+		previous.set(currentX, currentY);
+		return delta;
+	}
+
+	private syncMotionAuthorship(options: PostProcessingOptions | false): void {
+		if (options === false) {
+			this.cameraMotionBlur = false;
+			return;
+		}
+		if (options.cameraMotionBlur !== undefined)
+			this.cameraMotionBlur = options.cameraMotionBlur;
+		if (options.motionBlur !== undefined) this.authoredMotionBlur = options.motionBlur;
+	}
+
+	private prepareParticleDepth(system: ParticleSystem, depth: ParticleDepth): void {
+		for (const material of system.materials) {
+			material.depthWrite = false;
+			// Front motes test against the lens. Inside motes draw into a color
+			// copy that has no depth buffer, so a depth test would discard them.
+			material.depthTest = depth === "front";
+		}
+	}
+
+	private silenceDepth(material: Material | Material[]): void {
+		const materials = Array.isArray(material) ? material : [material];
+		for (const entry of materials) {
+			entry.depthWrite = false;
+			entry.depthTest = false;
+		}
+	}
+
+	private syncRoomBasis(): void {
+		this.particleCamera.updateMatrixWorld();
+		const e = this.particleCamera.matrixWorld.elements;
+		this.sharedCameraRight.value.set(e[0] ?? 1, e[1] ?? 0, e[2] ?? 0);
+		this.sharedCameraUp.value.set(e[4] ?? 0, e[5] ?? 1, e[6] ?? 0);
+		this.sharedCameraBack.value.set(e[8] ?? 0, e[9] ?? 0, e[10] ?? 1);
+		this.sharedCameraFov.value = this.particleCamera.fov;
+	}
+
 	private renderFrame(): void {
 		const { renderer } = this.ui;
 		const previousToneMapping = renderer.toneMapping;
 		const previousColorSpace = renderer.outputColorSpace;
 		const usesPost = this.postPipeline !== null && this.postProcessing !== null;
 
+		this.syncRoomBasis();
 		renderer.autoClear = false;
 
 		// Keep the intermediate buffers in working-linear space. The RenderPipeline
@@ -915,13 +1620,24 @@ export class GlassLayer implements Disposable {
 		// Update object motion before applying this frame's camera jitter. The
 		// velocity is measured in the unjittered camera and consumed only by the
 		// depth-backed world branch of the post history lookup.
-		if (usesPost) this.updateWorldVelocity();
+		if (usesPost) {
+			this.updateWorldVelocity();
+			this.captureViewProjection();
+		}
 
 		// 2. World effects are jittered by a short Halton sequence when temporal
 		//    accumulation is active. The DOM-attached glass camera stays unjittered,
 		//    so text and panel edges never swim while particles / hero geometry get
 		//    true sub-pixel coverage over several frames.
-		const hasWorldObjects = this.particleSystems.size > 0 || this.worldStops.size > 0;
+		const hasLens = this.lensScene.children.length > 0;
+		const hasInside = this.insideScene.children.length > 0;
+		const hasFront = this.frontScene.children.length > 0;
+		const hasWorldObjects =
+			this.particleSystems.size > 0 ||
+			this.worldStops.size > 0 ||
+			hasLens ||
+			hasInside ||
+			hasFront;
 		let jitteredWorld = false;
 		if (usesPost && hasWorldObjects && !this.reducedMotion) {
 			const jitter = this.postProcessing?.nextJitter() ?? [0, 0];
@@ -938,7 +1654,23 @@ export class GlassLayer implements Disposable {
 			jitteredWorld = true;
 		}
 		if (hasWorldObjects) {
-			renderer.render(this.particleScene, this.particleCamera);
+			if (this.particleScene.children.length > 0) {
+				renderer.render(this.particleScene, this.particleCamera);
+			}
+			// Blit the visible world, then add inside-only motes to that copy.
+			// The lens samples the copy. Those motes never land on the page,
+			// so a bright field cannot curtain the type or the gradient.
+			if (hasLens || hasInside) {
+				renderer.setRenderTarget(this.refractionRT);
+				// The blit is a fullscreen copy of the world target. A clear
+				// here is a second full-target write that the quad replaces.
+				renderer.render(this.refractionScene, this.refractionBlit.camera);
+				if (hasInside) renderer.render(this.insideScene, this.particleCamera);
+				renderer.setRenderTarget(this.backdropRT);
+				if (hasLens) renderer.render(this.lensScene, this.particleCamera);
+				else if (hasInside) renderer.render(this.insideScene, this.particleCamera);
+			}
+			if (hasFront) renderer.render(this.frontScene, this.particleCamera);
 			if (jitteredWorld) this.particleCamera.clearViewOffset();
 		}
 		renderer.setRenderTarget(null);
@@ -953,16 +1685,35 @@ export class GlassLayer implements Disposable {
 		// 5. The final canvas image becomes a TSL input. Put the renderer's output
 		// settings back before `_update()` so RenderPipeline captures the real
 		// target transform and applies tone mapping / sRGB exactly once.
+		const depth = stepDepthHistory(
+			{ live: this.depthHistoryLive },
+			{ usesPost, hasWorldObjects },
+		);
+		if (depth.resetHistory) this.postProcessing?.resetHistory();
 		if (usesPost) {
 			renderer.toneMapping = previousToneMapping;
 			renderer.outputColorSpace = previousColorSpace;
 			this.postPipeline?.render();
 			this.postProcessing?.commit(renderer);
+			// History depth is a texture copy of `worldDepth`, not a framebuffer
+			// copy. The target is bound first so the world pass has stored
+			// its depth attachment. Skip the copy when this frame drew none.
+			if (depth.captureDepth) {
+				renderer.setRenderTarget(this.backdropRT);
+				this.postProcessing?.captureDepth(renderer);
+				renderer.setRenderTarget(null);
+			}
 		}
+		this.depthHistoryLive = depth.live;
 
 		renderer.toneMapping = previousToneMapping;
 		renderer.outputColorSpace = previousColorSpace;
 	}
+}
+
+function clamp01(value: number): number {
+	if (!Number.isFinite(value)) return 0;
+	return Math.min(1, Math.max(0, value));
 }
 
 /** Convenience factory mirroring {@link GlassLayer.create}. */

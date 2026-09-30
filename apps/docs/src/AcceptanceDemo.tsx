@@ -19,12 +19,7 @@ import {
 	MeshBasicNodeMaterial,
 } from "three/webgpu";
 
-export type AcceptanceDemoId =
-	| "liquid-glass"
-	| "aurora-flow"
-	| "product-hero"
-	| "scroll-cinema"
-	| "cursor-field";
+export type AcceptanceDemoId = "aurora-flow" | "product-hero" | "cursor-field";
 
 type GradientColors = [string, string, string, string];
 
@@ -32,11 +27,6 @@ const DEMOS: Record<
 	AcceptanceDemoId,
 	{ title: string; eyebrow: string; colors: GradientColors }
 > = {
-	"liquid-glass": {
-		title: "Liquid Glass Pro",
-		eyebrow: "P0 visual acceptance · DOM-attached refraction",
-		colors: ["#071a34", "#3b1d80", "#be185d", "#0891b2"],
-	},
 	"aurora-flow": {
 		title: "Aurora Flow",
 		eyebrow: "P0 visual acceptance · GPU particles",
@@ -46,11 +36,6 @@ const DEMOS: Record<
 		title: "Glass Product Hero",
 		eyebrow: "P0 visual acceptance · world object + post graph",
 		colors: ["#170b2e", "#4c1d95", "#be185d", "#f59e0b"],
-	},
-	"scroll-cinema": {
-		title: "Scroll Cinema",
-		eyebrow: "P0 interaction acceptance · layout and scroll",
-		colors: ["#030712", "#172554", "#312e81", "#0f766e"],
 	},
 	"cursor-field": {
 		title: "Cursor Field",
@@ -92,18 +77,18 @@ export function AcceptanceDemo({ id }: { id: AcceptanceDemoId }) {
 		() => ({
 			type: "gradient",
 			colors: demo.colors,
-			speed: id === "scroll-cinema" ? 0.08 : 0.2,
+			speed: 0.2,
 		}),
-		[demo.colors, id],
+		[demo.colors],
 	);
 	const post = useMemo<PostProcessingOptions>(
 		() => ({
 			bloomStrength: id === "product-hero" ? 0.48 : 0.28,
 			haloStrength: 0.16,
 			flareStrength: id === "cursor-field" ? 0.2 : 0.1,
-			chromaticAberration: id === "liquid-glass" ? 0.45 : 0.22,
+			chromaticAberration: 0.22,
 			focusBlur: id === "product-hero" ? 2.2 : 0.8,
-			motionBlur: id === "scroll-cinema" ? 0.12 : 0.03,
+			motionBlur: 0.03,
 			grain: 0.012,
 			vignette: 0.18,
 		}),
@@ -205,47 +190,13 @@ function AcceptanceStatus() {
 
 function contentFor(id: AcceptanceDemoId) {
 	switch (id) {
-		case "liquid-glass":
-			return <LiquidGlassContent />;
 		case "aurora-flow":
 			return <AuroraContent />;
 		case "product-hero":
 			return <ProductContent />;
-		case "scroll-cinema":
-			return <ScrollContent />;
 		case "cursor-field":
 			return <CursorContent />;
 	}
-}
-
-function LiquidGlassContent() {
-	return (
-		<div
-			style={{
-				display: "grid",
-				gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-				gap: 18,
-				marginTop: 72,
-			}}
-		>
-			{["Refraction", "Dispersion", "Frost", "DOM semantics"].map((label, index) => (
-				<GlassPanel
-					key={label}
-					style={glassStyle}
-					radius={index === 3 ? 34 : 22}
-					refraction={42 + index * 8}
-					dispersion={0.25 + index * 0.05}
-				>
-					<span style={{ opacity: 0.6, fontSize: 13 }}>0{index + 1}</span>
-					<h2 style={{ fontSize: 24, margin: "28px 0 10px" }}>{label}</h2>
-					<p style={{ opacity: 0.7, lineHeight: 1.55 }}>
-						The content remains a normal, focusable DOM element while the shared glass surface
-						bends the rendered backdrop.
-					</p>
-				</GlassPanel>
-			))}
-		</div>
-	);
 }
 
 function AuroraContent() {
@@ -349,37 +300,6 @@ function ProductCrystal() {
 		};
 	}, [layer]);
 	return <div aria-hidden="true" style={{ minHeight: 360 }} />;
-}
-
-function ScrollContent() {
-	return (
-		<div style={{ marginTop: 72, display: "grid", gap: 120 }}>
-			{["Read the surface", "Follow the depth", "Keep the DOM"].map((title, index) => (
-				<GlassPanel
-					key={title}
-					style={{ ...glassStyle, minHeight: 230, position: "sticky", top: 32 + index * 16 }}
-					radius={34}
-					refraction={44 + index * 6}
-				>
-					<span style={{ opacity: 0.55 }}>SCENE 0{index + 1}</span>
-					<h2
-						style={{
-							fontSize: "clamp(34px, 6vw, 72px)",
-							letterSpacing: "-0.06em",
-							margin: "30px 0 12px",
-						}}
-					>
-						{title}
-					</h2>
-					<p style={{ maxWidth: 500, opacity: 0.72, lineHeight: 1.55 }}>
-						Scroll through a stable set of DOM surfaces. The current P0 harness validates layout
-						invalidation, offscreen panel culling and focusable content; linked camera timelines
-						are the next motion milestone.
-					</p>
-				</GlassPanel>
-			))}
-		</div>
-	);
 }
 
 function CursorContent() {

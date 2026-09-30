@@ -42,7 +42,9 @@ export function StatusHud({ stats, status, forceFallback }: StatusHudProps) {
 				</div>
 				<div>
 					<dt>Panels</dt>
-					<dd>{stats ? `${stats.visiblePanels}/${stats.panels}` : "—"}</dd>
+					<dd title="In view / registered. The rest are below the fold, not a missing budget.">
+						{stats ? `${stats.visiblePanels}/${stats.panels}` : "—"}
+					</dd>
 				</div>
 				<div>
 					<dt>Buffer</dt>

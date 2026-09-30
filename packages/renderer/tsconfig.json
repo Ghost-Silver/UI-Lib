@@ -10,5 +10,5 @@
 			"@ui-lib/shaders": ["../shaders/src/index.ts"]
 		}
 	},
-	"include": ["src"]
+	"include": ["src", "test"]
 }

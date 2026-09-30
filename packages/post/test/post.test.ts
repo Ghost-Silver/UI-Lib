@@ -1,3 +1,4 @@
+import { DepthTexture, Matrix4 } from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import { createPostProcessing, POST_DEFAULTS } from "../src/index.js";
 
@@ -10,6 +11,7 @@ describe("post-processing", () => {
 		expect(post.uniforms.grain.value).toBe(0.03);
 		expect(post.uniforms.haloStrength.value).toBe(POST_DEFAULTS.haloStrength);
 		expect(post.uniforms.exposure.value).toBe(POST_DEFAULTS.exposure);
+		expect(post.uniforms.shoulder.value).toBe(0);
 		expect(post.uniforms.temporalBlend.value).toBe(POST_DEFAULTS.temporalBlend);
 		expect(post.uniforms.temporalReactive.value).toBe(POST_DEFAULTS.temporalReactive);
 		expect(post.uniforms.temporalClamp.value).toBe(POST_DEFAULTS.temporalClamp);
@@ -35,6 +37,11 @@ describe("post-processing", () => {
 		expect(post.uniforms.chromaticAberration.value).toBe(2);
 		expect(post.uniforms.worldVelocity.value.x).toBe(3);
 		expect(post.uniforms.worldVelocity.value.y).toBe(-2);
+		post.update({ cameraMotionBlur: true, motionBlur: 0.4 });
+		expect(post.uniforms.cameraMotionBlur.value).toBe(1);
+		expect(post.uniforms.motionBlur.value).toBe(0.4);
+		post.resetHistory();
+		expect(post.uniforms.velocityValid.value).toBe(0);
 		expect(post.uniforms.depthRange.value.x).toBe(0.2);
 		expect(post.uniforms.depthRange.value.y).toBe(80);
 		post.dispose();
@@ -42,5 +49,15 @@ describe("post-processing", () => {
 		const lowBudgetPost = createPostProcessing({ quality: 1 });
 		expect(lowBudgetPost.outputNode.isNode).toBe(true);
 		lowBudgetPost.dispose();
+	});
+
+	it("builds when the layer supplies a world depth texture", () => {
+		const depth = new DepthTexture(4, 4);
+		const post = createPostProcessing({ depthTexture: depth, cameraMotionBlur: true });
+		expect(post.outputNode.isNode).toBe(true);
+		post.setViewProjection(new Matrix4(), new Matrix4());
+		expect(post.uniforms.velocityValid.value).toBe(1);
+		post.dispose();
+		depth.dispose();
 	});
 });

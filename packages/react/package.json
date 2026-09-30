@@ -29,12 +29,14 @@
 	},
 	"dependencies": {
 		"@ui-lib/core": "workspace:*",
+		"@ui-lib/motion": "workspace:*",
 		"@ui-lib/particles": "workspace:*",
 		"@ui-lib/renderer": "workspace:*",
 		"@ui-lib/shaders": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
 		"@types/three": "^0.186.0",
 		"react": "^19.2.0",
 		"three": "0.186.1",

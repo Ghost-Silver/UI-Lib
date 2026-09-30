@@ -1,5 +1,5 @@
-import type { ParticleSystemOptions } from "@ui-lib/particles";
-import { GlassPanel, GlassStage, ParticleField, useGlassStage } from "@ui-lib/react";
+import { PLAYGROUND_FIELD, PLAYGROUND_FIELD_CAMERA } from "@ui-lib/particles";
+import { GlassPanel, GlassStage, Magnetic, ParticleField, useGlassStage } from "@ui-lib/react";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -20,8 +20,14 @@ import {
 	MeshBasicNodeMaterial,
 } from "three/webgpu";
 import { AcceptanceDemo, type AcceptanceDemoId } from "./AcceptanceDemo.js";
+import { AuroraFlowPage } from "./AuroraFlow.js";
+import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
+import { LiquidGlassProPage } from "./LiquidGlassPro.js";
+import { ProductHeroPage } from "./ProductHero.js";
+import { ScrollCinemaPage } from "./ScrollCinema.js";
+import { WakePage } from "./Wake.js";
 
 const PALETTES = {
 	aurora: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"],
@@ -85,36 +91,7 @@ const DEFAULT_PARAMS: Params = {
 	vignette: 0.12,
 };
 
-const PARTICLES: ParticleSystemOptions = {
-	count: 24_000,
-	emitter: {
-		shape: "sphere",
-		radius: 3.8,
-		direction: [0, 0.15, 0],
-		speed: 0.8,
-		spread: 0.92,
-	},
-	forces: {
-		gravity: [0, 0.06, 0],
-		drag: 0.12,
-		turbulence: 2.2,
-		noiseScale: 0.3,
-		noiseDrift: 0.24,
-		vortex: 1.8,
-		attractor: 0.8,
-		attractorRadius: 7,
-	},
-	life: [4, 10],
-	size: [0.035, 0.12],
-	colors: ["#4de8d5", "#8d7bff", "#f778c8"],
-	hotColor: "#ffffff",
-	hotAmount: 0.32,
-	intensity: 1.8,
-	opacity: 0.82,
-	bounds: "sphere",
-	boundsRadius: 8,
-	blending: "additive",
-};
+const PARTICLES = PLAYGROUND_FIELD;
 
 /** A deliberately small hero object: the library owns the world scene and clock,
  * while the example owns the look. This is the extension point for product demos. */
@@ -136,6 +113,8 @@ function HeroCrystal() {
 		const crystal = new Mesh(geometry, material);
 		crystal.name = "ui-lib:hero-crystal";
 		crystal.scale.setScalar(1.08);
+		// The origin sits under the headline. Keep the crystal with the cloud.
+		crystal.position.x = 4.2;
 		const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 		const attachment = layer.addWorldObject(crystal, (info) => {
 			if (prefersReducedMotion) return;
@@ -208,7 +187,11 @@ function Playground() {
 			<HeroCrystal />
 			<ParticleField
 				options={PARTICLES}
-				camera={{ cameraPosition: [0, 0.5, 13], cameraTarget: [0, 0.3, 0], fov: 50 }}
+				camera={{
+					cameraPosition: PLAYGROUND_FIELD_CAMERA.position,
+					cameraTarget: PLAYGROUND_FIELD_CAMERA.target,
+					fov: PLAYGROUND_FIELD_CAMERA.fov,
+				}}
 				pointer
 			/>
 			<Scene
@@ -273,6 +256,38 @@ function Scene(props: SceneProps) {
 					<span className="brand__mark" aria-hidden="true" />
 					UI·LIB <span className="brand__sub">/ liquid glass</span>
 				</div>
+				<nav className="toplinks" aria-label="Demos">
+					<Magnetic strength={0.4} radius={100}>
+						<a className="navlink" href="/?demo=aurora-flow">
+							Aurora
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={100}>
+						<a className="navlink" href="/?demo=product-hero">
+							Lumen
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={110}>
+						<a className="navlink" href="/?demo=scroll-cinema">
+							Scroll Cinema
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={120}>
+						<a className="navlink" href="/?demo=cursor-field">
+							Cursor Field
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={120}>
+						<a className="navlink" href="/?demo=liquid-glass">
+							Liquid Glass
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={90}>
+						<a className="navlink" href="/?demo=wake">
+							Wake
+						</a>
+					</Magnetic>
+				</nav>
 				<GlassPanel className="pill" {...pill}>
 					{stats?.backend === "webgpu"
 						? "WebGPU"
@@ -296,22 +311,26 @@ function Scene(props: SceneProps) {
 						per-channel scale for chromatic dispersion and a golden-angle disc blur for frost.
 					</p>
 					<div className="hero__actions">
-						<GlassPanel
-							as="button"
-							className="cta"
-							{...pill}
-							onClick={() => setParams(DEFAULT_PARAMS)}
-						>
-							Reset parameters
-						</GlassPanel>
-						<GlassPanel
-							as="button"
-							className="cta cta--ghost"
-							{...pill}
-							onClick={() => setForceFallback(!forceFallback)}
-						>
-							{forceFallback ? "Back to GPU glass" : "Compare with CSS"}
-						</GlassPanel>
+						<Magnetic strength={0.42} radius={120}>
+							<GlassPanel
+								as="button"
+								className="cta"
+								{...pill}
+								onClick={() => setParams(DEFAULT_PARAMS)}
+							>
+								Reset parameters
+							</GlassPanel>
+						</Magnetic>
+						<Magnetic strength={0.42} radius={120}>
+							<GlassPanel
+								as="button"
+								className="cta cta--ghost"
+								{...pill}
+								onClick={() => setForceFallback(!forceFallback)}
+							>
+								{forceFallback ? "Back to GPU glass" : "Compare with CSS"}
+							</GlassPanel>
+						</Magnetic>
 					</div>
 				</div>
 
@@ -517,9 +536,9 @@ function Scene(props: SceneProps) {
 					<h2 className="panel__title">Compute particles</h2>
 					<p>
 						24,000 points are born, advected through a noise-derived flow field, pulled by a
-						soft attractor and respawned entirely on the GPU. WebGL 2 uses transform feedback;
-						WebGPU uses a native compute pass. The glass above refracts them through the same
-						canvas.
+						soft attractor and respawned entirely on the GPU. The volume sits to the right of
+						this headline, so the copy stays on the gradient. WebGL 2 uses transform feedback;
+						WebGPU uses a native compute pass. The glass beside them refracts the same canvas.
 					</p>
 				</GlassPanel>
 				<GlassPanel className="panel" {...card}>
@@ -570,18 +589,26 @@ function Scene(props: SceneProps) {
 }
 
 const ACCEPTANCE_IDS: readonly AcceptanceDemoId[] = [
-	"liquid-glass",
 	"aurora-flow",
 	"product-hero",
-	"scroll-cinema",
 	"cursor-field",
 ];
+
+function isAcceptanceDemo(value: string): value is AcceptanceDemoId {
+	return (ACCEPTANCE_IDS as readonly string[]).includes(value);
+}
 
 export default function App() {
 	if (typeof window !== "undefined") {
 		const query = new URLSearchParams(window.location.search);
-		const demo = query.get("demo") as AcceptanceDemoId | null;
-		if (demo && ACCEPTANCE_IDS.includes(demo)) return <AcceptanceDemo id={demo} />;
+		const demo = query.get("demo");
+		if (demo === "scroll-cinema") return <ScrollCinemaPage />;
+		if (demo === "product-hero") return <ProductHeroPage />;
+		if (demo === "cursor-field") return <CursorFieldPage />;
+		if (demo === "aurora-flow") return <AuroraFlowPage />;
+		if (demo === "liquid-glass") return <LiquidGlassProPage />;
+		if (demo === "wake") return <WakePage />;
+		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;
 }

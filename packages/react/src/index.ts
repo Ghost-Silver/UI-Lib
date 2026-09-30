@@ -9,7 +9,19 @@
  * user prefers reduced motion, panels render a CSS `backdrop-filter` fallback.
  */
 
+export type { ScrollState, TrackKey } from "@ui-lib/motion";
+export {
+	beatLocal,
+	beatWeight,
+	revealWeight,
+	SCROLL_CINEMA_BEATS,
+	SCROLL_CINEMA_FADE,
+	sampleTrack,
+	scrollProgress,
+} from "@ui-lib/motion";
 export type { GlassPanelHandle, GlassPanelOptions } from "@ui-lib/renderer";
+export { LOOKS, type LookName, resolveLook } from "@ui-lib/renderer";
+export type { DomAnchor } from "./anchor.js";
 export type { GlassStageStatus, GlassStageValue } from "./context.js";
 export { GlassStageContext, useGlassStage } from "./context.js";
 export type { GlassPanelProps } from "./GlassPanel.js";
@@ -17,6 +29,33 @@ export { GlassPanel } from "./GlassPanel.js";
 export type { GlassStageProps } from "./GlassStage.js";
 export { GlassStage } from "./GlassStage.js";
 export { ensureStyles } from "./injectStyles.js";
-
+export type { LensProps } from "./Lens.js";
+export { Lens } from "./Lens.js";
+export type {
+	FieldLookName,
+	GlassLookName,
+	LensLookName,
+	LensOptical,
+} from "./looks.js";
+export {
+	CINEMA_LENS_ENVIRONMENT,
+	FIELD_LOOKS,
+	fieldOptions,
+	GLASS_LOOKS,
+	LENS_LOOKS,
+	resolveLensLook,
+} from "./looks.js";
+export type { MagneticProps } from "./Magnetic.js";
+export { Magnetic } from "./Magnetic.js";
+export type { OpticsProps } from "./Optics.js";
+export { Optics } from "./Optics.js";
 export type { ParticleFieldProps } from "./ParticleField.js";
 export { ParticleField } from "./ParticleField.js";
+export type { PointerTrailProps } from "./PointerTrail.js";
+export { PointerTrail } from "./PointerTrail.js";
+export type { RevealProps } from "./Reveal.js";
+export { Reveal } from "./Reveal.js";
+export { useReducedMotion } from "./reducedMotion.js";
+export type { ScrollPinProps, ScrollTrackProps } from "./ScrollTrack.js";
+export { ScrollPin, ScrollTrack, useScrollTrack, useScrollTrackHandle } from "./ScrollTrack.js";
+export { useFrame } from "./useFrame.js";
