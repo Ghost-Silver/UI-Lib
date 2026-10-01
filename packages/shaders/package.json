@@ -3,6 +3,28 @@
 	"version": "0.0.1",
 	"description": "TSL node-material library for UI-Lib: liquid glass, gradient mesh backdrop and the SDF primitives they share.",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ghost-Silver/UI-Lib.git",
+		"directory": "packages/shaders"
+	},
+	"homepage": "https://github.com/Ghost-Silver/UI-Lib#readme",
+	"bugs": {
+		"url": "https://github.com/Ghost-Silver/UI-Lib/issues"
+	},
+	"keywords": [
+		"ui",
+		"ui-lib",
+		"gpu",
+		"tsl",
+		"three",
+		"shader",
+		"liquid-glass",
+		"webgpu"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"main": "./dist/index.js",

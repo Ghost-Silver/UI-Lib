@@ -33,7 +33,7 @@
 				};
 				const fmt = (v) => {
 					try {
-						if (v instanceof Error) return `${v.name}: ${v.message}` + (v.stack ? `\n${v.stack}` : "");
+						if (v instanceof Error) return `${v.name}: ${v.message}${v.stack ? `\n${v.stack}` : ""}`;
 						if (typeof v === "object") return JSON.stringify(v);
 						return String(v);
 					} catch {
@@ -52,12 +52,12 @@
 				// `uncapturederror` event — the single most direct error source.
 				try {
 					const nav = navigator.gpu;
-					if (nav && nav.requestAdapter) {
+					if (nav?.requestAdapter) {
 						const oa = nav.requestAdapter.bind(nav);
 						nav.requestAdapter = async (...a) => {
 							const adapter = await oa(...a);
 							try {
-								if (adapter && adapter.requestDevice) {
+								if (adapter?.requestDevice) {
 									const od = adapter.requestDevice.bind(adapter);
 									adapter.requestDevice = async (...b) => {
 										const device = await od(...b);
@@ -81,7 +81,7 @@
 						wg2 = !!c.getContext("webgl2");
 						const g = c.getContext("webgpu");
 						if (g) wgpu = true;
-					} catch (err) { wg2 = false; }
+					} catch (_err) { wg2 = false; }
 					try { gpuName = navigator.gpu ? "navigator.gpu" : ""; } catch {}
 					boot = { ua: navigator.userAgent.slice(0, 220), webgl2: wg2, wgpu, gpu: gpuName, vp: `${innerWidth}x${innerHeight}` };
 					push({ type: "boot" });

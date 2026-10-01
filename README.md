@@ -4,13 +4,30 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。五张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面。
+> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面。
 
-[路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
+[在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
+
+## 在线演示
+
+六张旗舰页已经构建并部署上线，打开就能滑：
+
+**https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run**
+
+| 页面 | 链接 |
+|---|---|
+| Liquid Glass Pro | [`/?demo=liquid-glass`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=liquid-glass) |
+| Lumen | [`/?demo=product-hero`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=product-hero) |
+| Scroll Cinema | [`/?demo=scroll-cinema`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=scroll-cinema) |
+| Cursor Field | [`/?demo=cursor-field`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=cursor-field) |
+| Aurora Flow | [`/?demo=aurora-flow`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=aurora-flow) |
+| Wake | [`/?demo=wake`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=wake) |
+
+线上部署的是 `apps/docs` 的 `vite build` 静态产物，不是 dev server。`?fallback=1` 强制 CSS fallback，`?backend=webgl` 强制 WebGL2，用来对照降级路径。
 
 ## 当前情况
 
-五张旗舰页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
+六张旗舰页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
 
 | 页面 | 地址 | 现在是什么 |
 |---|---|---|
@@ -26,16 +43,19 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
 
 ```bash
-pnpm build && pnpm typecheck && pnpm test
+pnpm verify   # build → typecheck → test → size budget
+pnpm lint
 ```
 
-这一轮 `pnpm typecheck` 通过（8 个包），`pnpm test` 通过，18 个文件 83 项。没有在这台机器上检查真实 GPU 像素，也没有生成截图基线。仓库里没有 `toHaveScreenshot`，所以 `pnpm test:e2e` 不是视觉门禁。
+这一轮 `pnpm typecheck` 通过（8 个包），`pnpm test` 通过（18 个文件 83 项），体积门禁七个包全部在预算内。浏览器验收也跑起来了：headless Chromium 下 `pnpm test:e2e` 17 项全过，覆盖六个页面的降级与 GPU 路由、滚动轨道 0→1、section pin 与真实可聚焦链接、reduced motion、context loss 恢复。
+
+它仍然是**语义**验收而不是像素门禁——仓库里没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约，不是 Metal 或独显上真正画出了什么。
 
 ## 下一步
 
 Liquid Glass Pro 已经是旗舰页。还没做的是：
 
-1. 真机 WebGPU / WebGL2 截图基线、FPS 和掉帧。这台机器装不了 Playwright 浏览器，不能在这里生成基线，也不用软件渲染的 PNG 冒充 Metal 上的画面。没有这些数字，不写性能结论。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。1M @ 60fps 仍然没测。
+1. 真机 WebGPU / WebGL2 截图基线、FPS 和掉帧。浏览器装得上、语义验收跑得通，缺的是按 GPU 分桶的截图矩阵——软件渲染出来的 PNG 不能冒充 Metal 上的画面。没有这些数字，不写性能结论。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。1M @ 60fps 仍然没测。
 
 先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
 
@@ -119,11 +139,11 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 - DOM ↔ GPU bridge（element→texture、3D→DOM 跟随）
 - 完整 timeline / gesture / MSDF；滚动进度与章节轨道已有第一切片
 - MSDF text
-- 动态 particle LOD 与 per-particle trail buffer。pointer-to-world ray 已在共享 scheduler 上，按固定距离取样
+- 完整动态 particle LOD 与 per-particle trail buffer 方案（Wake 已用第一切片：每颗粒子短期历史 + 档位预算裁剪）
 - 最终版 imperative `createEffect()` API
 - R3F、Vue、Svelte adapter
 - Next.js / Nuxt / SvelteKit SSR 与 hydration example
-- Changesets、size budget、CI browser matrix 和 npm 发布流程
+- Changesets 版本管理、npm provenance 与 CI browser matrix（size budget 与基础 CI 已落地）
 
 Playground 中的粒子数量是为了保证展示稳定而选择的工作负载。UI-Lib **不会**在没有真实设备基准的情况下宣称“百万粒子在所有 WebGPU 设备上 60 FPS”。
 
@@ -145,11 +165,11 @@ pnpm dev
 执行仓库级验证：
 
 ```bash
-pnpm build && pnpm typecheck && pnpm test
+pnpm verify   # build → typecheck → test → size budget
 pnpm lint
 ```
 
-`pnpm test` 自己也会先 `pnpm build`。包入口指向 `dist/`，跳过构建的话跨包测试解析不到。
+`pnpm test` 自己也会先 `pnpm build`。包入口指向 `dist/`，跳过构建的话跨包测试解析不到。`pnpm size` 读 `size-budget.json`，按 raw 字节给七个包的 `dist/index.js` 与 `index.d.ts` 设上限，超了就以非零码退出。
 
 执行浏览器验收：
 
@@ -158,7 +178,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-在不能下载浏览器或没有系统 GPU 依赖的沙箱中，`pnpm test:e2e` 无法代表真实浏览器验收。测试文件覆盖五个 demo 的语义表面，但仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`。不要把 `pnpm test:e2e` 当成像素门禁。WebGPU device profile 和实际 FPS 结论必须在具备这些条件的 CI / 本地机器上生成。
+`pnpm test:e2e` 已在 headless Chromium 上跑通 17 项，覆盖六个 demo 的降级与 GPU 路由、滚动轨道、section pin、reduced motion 和 context loss 恢复。它仍然是**语义**验收而不是像素门禁——仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约。WebGPU device profile 和实际 FPS 结论必须在有真实 GPU 的机器上生成。
 
 ## React 用法
 
@@ -304,7 +324,7 @@ if (card) {
 
 本轮 P0 已加入以下工程切片：
 
-### 1. 五个验收页面
+### 1. 六个验收页面
 
 通过 query 参数访问：
 
@@ -314,6 +334,7 @@ if (card) {
 /?demo=product-hero     Lumen，产品页。仍带 data-ui-lib-acceptance="product-hero"
 /?demo=scroll-cinema
 /?demo=cursor-field     Cursor Field。viewport stage，仍带 data-ui-lib-acceptance="cursor-field"
+/?demo=wake            Wake。viewport stage，per-particle trail 与档位预算
 ```
 
 每个页面都使用一个 `GlassStage`，保留真实 DOM 内容，并可使用：
@@ -323,15 +344,16 @@ if (card) {
 ?backend=webgl    强制 WebGL2 路径
 ```
 
-这五个页面目前用于建立真实浏览器截图和交互基线：
+这六个页面目前用于建立真实浏览器截图和交互基线：
 
 1. **Liquid Glass Pro**：section pin。`GLASS_LOOKS.press` / `milk` / `quiet` 贴在真实 DOM 上。后面的套准纸是世界物体，不是 element-to-texture。字是 HTML。
 2. **Aurora Flow**：整页流场、局部涡旋跟着共享射线走、HTML 逐词出现。不是动态 LOD，也不是 1M 基准。
 3. **Glass Product Hero**：world object、camera、post graph 基础路径。
 4. **Scroll Cinema**：section stage、sticky pin、共享时钟上的相机与章节。
 5. **Cursor Field**：同一帧的 pointer ray、短 ribbon、玻璃高光。不是 per-particle trail buffer。
+6. **Wake**：每颗粒子维护自己的短期位置历史，档位预算裁掉多余粒子而不重建缓冲区。不是跟着指针走的 ribbon。
 
-五张都已是可打开的旗舰页。MSDF、完整 motion timeline 和真机视觉基线仍然没有完成。
+六张都已是可打开的旗舰页。MSDF、完整 motion timeline 和真机视觉基线仍然没有完成。
 
 ### 2. Playwright 视觉与交互测试
 
@@ -444,6 +466,8 @@ input → GPU compute → DOM/state update → backdrop → particles → glass 
 
 渲染相关包把 `three` 声明为 **peer dependency**，不会在包内捆绑私有 Three.js。`@ui-lib/core` 保持框架无关且不依赖 Three.js。
 
+每个已实现的包都有自己的 `README.md`，内含真实 API 表、安装命令与用法片段；发布元数据（`repository` / `homepage` / `bugs` / `keywords` / `publishConfig.access`）已经写进各包的 `package.json`。仓库整体以 [MIT](LICENSE) 授权。
+
 ## 渲染与降级策略
 
 ### 后端选择
@@ -495,8 +519,8 @@ UI-Lib 以约束而不是营销数字为中心：
 
 ### P0：证明 runtime 可靠
 
-- [x] 五个浏览器验收页面
-- [x] Playwright 测试骨架、CSS fallback screenshot 和交互 smoke
+- [x] 六个浏览器验收页面
+- [x] Playwright 语义验收骨架与交互 smoke（headless Chromium 17 项通过；仓库里没有 `toHaveScreenshot`，所以它不是像素门禁）
 - [x] FPS、掉帧、long frame 统计
 - [x] 逻辑资源 registry 与 dispose 断言基础
 - [x] WebGPU/WebGL2 loss 通知与 React stage 重建入口
@@ -534,20 +558,24 @@ UI-Lib 以约束而不是营销数字为中心：
 - [ ] R3F adapter 与最终 imperative API
 - [ ] Vue / Svelte adapter
 - [ ] Next.js、Nuxt、SvelteKit example
-- [ ] Changesets、size budgets、CI browser matrix、npm provenance
+- [x] size budgets（`size-budget.json` + `pnpm size`，已并入 `pnpm verify`）
+- [x] CI 流水线（`.github/workflows/ci.yml`：verify job + browser job）
+- [ ] CI browser matrix（把 browser job 扩到多浏览器/多后端）
+- [ ] Changesets 与 npm provenance 发布
 - [ ] recipes、API reference、copy-ready 文档
 
-## 五个旗舰 Demo
+## 六个旗舰 Demo
 
-目标产品面不是一个参数 Playground，而是五个可单独回归的真实页面：
+目标产品面不是一个参数 Playground，而是六个可单独回归的真实页面：
 
 1. **LiquidGlass Pro**：`/?demo=liquid-glass`。section pin，三块命名玻璃贴在 DOM 上，套准纸在玻璃后面走。不是验收壳。页面不传 cubemap。
 2. **Aurora Flow**：`/?demo=aurora-flow`。viewport stage。`fieldOptions("aurora")` 加 `<ParticleField flow />`。字是 `<Reveal>`。reduced motion 停下粒子，字留在终态。动态 LOD 仍未做。
 3. **Glass Product Hero**：Lumen，`/?demo=product-hero`。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。环境反射由 look 自带的工作室探针提供，页面不传 cubemap。
 4. **Scroll Cinema**：section-scoped sticky pin、scroll-linked camera 和章节玻璃。MSDF 仍未做。
 5. **Cursor Field**：`/?demo=cursor-field`。viewport stage。`<ParticleField pointer />` 与 `<PointerTrail />` 共用玻璃高光的那一次平滑采样。字是 HTML。reduced motion 停下粒子和 ribbon。
+6. **Wake**：`/?demo=wake`。viewport stage。每颗粒子维护自己的短期位置历史，不是跟着指针走的 ribbon；档位预算裁掉多出来的粒子而不重建缓冲区。笔画收在标题右侧，`intensity` 0.46。
 
-五个 acceptance surface 都已是旗舰页。per-particle trail buffer、动态 LOD、MSDF 和 `@ui-lib/dom` 仍未做。下一步见上文。
+六个 acceptance surface 都已是旗舰页。per-particle trail 与档位预算目前是 Wake 用到的第一切片，不等于完整的动态 LOD 方案；MSDF 和 `@ui-lib/dom` 仍未做。下一步见上文。
 
 ## 不可妥协的设计规则
 
@@ -564,11 +592,13 @@ UI-Lib 以约束而不是营销数字为中心：
 ```bash
 pnpm install
 pnpm dev              # Vite Playground
-pnpm build && pnpm typecheck && pnpm test   # 干净 clone 的门禁
+pnpm verify           # 门禁：build → typecheck → test → size budget
 pnpm test             # 先构建 dist，再跑 Vitest
+pnpm typecheck        # 全 workspace TypeScript
+pnpm size             # 体积预算门禁（读 size-budget.json）
 pnpm lint             # Biome check
 pnpm build            # 包构建
-pnpm test:e2e         # Playwright 浏览器验收
+pnpm test:e2e         # Playwright 浏览器验收（headless Chromium）
 pnpm test:e2e:update  # 更新视觉 baseline
 ```
 

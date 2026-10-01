@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Browser acceptance gate for the five showcase surfaces.
+ * Browser acceptance gate for the six showcase surfaces.
  *
  * Screenshots are only comparable within one browser/GPU bucket. CI may add
  * WebGPU-capable projects without changing the test contract.

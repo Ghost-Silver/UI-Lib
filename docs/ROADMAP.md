@@ -3,8 +3,9 @@
 > 目标：一个**GPU 优先的 Web 视觉特效层** —— 3D、粒子、流体、折射、后处理、滚动叙事。
 > 不是组件库（不做 Button / Card），而是"让普通开发者几行代码做出 Apple 官网级别、甚至在粒子/流体规模上远超它的效果"。
 >
-> 状态：**M0 地基 + M1 液态玻璃已完成并跑通**（2026-09-26）。
-> 下文是完整规划；M2 及以后为待办。实现过程中与草案不同的决策记录在文末「实现记录」。
+> 状态：**M0 地基、M1 液态玻璃、M2 粒子引擎、M3 后处理、M4 DOM 桥与滚动叙事均已有可运行切片**（更新于 2026-09-30）。
+> 六个旗舰页已构建并部署上线，Playwright 语义验收在 headless Chromium 下 17 项通过；体积预算门禁与 CI 流水线已落地。
+> 下文是完整规划；M5 多框架与发布仍为待办。实现过程中与草案不同的决策记录在文末「实现记录」。
 
 ---
 
@@ -65,7 +66,7 @@
 
 | 用途 | 选择 | 备注 |
 |---|---|---|
-| 包管理 | pnpm workspaces | ⚠️ 当前环境未装 pnpm，需 `corepack enable pnpm`（Node 22 自带 corepack 0.34.6） |
+| 包管理 | pnpm workspaces | `packageManager` 已锁 `pnpm@12.6.0`；Node 22 自带 corepack，`corepack enable pnpm` 即可 |
 | 任务编排 | Turborepo | 缓存 build/test/lint |
 | 构建 | tsup（esbuild）→ 后续评估 rolldown | ESM-only + 类型，多入口 preserve structure 保证 tree-shaking |
 | 语言 | TypeScript strict，`.d.ts` 随包 | 面向用户的核心卖点之一：全类型 + JSDoc 悬浮提示 |
@@ -121,13 +122,14 @@
 
 ---
 
-## 3. 五个旗舰 Demo（对标 Apple，并在规模上超越）
+## 3. 六个旗舰 Demo（对标 Apple，并在规模上超越）
 
 1. **LiquidGlass Pro** —— 真·折射玻璃：屏幕空间折射 + 色散（RGB 分离）+ 厚度/边缘高光 + 粗糙度 + 环境反射；可"贴"到任意 DOM 元素上（不是 `backdrop-filter` 的近似）。
-2. **Aurora Flow** —— 百万粒子 + curl-noise 流场 + 鼠标涡旋 + 颜色生命周期；WebGPU 下 1M+ @60fps，WebGL2 自动降到 50–100k。
+2. **Aurora Flow** —— curl-noise 流场 + 鼠标涡旋 + 颜色生命周期；WebGPU 走 native compute，WebGL2 自动切 transform feedback。当前旗舰页跑固定 36k，`count: "auto"` 按后端分配 WebGPU 1M / WebGL2 80k——**1M @60fps 尚未在基准机实测，不作为已完成能力宣称**。
 3. **Glass Product Hero** —— PBR 产品展示 + 环境反射 + 完整后处理链（bloom/CA/DOF），滚动驱动拆解与相机路径。
-4. **Scroll Cinema** —— DOM 与 WebGL 同帧同步的滚动叙事：元素钉住、相机路径、MSDF 逐字揭示、分屏转场。
+4. **Scroll Cinema** —— DOM 与 WebGL 同帧同步的滚动叙事：元素钉住、相机路径、章节玻璃。MSDF 逐字揭示与分屏转场仍未做。
 5. **Cursor Field** —— 光标驱动粒子/流体拖尾 + 磁吸 UI + 悬停形变，做"交互手感"。
+6. **Wake** —— per-particle 短期位置历史 + 档位预算裁剪，不是跟着指针走的 ribbon。`intensity` 0.46。
 
 每个 Demo 同时是**文档站的一页 + 一个回归测试用例 + 一个性能基准**。
 
@@ -191,10 +193,12 @@
 - 世界物体跟随 DOM 槽位已落地（不是 element→texture）：`GlassLayer.worldAt` / `follow` 在 render 相位、相机更新之后、TAA jitter 之前把槽位中心解到世界坐标。`fit` 按槽位短边解距离，变焦不呼吸；`distance` 锁射线距离，推拉仍变大。挂锚的粒子在锚点之后 step，与透镜同一帧。不写 React state，粒子系统不因位移重建。Lumen 的空列和 Cinema 的空场都用它。`@ui-lib/dom` 的 HTML 快照、3D→DOM（Html bind）、图片转场仍未开始
 - **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用 — 仍待真机
 
-### M5 · 多框架与发布
+### M5 · 多框架与发布 🚧 工程门禁已就位
 - Vue / Svelte 适配、SSR examples（Next / Nuxt / SvelteKit）
 - 文档站完整化：配方库（Recipes）、参数面板、复制即用的代码片段
-- 性能预算自动化 + CHANGELOG + npm 发布 0.1.0
+- ✅ 体积预算自动化（`size-budget.json` + `pnpm size`，已并入 `pnpm verify`）
+- ✅ CI 流水线（`.github/workflows/ci.yml`：verify job + browser job）
+- 待办：Changesets 版本管理、CI browser matrix、npm provenance、CHANGELOG、发布 0.1.0
 - **验收**：三个框架各一个 example 可跑；`npm i @ui-lib/react` 后 5 行代码出效果
 
 ---
@@ -251,10 +255,7 @@
 6. **质量分级改变模糊采样数时需要重建材质**（tap 数是编译期常量，进到循环展开里）。
    层里已实现 `rebuildPanelMaterials()`，tier 变化会自动重建并沿用当前参数。
 
-7. **无法在本沙箱做浏览器验证**：Playwright 的浏览器 CDN 不可达，系统依赖也装不了
-   （`libnss3` 等）。因此验证手段是：TSL 图在 Node 侧**完整构建**的冒烟测试（能抓出拼错的
-   方法 / 错误的 swizzle / 参数个数错误）+ 全量 `tsc` + 单测 + 你在预览里看真实画面。
-   M2 开始时建议补上 Playwright 视觉回归（需要能装系统依赖的环境）。
+7. **浏览器验证已可用，但只到语义层。** 早期这个沙箱里 Playwright 的浏览器 CDN 不可达、系统依赖也装不了，所以验证只能靠 Node 侧 TSL 图构建冒烟 + 全量 `tsc` + 单测。现在 headless Chromium 已装好，`pnpm test:e2e` 17 项通过，覆盖六个页面的降级与 GPU 路由、滚动轨道、section pin、reduced motion 与 context loss 恢复。但仓库里**没有截图 baseline**，文件里也**没有** `toHaveScreenshot`——它证明的是 DOM、降级路径和生命周期契约，不是真机像素。真机 WebGPU / WebGL2 截图矩阵与 FPS 结论仍待有 GPU 的机器。
 
 8. **M2 粒子不再另开 renderer。** `@ui-lib/particles` 只负责 GPU 状态、compute kernel
    和 sprite material；`GlassLayer.addParticles()` 把它挂到同一个 renderer / scheduler / canvas，

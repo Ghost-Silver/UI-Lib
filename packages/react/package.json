@@ -3,6 +3,28 @@
 	"version": "0.0.1",
 	"description": "React bindings for UI-Lib: a glass stage plus declarative, progressively-enhanced effect components.",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ghost-Silver/UI-Lib.git",
+		"directory": "packages/react"
+	},
+	"homepage": "https://github.com/Ghost-Silver/UI-Lib#readme",
+	"bugs": {
+		"url": "https://github.com/Ghost-Silver/UI-Lib/issues"
+	},
+	"keywords": [
+		"ui",
+		"ui-lib",
+		"react",
+		"gpu",
+		"webgpu",
+		"webgl",
+		"three",
+		"glass"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"main": "./dist/index.js",

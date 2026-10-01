@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same ref makes the older run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: build · typecheck · test · size · lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # Must match `packageManager` in the root package.json.
+          version: 12.6.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Packages resolve each other through `dist/`, so nothing that touches a
+      # cross-package import can run before the build.
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm exec vitest run
+
+      - name: Size budget
+        run: pnpm size
+
+      - name: Lint
+        run: pnpm lint
+
+  browser:
+    name: browser acceptance (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The docs playground aliases every `@ui-lib/*` import to workspace
+      # source, but the build still runs first so the job does not depend on
+      # that aliasing staying complete.
+      - name: Build
+        run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Acceptance suite
+        run: pnpm test:e2e
+
+# What this workflow deliberately does NOT gate on:
+#
+#   * Real-GPU pixels. The acceptance spec is semantic — there is no
+#     `toHaveScreenshot` anywhere in the repo — so it proves the DOM, the
+#     fallback route and the lifecycle contract, not what Metal or a discrete
+#     GPU actually draws. Screenshot baselines need a GPU-bucketed matrix and
+#     are tracked in docs/ROADMAP.md under P0.
+#   * FPS, dropped frames and VRAM. Those need real devices.

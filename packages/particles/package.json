@@ -3,6 +3,28 @@
 	"version": "0.0.1",
 	"description": "GPU particle engine for UI-Lib: compute-shader simulation, force fields and instanced sprite rendering.",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ghost-Silver/UI-Lib.git",
+		"directory": "packages/particles"
+	},
+	"homepage": "https://github.com/Ghost-Silver/UI-Lib#readme",
+	"bugs": {
+		"url": "https://github.com/Ghost-Silver/UI-Lib/issues"
+	},
+	"keywords": [
+		"ui",
+		"ui-lib",
+		"gpu",
+		"particles",
+		"compute",
+		"webgpu",
+		"webgl",
+		"three"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"main": "./dist/index.js",

@@ -10,5 +10,13 @@ test-results/
 .env.local
 .vite/
 
+# tsup bundles each tsup.config.ts to a sibling temp file and leaves it behind
+# after the build. Left unignored it breaks `pnpm lint` and gets committed.
+tsup.config.bundled_*.mjs
+
 # Real-device telemetry scratch (see apps/docs/vite.config.ts)
 .diag/
+
+# pnpm leaves zero-byte `_tmp_<pid>_<hash>` markers at the workspace root when a
+# recursive run is interrupted. They are not part of the project.
+_tmp_*

@@ -3,6 +3,27 @@
 	"version": "0.0.1",
 	"description": "Framework-agnostic motion for UI-Lib: scroll progress, beats and tracks on the shared frame clock.",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ghost-Silver/UI-Lib.git",
+		"directory": "packages/motion"
+	},
+	"homepage": "https://github.com/Ghost-Silver/UI-Lib#readme",
+	"bugs": {
+		"url": "https://github.com/Ghost-Silver/UI-Lib/issues"
+	},
+	"keywords": [
+		"ui",
+		"ui-lib",
+		"scroll",
+		"motion",
+		"animation",
+		"scroll-linked",
+		"reveal"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
 	"sideEffects": false,
 	"main": "./dist/index.js",
