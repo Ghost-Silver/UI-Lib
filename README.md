@@ -4,7 +4,7 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面。
+> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面——真机画面已经有了第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），而它立刻暴露出两个缺陷：**强制 WebGL2 回退路径当前是坏的**，WebGPU 下 post 的时间性链路没有真正生效。细节见[真机基线](#真机基线)。
 
 [在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
 
@@ -57,7 +57,10 @@ pnpm lint
 
 Liquid Glass Pro 已经是旗舰页。还没做的是：
 
-1. 真机 WebGPU / WebGL2 截图基线、FPS 和掉帧。浏览器装得上、语义验收跑得通，缺的是按 GPU 分桶的截图矩阵——软件渲染出来的 PNG 不能冒充 Metal 上的画面。没有这些数字，不写性能结论。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。1M @ 60fps 仍然没测。
+1. 修掉真机基线暴露的两个缺陷。按优先级：
+   - **强制 WebGL2 回退路径每帧抛异常、画面不完整**（P0）。`packages/post` 的 `captureDepth()` 把世界深度拷进一个裸 `DepthTexture`；three 的 WebGL 后端把这条拷贝实现为两个 render target 的 framebuffer 之间的 blit，裸纹理没有 framebuffer，于是 `WeakMap.set(undefined, …)` 抛错。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态，此后每一帧都画进离屏目标，同时 `reportStats()` 被跳过。DOM 文字和玻璃面板正常，背后的世界整块变黑。
+   - **WebGPU 下 post 的时间性链路没有真正生效**（P1）。`commit()` 把 canvas 格式的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标；three 在格式不匹配时只警告并返回，随后 `historyValid` 仍被置 1。**这也意味着已测到的 120 fps 是上限而不是典型值。**
+2. 1M @ 60fps 仍然没测。旗舰页跑的是固定 36k（Aurora Flow）与 9k（Wake），不是 `count: "auto"` 的百万级配置。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。
 
 先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
 
@@ -132,9 +135,9 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 
 下面这些仍然是待完成项，而不是 README 中的营销承诺：
 
-- 真机 WebGPU / WebGL2 视觉回归基线
-- 跨浏览器 FPS、掉帧和交互延迟门禁
-- 真实 GPU VRAM 统计与 device-specific benchmark
+- 真机 **WebGL2** 视觉回归基线（WebGPU 侧已有第一份记录，但回退路径本身坏了，那一组数字已作废）
+- 跨浏览器 FPS、掉帧和交互延迟门禁（只有本机 Chromium 一个数据点）
+- 真实 GPU VRAM 统计与 device-specific benchmark（只有一个 GPU bucket）
 - 变形粒子场的 world-only per-pixel velocity MRT（刚体相机重投影已有，不是完整速度缓冲）
 - 可复用的真正 multi-pass bloom pyramid
 - 自定义 post-pass 插槽
@@ -181,6 +184,8 @@ pnpm test:e2e
 ```
 
 `pnpm test:e2e` 已在 headless Chromium 上跑通 17 项，覆盖六个 demo 的降级与 GPU 路由、滚动轨道、section pin、reduced motion 和 context loss 恢复。它仍然是**语义**验收而不是像素门禁——仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约。WebGPU device profile 和实际 FPS 结论必须在有真实 GPU 的机器上生成。
+
+它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常**。强制 WebGL2 的页面当前每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。详见[真机基线](#3-真机基线)。
 
 ## React 用法
 
@@ -367,14 +372,31 @@ if (card) {
 - fallback 状态下没有 canvas
 - stage、backend、FPS、dropped frames 等数据属性
 
-仓库里**没有**截图基线，测试文件里也**没有** `toHaveScreenshot`。缺基线的断言会让下一次 `pnpm test:e2e` 必失败，却又保护不了像素，所以先拿掉。`pnpm test:e2e` 因此不是视觉门禁。真机 GPU 像素、FPS 和设备矩阵仍未验证。要补基线，得在能装浏览器的机器上把断言和 PNG 同一次加回来：
+仓库里**没有**截图基线，测试文件里也**没有** `toHaveScreenshot`。缺基线的断言会让下一次 `pnpm test:e2e` 必失败，却又保护不了像素，所以先拿掉。`pnpm test:e2e` 因此不是视觉门禁。跨浏览器像素、FPS 和设备矩阵仍未验证。要补基线，得在能装浏览器的机器上把断言和 PNG 同一次加回来：
 
 ```bash
 pnpm exec playwright install chromium
 pnpm test:e2e:update
 ```
 
-### 3. FPS 与掉帧统计
+### 3. 真机基线
+
+真机测量不进 CI，也不该进：CI 是 headless 的，macOS 上 headless Chromium 会回退到 SwiftShader，那描述的是软件光栅化器，不是用户的机器。
+
+```bash
+pnpm build
+pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 5173 --strictPort
+node scripts/measure-device.mjs --dpr 1
+node scripts/measure-device.mjs --dpr 2
+```
+
+结果写到 `reports/device/<gpu-bucket>-dpr<N>/`（`measurement.json` + `measurement.md` + 六张 PNG），并按 GPU 分桶。`reports/` 不入库——那些数字描述的是某一台机器，不是这个项目。已跑过的记录整理在 [`docs/benchmarks`](docs/benchmarks/README.md)。
+
+帧间隔由脚本自己的 `rAF` 循环在页面内采样，**不读运行时自己的计数器**。运行时的计数单独记录，两者刻意分开：`droppedFrames` 的定义是 `expectedFrames = max(1, round(raw × 60))`，按固定 60 Hz 预算累计，是累计值而不是掉帧率，只应看窗口内的增量。
+
+按现有数据，**可以当基线的只有 `p50` 和"是否出现 16.7 ms 台阶"**；`max` 与 `>16.7ms` 计数在两次运行之间可以差一倍以上，不适合做门禁。
+
+### 4. FPS 与掉帧统计
 
 `FrameScheduler` 会记录：
 
@@ -384,7 +406,9 @@ pnpm test:e2e:update
 
 `GlassLayerStats` 和 React stage DOM 属性会暴露这些数据，便于浏览器测试或应用自己的 telemetry 使用。统计是运行时观测数据，不是预先写死的性能承诺。
 
-### 4. 资源释放诊断
+属性清单（都在 `[data-ui-lib-stage]` 上）：`data-ui-lib-stage`、`data-ui-lib-mode`、`data-ui-lib-backend`、`data-ui-lib-tier`、`data-ui-lib-fps`、`data-ui-lib-dropped-frames`、`data-ui-lib-long-frames`、`data-ui-lib-resource-count`。它们由 `onStats` 每 0.25 s 推一次——**帧回调一旦抛异常，这些属性会集体为空**，这是判断降级路径是否健康的第一个信号。
+
+### 5. 资源释放诊断
 
 `@ui-lib/core` 提供逻辑资源登记表：
 
@@ -407,13 +431,13 @@ renderer · layer · backdrop · panel · particle-system · world-object · pos
 
 这不是浏览器 VRAM 计数器。浏览器没有跨后端、跨驱动的通用 VRAM API；它用于在 mount/unmount 50 次、路由切换和 StrictMode 场景中验证 UI-Lib 是否还持有逻辑资源引用。Three.js backend 的真实显存仍需要浏览器开发工具或 GPU profiling 工具验证。
 
-### 5. Device/context loss
+### 6. Device/context loss
 
 renderer 会监听 Three.js 的 WebGPU device loss / WebGL context loss，并通过 `GlassStage` 触发 layer 重建。重建时 React children 重新绑定到新的 layer；第一次恢复尝试会切换到 WebGL2，避免持续使用已经失效的 WebGPU device。
 
 这条路径仍需要在真实浏览器中注入 device loss、context loss 和恢复事件进行最终验收。
 
-### 6. SSR / hydration smoke test
+### 7. SSR / hydration smoke test
 
 [`packages/react/test/ssr.test.ts`](packages/react/test/ssr.test.ts) 使用 `react-dom/server` 验证：
 
@@ -480,6 +504,8 @@ input → GPU compute → DOM/state update → backdrop → particles → glass 
 
 最终 backend 取决于浏览器、操作系统、驱动、设备策略和 context 是否可创建。UI-Lib 不会在没有运行 browser matrix 的情况下写死浏览器版本承诺。
 
+> **第 2 条当前是坏的。** 强制 WebGL2 时 `postProcessing.captureDepth()` 每帧抛 `TypeError`，render target 停在离屏目标上，DOM 与玻璃面板正常但背后的世界整块变黑，运行时统计属性集体为空。原因与复现见 [`docs/benchmarks`](docs/benchmarks/2026-10-01-apple-m3-pro.md)。修好之前，请把 WebGL2 当作"能创建 context、但画不出完整画面"的路径。
+
 ### 质量等级
 
 后处理采样数和昂贵 graph 分支通过编译期预算选择：
@@ -515,7 +541,8 @@ UI-Lib 以约束而不是营销数字为中心：
 - 静态场景避免重复 redraw 与 history copy；
 - 低 tier 限制 DPR、粒子计算和 post graph 复杂度；
 - 所有自有 GPU 资源都有明确 disposal 路径；
-- 性能结论必须来自真实浏览器和真实设备测量。
+- 性能结论必须来自真实浏览器和真实设备测量；
+- 测量要能被复现，所以测量脚本与它的原始输出一起入库。
 
 ## 路线图
 
@@ -527,8 +554,12 @@ UI-Lib 以约束而不是营销数字为中心：
 - [x] 逻辑资源 registry 与 dispose 断言基础
 - [x] WebGPU/WebGL2 loss 通知与 React stage 重建入口
 - [x] React SSR smoke test
-- [ ] 在真实 WebGPU/WebGL2 浏览器生成 screenshot baseline
-- [ ] GPU 设备矩阵、真实 FPS 与 GPU memory profiling
+- [x] 真机帧节奏测量脚本与第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)）
+- [ ] 修掉强制 WebGL2 回退路径每帧抛异常、画面不完整的问题
+- [ ] 修掉 WebGPU 下 post 时间性链路的格式不匹配与 `historyValid` 误报
+- [ ] 真机 WebGL2 帧节奏与像素基线（回退路径修好后重测）
+- [ ] 跨浏览器 screenshot baseline
+- [ ] GPU 设备矩阵、1M 粒子 FPS 与 GPU memory profiling
 - [ ] device lost / context lost 的真实注入与恢复回归
 
 ### P1：提高视觉上限
@@ -602,6 +633,7 @@ pnpm lint             # Biome check
 pnpm build            # 包构建
 pnpm test:e2e         # Playwright 浏览器验收（headless Chromium）
 pnpm test:e2e:update  # 更新视觉 baseline
+pnpm measure          # 真机帧节奏测量（需要真实 GPU；脚本不会启停服务器）
 ```
 
 当前仓库仍处在 experimental monorepo 阶段。第一个 stable release 之前，公开 API 可能发生变化；依赖规划中或 experimental 标记的能力前，请先查看 [`docs/ROADMAP.md`](docs/ROADMAP.md)。

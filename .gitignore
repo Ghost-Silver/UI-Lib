@@ -17,6 +17,10 @@ tsup.config.bundled_*.mjs
 # Real-device telemetry scratch (see apps/docs/vite.config.ts)
 .diag/
 
+# Real-device measurement output: one directory per GPU bucket. Kept out of
+# the tree because the numbers describe one machine, not the project.
+reports/
+
 # pnpm leaves zero-byte `_tmp_<pid>_<hash>` markers at the workspace root when a
 # recursive run is interrupted. They are not part of the project.
 _tmp_*

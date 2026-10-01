@@ -3,8 +3,9 @@
 > 目标：一个**GPU 优先的 Web 视觉特效层** —— 3D、粒子、流体、折射、后处理、滚动叙事。
 > 不是组件库（不做 Button / Card），而是"让普通开发者几行代码做出 Apple 官网级别、甚至在粒子/流体规模上远超它的效果"。
 >
-> 状态：**M0 地基、M1 液态玻璃、M2 粒子引擎、M3 后处理、M4 DOM 桥与滚动叙事均已有可运行切片**（更新于 2026-09-30）。
+> 状态：**M0 地基、M1 液态玻璃、M2 粒子引擎、M3 后处理、M4 DOM 桥与滚动叙事均已有可运行切片**（更新于 2026-10-01）。
 > 六个旗舰页已构建并部署上线，Playwright 语义验收在 headless Chromium 下 17 项通过；体积预算门禁与 CI 流水线已落地。
+> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了两个缺陷**：强制 WebGL2 回退路径每帧抛异常、画面不完整；WebGPU 下 post 的时间性链路格式不匹配、`historyValid` 误报。两者都在 P0 待修。
 > 下文是完整规划；M5 多框架与发布仍为待办。实现过程中与草案不同的决策记录在文末「实现记录」。
 
 ---
@@ -71,7 +72,7 @@
 | 构建 | tsup（esbuild）→ 后续评估 rolldown | ESM-only + 类型，多入口 preserve structure 保证 tree-shaking |
 | 语言 | TypeScript strict，`.d.ts` 随包 | 面向用户的核心卖点之一：全类型 + JSDoc 悬浮提示 |
 | 文档站 | Vite + 自研 Playground | 每个效果一个"可调参数 + 实时预览 + 一键复制代码"的页面，胜过 Storybook 的静态展示 |
-| 测试 | Vitest（单元/数学/shader 编译快照）+ Playwright（视觉回归 + FPS/掉帧断言 + 交互） | 视觉回归基线按 GPU/后端分档 |
+| 测试 | Vitest（单元/数学/shader 编译快照）+ Playwright（语义 + 交互 + FPS/掉帧属性断言）+ 真机测量脚本（`scripts/measure-device.mjs`，不进 CI） | 视觉回归基线按 GPU/后端分档；真机数字按 GPU 分桶记录在 `docs/benchmarks/` |
 | 质量门禁 | size-limit（每包体积上限）+ bundle 分析 + CI 全绿 | 特效库最怕"为了一个玻璃效果拖进 600KB" |
 | 发布 | Changesets + npm provenance | 语义化版本、自动 changelog |
 | 代码风格 | Biome（format + lint） | 比 eslint+prettier 快一个量级 |
@@ -149,6 +150,8 @@
 | 包体积失控 | 每个效果独立入口 + `sideEffects: false`；size-limit 卡在每包 gz 上限；three 与适配层全部 peer/optional |
 | 可访问性 | `prefers-reduced-motion` → 静态终态；DOM 语义与焦点顺序不受 canvas 影响；所有装饰性 canvas `aria-hidden` |
 | 视觉回归不稳定 | 按 (OS, GPU 后端, 浏览器) 分桶存基线；允许像素阈值 + 只比对关键帧；提供 `--update-baseline` |
+| 语义测试抓不到渲染故障 | 帧回调抛异常不影响 DOM 断言——强制 WebGL2 每帧抛 `TypeError` 而 17 项全绿的实例已在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md) 记录。用例必须额外断言 `pageerror` 为空、`data-ui-lib-backend` 是真实后端、以及 render target 在帧末已解绑 |
+| 真机数字不可复现 | 帧间隔由测量脚本自己的 rAF 循环采样，不读运行时计数器；只把 `p50` 与"是否出现 16.7 ms 台阶"当基线，`max` 与超标帧计数不入门禁 |
 
 ---
 
@@ -191,7 +194,18 @@
 - Demo **Liquid Glass Pro** 已从验收壳换成旗舰页（`/?demo=liquid-glass`）：同一个 section pin，三块命名玻璃贴在真实 DOM 上，后面一张套准纸作为世界物体走过。不是 element-to-texture，页面不传 cubemap。`GLASS_LOOKS.press` / `milk` 只加档位，不改已有 look 的静止亮度。
 - `GlassLayer.createLensMaterial()` + `addWorldObject(..., { refractive: true })`，React 侧是 `<Lens />` 与 `<Optics />`。粒子 `depth="inside"` 只进入透镜拷贝，不盖住页面；`depth="front"` 在透镜之后绘制并做深度测试。光学常数在 `LENS_LOOKS` / `FIELD_LOOKS` / `GLASS_LOOKS`，页面不再抄一墙数字。Cinema 默认 `look="cinema"` + `crystal`，把高光压进肩部；`optic=flare` 仍是原来的热光学。透镜与 Lumen 共用一张工作室探针，Cinema 的 `environment` 更低。DOM 玻璃走同一张探针：`GLASS_LOOKS` 定强度，文字面比 bevel 弱。
 - 世界物体跟随 DOM 槽位已落地（不是 element→texture）：`GlassLayer.worldAt` / `follow` 在 render 相位、相机更新之后、TAA jitter 之前把槽位中心解到世界坐标。`fit` 按槽位短边解距离，变焦不呼吸；`distance` 锁射线距离，推拉仍变大。挂锚的粒子在锚点之后 step，与透镜同一帧。不写 React state，粒子系统不因位移重建。Lumen 的空列和 Cinema 的空场都用它。`@ui-lib/dom` 的 HTML 快照、3D→DOM（Html bind）、图片转场仍未开始
-- **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用 — 仍待真机
+- **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用。真机帧节奏已有第一份数据（DPR 1 六页全部锁 120 fps；DPR 2 中位帧间隔 8.3–8.5 ms，偶发 16.8 ms 台阶），像素对齐与键盘/读屏断言仍待补
+
+### M6 · 修掉真机基线暴露的两个缺陷 🔴 P0
+
+真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了两个既有缺陷，都不被现有测试覆盖：
+
+1. **强制 WebGL2 回退路径每帧抛异常、画面不完整。** `packages/post/src/postProcessing.ts` 的 `captureDepth()` 把世界深度拷进 `new DepthTexture(1, 1)`——一个没有挂在任何 render target 上的裸深度纹理。three 的 WebGL 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，裸纹理的 `renderTarget` 是 `undefined`，`backend.get(undefined)` 触发 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态：此后每帧都画进离屏目标，背后世界整块变黑，`reportStats()` 被跳过导致所有观测属性为空。WebGPU 后端的 `copyTextureToTexture` 是真正的纹理对纹理拷贝，不需要 framebuffer，所以只有 WebGL2 炸。
+   **待决**：是给 history 深度纹理配一个 render target（保住 disocclusion），还是让 WebGL2 明确跳过深度历史（放弃 disocclusion）。前者更完整，后者更小。
+2. **WebGPU 下 post 的时间性链路没有真正生效。** `commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回，不做拷贝，随后 `historyValid` 仍被置 1。同一路由下另有一个 render pipeline 因 Tint 编译器错误（`swizzle view instruction still has usages after lowering`）编译失败。
+   **待决**：history 纹理应当采用渲染目标的格式，还是让 `commit()` 在格式不匹配时不声明有效历史。
+
+- **验收**：强制 WebGL2 的页面零 `pageerror`、`data-ui-lib-backend` 为 `webgl2`、背景世界可见；WebGPU 控制台无 `copyFramebufferToTexture` 警告；两条路径都能给出 `docs/benchmarks/` 记录
 
 ### M5 · 多框架与发布 🚧 工程门禁已就位
 - Vue / Svelte 适配、SSR examples（Next / Nuxt / SvelteKit）
@@ -290,4 +304,8 @@
 
 14. **首页粒子和 Cinema 章节是结构问题，不是再调亮度。** 首页云的 `boundsCenter` 在标题右侧，曝光下调。Cinema 章节窗口重叠到最亮权重始终 ≥ 0.6；0.02 的重叠配 0.07 的 fade 仍然会空。Lumen / Cursor Field / Aurora 的静止亮度没动。
 
-15. **粒子预算是前缀，不是重建。** `resolveParticleLod` 把作者数量当上限，档位预算和隐藏的 stage 只降低 `active`。`count: "auto"` 按当前预算分配，不再无条件要 1M。历史轨迹默认关闭：`trail.length` 才分配每粒子的样本环，最新一段每帧拉伸，stride 才落下一笔。这不是 Cursor Field 的指针 ribbon。Wake（`/?demo=wake`）用它。没有在这台机器上测 1M @ 60fps。
+15. **粒子预算是前缀，不是重建。** `resolveParticleLod` 把作者数量当上限，档位预算和隐藏的 stage 只降低 `active`。`count: "auto"` 按当前预算分配，不再无条件要 1M。历史轨迹默认关闭：`trail.length` 才分配每粒子的样本环，最新一段每帧拉伸，stride 才落下一笔。这不是 Cursor Field 的指针 ribbon。Wake（`/?demo=wake`）用它。旗舰页跑的是固定 36k 与 9k，不是 `count: "auto"` 的百万级配置——1M @ 60fps 仍未测。
+
+16. **第 13 条只修了 WebGPU，把 WebGL2 修坏了。** 那条把历史深度从 `copyFramebufferToTexture` 换成 `copyTextureToTexture(worldDepth, historyDepth)`，在 WebGPU 上成立——那边的 `copyTextureToTexture` 是真正的纹理对纹理拷贝。但 three 的 **WebGL** 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，而 `historyDepth` 是一个 `new DepthTexture(1, 1)`，没有 render target，`renderTarget` 为 `undefined`，`backend.get(undefined)` 让 `WeakMap.set` 抛 `TypeError`。更糟的是抛出点夹在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 停在离屏目标上，之后每帧都画不出去，`reportStats()` 也永远执行不到。
+
+    教训不是"不要用 `copyTextureToTexture`"，而是**两条后端路径必须分别验证**：这条改动只在 WebGPU 上跑过，而当时的验收用例只断言 DOM 语义，帧回调抛异常不影响任何断言。真机测量脚本在两条路径上都抓到了它。同一轮测量还发现 WebGPU 自己的 `commit()` 仍在走第 13 条已经记为失败的 `copyFramebufferToTexture` 路径，并在拷贝被拒绝后把 `historyValid` 置 1。

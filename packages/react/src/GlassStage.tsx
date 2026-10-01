@@ -212,8 +212,10 @@ export function GlassStage({
 				data-ui-lib-stage={status}
 				data-ui-lib-mode={mode}
 				data-ui-lib-backend={stats?.backend ?? "unknown"}
+				data-ui-lib-tier={stats?.tier ?? ""}
 				data-ui-lib-fps={stats?.fps ?? ""}
 				data-ui-lib-dropped-frames={stats?.droppedFrames ?? ""}
+				data-ui-lib-long-frames={stats?.longFrames ?? ""}
 				data-ui-lib-resource-count={stats?.resources.total ?? ""}
 				className={className}
 				style={{
