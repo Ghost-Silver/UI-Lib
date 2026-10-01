@@ -64,14 +64,20 @@ export async function magicText(
 	sharedGlassLayer!.addParticles(system, { depth: "front" });
 	activeSystems.push(system);
 
-	// In a complete implementation, this would also include an IntersectionObserver or
-	// ResizeObserver to automatically sync `system.setStir` / `boundsCenter` / etc.
-	// with the element's DOM bounding rect client coordinates.
-	// For this skeleton, we provide the imperative API structure and a dispose hook.
+	// Hook the element to automatically update the particle's attractor/emitter on each frame
+	const anchorDisposer = sharedGlassLayer!.follow(
+		_element,
+		(point) => {
+			system.setAttractor(point[0], point[1], point[2]);
+			system.update({ emitter: { position: [point[0], point[1], point[2]] } });
+		},
+		{ plane: 0 },
+	);
 
 	return {
 		system,
 		dispose: () => {
+			anchorDisposer.dispose();
 			system.dispose();
 			const idx = activeSystems.indexOf(system);
 			if (idx > -1) activeSystems.splice(idx, 1);
