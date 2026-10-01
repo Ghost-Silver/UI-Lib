@@ -26,11 +26,9 @@ import {
 } from "three/tsl";
 import {
 	DepthTexture,
-	FramebufferTexture,
 	Matrix4,
 	type Node,
 	RenderTarget,
-	SRGBColorSpace,
 	type Texture,
 	Vector2,
 	type WebGPURenderer,
@@ -39,7 +37,6 @@ import {
 	alignDepthHistory,
 	assertDepthHistoryFormats,
 	depthHistoryCompatible,
-	framebufferCopyWouldFail,
 	readGpuTextureFormat,
 } from "./depthCopy.js";
 
@@ -95,6 +92,16 @@ export interface PostProcessingOptions {
 	 * samples the canvas depth attachment instead.
 	 */
 	depthTexture?: Texture | null;
+	/**
+	 * The pre-post composite the chain samples, and the texture `commit()`
+	 * copies into the temporal history.
+	 *
+	 * Pass the layer's own composite target. The `viewportTexture()` fallback
+	 * reads back whatever framebuffer three has bound, which is both a
+	 * read-after-write on the canvas and a copy whose source is whichever
+	 * render context three happened to leave current.
+	 */
+	sourceTexture?: Texture | null;
 	/** Normalised linear depth at the focus plane. */
 	focusDepth?: number;
 	/** Screen-space focus blur radius in device pixels. 0 disables the DOF approximation. */
@@ -131,6 +138,7 @@ export const POST_DEFAULTS: Required<PostProcessingOptions> = {
 	worldVelocity: [0, 0],
 	cameraMotionBlur: false,
 	depthTexture: null,
+	sourceTexture: null,
 	focusDepth: 0.62,
 	focusBlur: 2.5,
 	focusPoint: [0.5, 0.5],
@@ -269,10 +277,11 @@ const TAA_NEIGHBOUR_OFFSETS: readonly [number, number][] = [
 /**
  * Build a small, composable post chain from TSL nodes.
  *
- * The input is the current canvas framebuffer (`viewportTexture`), not a
- * second scene render. That means this chain can be appended after UI-Lib's
- * backdrop → particles → glass sequence while keeping one canvas and one
- * renderer. A single graph emits WGSL or GLSL through three's backend.
+ * The input is the layer's own pre-post composite (`sourceTexture`), so the
+ * chain can be appended after UI-Lib's backdrop → particles → glass sequence
+ * while keeping one canvas and one renderer. The `viewportTexture()` fallback
+ * exists for callers that have no composite target of their own. A single
+ * graph emits WGSL or GLSL through three's backend.
  */
 export function createPostProcessing(options: PostProcessingOptions = {}): PostProcessing {
 	const initial = mergeDefined(POST_DEFAULTS, options);
@@ -313,9 +322,26 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		resolution: uniform(new Vector2(1, 1)),
 		time: uniform(0),
 	};
-	const historyTexture = new FramebufferTexture(1, 1);
-	historyTexture.colorSpace = SRGBColorSpace;
+	const compositeTexture = initial.sourceTexture ?? null;
+	// The temporal history is our own colour target rather than a framebuffer
+	// texture sized to the canvas. `commit()` copies the composite into it with
+	// `copyTextureToTexture`, and two textures we both allocate match formats by
+	// construction -- unlike `copyFramebufferToTexture`, whose source is
+	// whichever render context three left current (an internal post target, not
+	// the canvas, once the chain is bound to its own composite).
+	const historyTarget = new RenderTarget(1, 1, {
+		depthBuffer: false,
+		stencilBuffer: false,
+	});
+	const historyTexture = historyTarget.texture;
 	historyTexture.name = "ui-lib:post-history";
+	if (compositeTexture !== null) {
+		// Mirror the source so the GPU copy is format-identical. Set before the
+		// target is ever used, so no GPU texture exists to invalidate.
+		historyTexture.format = compositeTexture.format;
+		historyTexture.type = compositeTexture.type;
+		historyTexture.colorSpace = compositeTexture.colorSpace;
+	}
 	const historyDepthTexture = new DepthTexture(1, 1);
 	historyDepthTexture.name = "ui-lib:post-depth-history";
 	// three's WebGL backend implements a depth-texture copy as a `blitFramebuffer`
@@ -336,16 +362,114 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	let historyHostSize = { width: 0, height: 0 };
 	let jitterIndex = 0;
 
-	const source = viewportTexture();
-	const uv = screenUV;
+	// Texture space is bottom-up: three stores render-target textures in the GL
+	// convention, while `screenUV` counts from the top. Sampling our own targets
+	// with `screenUV` renders the entire chain upside down, so V is flipped once
+	// here and every texture read below uses this space.
+	const uv = vec2(screenUV.x, oneMinus(screenUV.y));
+	// The fallback source is a copy of the bound framebuffer, which *is*
+	// screen-oriented, so it keeps reading with the screen uv.
+	const source = compositeTexture !== null ? texture(compositeTexture, uv) : viewportTexture();
+	const sourceUv: Node<"vec2"> = compositeTexture !== null ? uv : screenUV;
 	const depthTexture = options.depthTexture ?? null;
 	const depthNode = depthTexture ? texture(depthTexture, uv) : viewportDepthTexture(uv);
 	const invViewProjection = uniform(new Matrix4());
 	const previousViewProjection = uniform(new Matrix4());
 	const sample = (offset: Node<"vec2"> = vec2(0, 0) as Node<"vec2">) =>
-		source.sample(uv.add(offset));
+		source.sample(sourceUv.add(offset));
 	const baseSample = sample();
-	const base = baseSample.rgb;
+
+	// Depth comes from the offscreen world target when the layer provides one.
+	// The canvas depth attachment is only the present-quad, so it cannot mask
+	// the hero. Linearise with the perspective camera that drew that target.
+	const lineariseDepth = (depth: Node<"float">): Node<"float"> =>
+		viewZToOrthographicDepth(
+			perspectiveDepthToViewZ(depth, uniforms.depthRange.x, uniforms.depthRange.y),
+			uniforms.depthRange.x,
+			uniforms.depthRange.y,
+		);
+	const depthRaw = depthNode.r;
+	const sceneDepth = lineariseDepth(depthRaw);
+	// Far-plane fragments are backdrop. Only closer, depth-written world pixels
+	// may reproject or take camera motion blur. DOM glass is not in this target.
+	const worldDepthMask = oneMinus(smoothstep(0.92, 0.998, sceneDepth));
+	// Same unproject / reproject as `reprojectionVelocity()`: bottom-left uv,
+	// window-Z depth, column-major view-projection. Inverse is supplied by the
+	// CPU. velocityValid stays 0 until the first matrix pair arrives.
+	const clip = vec4(uv.x.mul(2).sub(1), uv.y.mul(2).sub(1), depthRaw.mul(2).sub(1), 1);
+	const worldH = invViewProjection.mul(clip);
+	const world = worldH.div(worldH.w);
+	const prevH = previousViewProjection.mul(vec4(world.xyz, 1));
+	const prevW = prevH.w;
+	const prevUvX = prevH.x.div(prevW).mul(0.5).add(0.5);
+	const prevUvY = prevH.y.div(prevW).mul(0.5).add(0.5);
+	const pixelVelocity = vec2(uv.x.sub(prevUvX), uv.y.sub(prevUvY)).mul(uniforms.resolution);
+	const velocity = mix(uniforms.worldVelocity, pixelVelocity, uniforms.velocityValid);
+
+	// Temporal resolve, *before* the effects. The history is a copy of the
+	// pre-post composite, so the current sample and the history are the same
+	// quantity and can be averaged. Resolving after the effects instead would
+	// blend post-processed values (grain included) against raw ones and cancel
+	// most of the chain at the default 0.88 feedback.
+	//
+	// `temporalJitter` is the previous-minus-current Halton offset and
+	// `velocity` is current-minus-previous motion, both in device pixels.
+	// Reproject only depth-backed world fragments; DOM glass and the backdrop
+	// stay on their stable screen positions.
+	const historyOffset = uniforms.temporalJitter.sub(velocity);
+	const historyUv = uv.add(historyOffset.div(uniforms.resolution).mul(worldDepthMask));
+	const historySample = texture(historyTexture, historyUv);
+	const historyDepth = lineariseDepth(texture(historyDepthTexture, historyUv).r);
+	// Depth history is a copy of the world depth texture, not the present-quad,
+	// so a moving object cannot borrow colour from a newly exposed background.
+	const depthDifference = abs(historyDepth.sub(sceneDepth));
+	const depthAgreement = oneMinus(smoothstep(0.0015, 0.035, depthDifference));
+	const depthConfidence = mix(float(1), depthAgreement, worldDepthMask);
+
+	// Variance clipping: clamp the history into the current frame's 3x3
+	// neighbourhood distribution before it is allowed to contribute.
+	let moment1: Node<"vec3"> = baseSample.rgb;
+	let moment2: Node<"vec3"> = baseSample.rgb.pow(2);
+	for (const [x, y] of taaNeighbourOffsets) {
+		const neighbour = sample(vec2(x, y).div(uniforms.resolution)).rgb;
+		moment1 = moment1.add(neighbour);
+		moment2 = moment2.add(neighbour.pow(2));
+	}
+	const sampleCount = taaNeighbourOffsets.length + 1;
+	const mean = moment1.div(sampleCount);
+	const standardDeviation = moment2.div(sampleCount).sub(mean.pow(2)).max(0).sqrt();
+	const motionFactor = saturate(historyOffset.length().div(64));
+	const varianceGamma = mix(float(1.5), float(0.75), motionFactor);
+	const varianceMin = mean.sub(standardDeviation.mul(varianceGamma));
+	const varianceMax = mean.add(standardDeviation.mul(varianceGamma));
+	const clampedHistory = min(max(historySample.rgb, varianceMin), varianceMax);
+
+	// Keep history UVs inside the valid texture domain. This also handles the
+	// first frame after a camera movement where reprojection reaches an edge.
+	const historyBorder = min(
+		min(historyUv.x, historyUv.y),
+		min(oneMinus(historyUv.x), oneMinus(historyUv.y)),
+	);
+	const uvConfidence = smoothstep(0, 0.015, historyBorder);
+	const luminanceDelta = abs(luminance(clampedHistory).sub(luminance(baseSample.rgb)));
+	const rejection = oneMinus(saturate(luminanceDelta.mul(4)));
+	const reactiveFactor = mix(float(1), rejection, saturate(uniforms.temporalReactive));
+	// Pixels without world depth cannot be reprojected. If any tracked object is
+	// moving, drop their history instead of shifting the whole frame — that is
+	// what smears DOM glass. Depth-backed fragments keep the per-pixel offset.
+	const objectMotion = saturate(uniforms.worldVelocity.length().div(3));
+	const uncoveredMotion = objectMotion.mul(oneMinus(worldDepthMask));
+	const temporalWeight = uniforms.temporalBlend
+		.mul(uniforms.historyValid)
+		.mul(depthConfidence)
+		.mul(uvConfidence)
+		.mul(reactiveFactor)
+		.mul(oneMinus(uncoveredMotion));
+	// The resolved sample the effects below operate on. `mix` lands in a
+	// module-scope `var<private>` like every TSL intermediate, so its single
+	// component reads stay single-level swizzles — nesting one (`baseSample.rgb.g`)
+	// is what Tint refuses to lower.
+	const resolved: Node<"vec3"> = mix(baseSample.rgb, clampedHistory, temporalWeight);
 
 	// A fixed, multi-scale separable kernel. Each level samples one horizontal
 	// and one vertical 1D blur and averages them, which gives the visual shape of
@@ -410,7 +534,12 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 		.div(uniforms.resolution);
 	const red = sample(chromaOffset).r;
 	const blue = sample(chromaOffset.negate()).b;
-	let colour: Node<"vec3"> = vec3(red, base.g, blue);
+	// `resolved.g`, not a `resolved.rgb` intermediate followed by `.g`: the
+	// latter makes TSL emit a nested swizzle (`nodeVar0.xyz.y`), and Tint cannot
+	// lower a nested swizzle of a module-scope `var<private>` -- which is what
+	// every TSL intermediate is -- so the whole post pipeline fails to compile
+	// on WebGPU with `swizzle view instruction still has usages after lowering`.
+	let colour: Node<"vec3"> = vec3(red, resolved.g, blue);
 	colour = colour
 		.add(bloom.mul(uniforms.bloomStrength))
 		.add(halo.mul(uniforms.haloStrength))
@@ -419,38 +548,6 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const luminanceValue = luminance(colour);
 	colour = mix(vec3(luminanceValue), colour, uniforms.saturation);
 	colour = colour.sub(0.5).mul(uniforms.contrast).add(0.5);
-
-	// Depth comes from the offscreen world target when the layer provides one.
-	// The canvas depth attachment is only the present-quad, so it cannot mask
-	// the hero. Linearise with the perspective camera that drew that target.
-	const lineariseDepth = (depth: Node<"float">): Node<"float"> =>
-		viewZToOrthographicDepth(
-			perspectiveDepthToViewZ(depth, uniforms.depthRange.x, uniforms.depthRange.y),
-			uniforms.depthRange.x,
-			uniforms.depthRange.y,
-		);
-	const depthRaw = depthNode.r;
-	const sceneDepth = lineariseDepth(depthRaw);
-	// Far-plane fragments are backdrop. Only closer, depth-written world pixels
-	// may reproject or take camera motion blur. DOM glass is not in this target.
-	const worldDepthMask = oneMinus(smoothstep(0.92, 0.998, sceneDepth));
-	// Same unproject / reproject as `reprojectionVelocity()`: top-left uv,
-	// window-Z depth, column-major view-projection. Inverse is supplied by the
-	// CPU. velocityValid stays 0 until the first matrix pair arrives.
-	const clip = vec4(
-		uv.x.mul(2).sub(1),
-		oneMinus(uv.y).mul(2).sub(1),
-		depthRaw.mul(2).sub(1),
-		1,
-	);
-	const worldH = invViewProjection.mul(clip);
-	const world = worldH.div(worldH.w);
-	const prevH = previousViewProjection.mul(vec4(world.xyz, 1));
-	const prevW = prevH.w;
-	const prevUvX = prevH.x.div(prevW).mul(0.5).add(0.5);
-	const prevUvY = oneMinus(prevH.y.div(prevW).mul(0.5).add(0.5));
-	const pixelVelocity = vec2(uv.x.sub(prevUvX), uv.y.sub(prevUvY)).mul(uniforms.resolution);
-	const velocity = mix(uniforms.worldVelocity, pixelVelocity, uniforms.velocityValid);
 
 	// Depth-aware screen-space focus blur. The UV falloff keeps the composition's
 	// centre slightly more restrained when the background is the only depth sample.
@@ -519,64 +616,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const edgeDarkening = oneMinus(smoothstep(0.18, 0.92, distanceFromCentre));
 	colour = colour.mul(mix(float(1), edgeDarkening, uniforms.vignette));
 
-	const effected = vec4(colour, baseSample.a);
-	// `temporalJitter` is the previous-minus-current Halton offset and
-	// `velocity` is current-minus-previous motion, both in device pixels.
-	// Reproject only depth-backed world fragments; DOM glass and the backdrop
-	// stay on their stable screen positions.
-	const historyOffset = uniforms.temporalJitter.sub(velocity);
-	const historyUv = uv.add(historyOffset.div(uniforms.resolution).mul(worldDepthMask));
-	const historySample = texture(historyTexture, historyUv);
-	const historyDepth = lineariseDepth(texture(historyDepthTexture, historyUv).r);
-
-	// Full TAA resolve: reproject, reject disocclusions, variance-clip an 3x3
-	// current neighbourhood, then apply reactive history feedback. Depth
-	// history is a copy of the world depth texture, not the present-quad, so a
-	// moving object cannot borrow colour from a newly exposed background pixel.
-	const depthDifference = abs(historyDepth.sub(sceneDepth));
-	const depthAgreement = oneMinus(smoothstep(0.0015, 0.035, depthDifference));
-	const depthConfidence = mix(float(1), depthAgreement, worldDepthMask);
-
-	let moment1: Node<"vec3"> = effected.rgb;
-	let moment2: Node<"vec3"> = effected.rgb.pow(2);
-	for (const [x, y] of taaNeighbourOffsets) {
-		const neighbour = sample(vec2(x, y).div(uniforms.resolution)).rgb;
-		moment1 = moment1.add(neighbour);
-		moment2 = moment2.add(neighbour.pow(2));
-	}
-	const sampleCount = taaNeighbourOffsets.length + 1;
-	const mean = moment1.div(sampleCount);
-	const standardDeviation = moment2.div(sampleCount).sub(mean.pow(2)).max(0).sqrt();
-	const motionFactor = saturate(historyOffset.length().div(64));
-	const varianceGamma = mix(float(1.5), float(0.75), motionFactor);
-	const varianceMin = mean.sub(standardDeviation.mul(varianceGamma));
-	const varianceMax = mean.add(standardDeviation.mul(varianceGamma));
-	const clampedHistory = min(max(historySample.rgb, varianceMin), varianceMax);
-	const historyColour = vec4(clampedHistory, historySample.a);
-
-	// Keep history UVs inside the valid texture domain. This also handles the
-	// first frame after a camera movement where reprojection reaches an edge.
-	const historyBorder = min(
-		min(historyUv.x, historyUv.y),
-		min(oneMinus(historyUv.x), oneMinus(historyUv.y)),
-	);
-	const uvConfidence = smoothstep(0, 0.015, historyBorder);
-	const luminanceDelta = abs(luminance(clampedHistory).sub(luminance(effected.rgb)));
-	const rejection = oneMinus(saturate(luminanceDelta.mul(4)));
-	const reactiveFactor = mix(float(1), rejection, saturate(uniforms.temporalReactive));
-	// Pixels without world depth cannot be reprojected. If any tracked object is
-	// moving, drop their history instead of shifting the whole frame — that is
-	// what smears DOM glass. Depth-backed fragments keep the per-pixel offset.
-	const objectMotion = saturate(uniforms.worldVelocity.length().div(3));
-	const uncoveredMotion = objectMotion.mul(oneMinus(worldDepthMask));
-	const temporalWeight = uniforms.temporalBlend
-		.mul(uniforms.historyValid)
-		.mul(depthConfidence)
-		.mul(uvConfidence)
-		.mul(reactiveFactor)
-		.mul(oneMinus(uncoveredMotion));
-	const temporal = mix(effected, historyColour, temporalWeight);
-	const outputNode = mix(baseSample, temporal, uniforms.enabled);
+	// Grain and vignette stay after the temporal resolve: grain is a per-frame
+	// pattern, so feeding it back through the history would average it away.
+	const outputNode = mix(baseSample, vec4(colour, baseSample.a), uniforms.enabled);
 
 	/**
 	 * Gives the WebGL backend a framebuffer for the depth history, sized to the
@@ -614,13 +656,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			const nextWidth = Math.max(1, Math.round(width));
 			const nextHeight = Math.max(1, Math.round(height));
 			uniforms.resolution.value.set(nextWidth, nextHeight);
-			if (
-				historyTexture.image.width !== nextWidth ||
-				historyTexture.image.height !== nextHeight
-			) {
-				historyTexture.image.width = nextWidth;
-				historyTexture.image.height = nextHeight;
-				historyTexture.needsUpdate = true;
+			if (historyTarget.width !== nextWidth || historyTarget.height !== nextHeight) {
+				historyTarget.setSize(nextWidth, nextHeight);
 				historyDepthTexture.image.width = nextWidth;
 				historyDepthTexture.image.height = nextHeight;
 				historyDepthTexture.needsUpdate = true;
@@ -630,20 +667,20 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			}
 		},
 		commit(renderer) {
-			// Colour history is a framebuffer texture, so three sizes its GPU
-			// format to the canvas. Depth is not copied here: the screen depth
-			// is the present quad, and a depth texture cannot accept that copy.
+			// The colour history is a copy of the pre-post composite, and both
+			// textures are ours, so their GPU formats match by construction and
+			// `copyTextureToTexture` cannot silently refuse the way
+			// `copyFramebufferToTexture` does -- the latter reads whichever
+			// render context three left current, which is an internal post
+			// target rather than the canvas once the chain owns its composite.
 			//
-			// On WebGPU the copy only runs when the bound framebuffer's format
-			// matches the history's; otherwise three logs and returns without
-			// copying. Claiming the history is valid after a copy that did not
-			// happen is worse than not claiming it -- the temporal pass would
-			// blend against a texture nothing ever wrote. Ask first.
-			if (framebufferCopyWouldFail(renderer, historyTexture)) {
+			// Claiming a history that nothing wrote is worse than claiming
+			// none: the temporal pass would blend against empty texels.
+			if (compositeTexture === null) {
 				uniforms.historyValid.value = 0;
 				return;
 			}
-			renderer.copyFramebufferToTexture(historyTexture);
+			renderer.copyTextureToTexture(compositeTexture, historyTexture);
 			uniforms.historyValid.value = 1;
 		},
 		resetHistory() {
@@ -740,10 +777,9 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			uniforms.time.value += Math.max(0, Math.min(dt, 1 / 15));
 		},
 		dispose() {
-			// The viewport framebuffer is owned by three's node renderer and is
-			// intentionally shared with any other viewport texture nodes. History is
-			// ours, so release it explicitly.
-			historyTexture.dispose();
+			// The source composite belongs to the caller; the colour and depth
+			// histories are ours, so release them explicitly.
+			historyTarget.dispose();
 			historyDepthTexture.dispose();
 			historyDepthHost.dispose();
 			historyHostSize = { width: 0, height: 0 };

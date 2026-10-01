@@ -35,12 +35,10 @@ import {
 	ClampToEdgeWrapping,
 	DepthTexture,
 	LinearFilter,
-	LinearSRGBColorSpace,
 	type Material,
 	Matrix4,
 	Mesh,
 	MeshBasicMaterial,
-	NoToneMapping,
 	type Object3D,
 	OrthographicCamera,
 	PerspectiveCamera,
@@ -362,6 +360,22 @@ export class GlassLayer implements Disposable {
 	private readonly prevTargetScreen = new Vector2();
 	private readonly prevSideScreen = new Vector2();
 	private motionPointsReady = false;
+	/**
+	 * Backdrop blit + glass panels, in working-linear space, with a depth buffer
+	 * for the panels.
+	 *
+	 * The composite lives in a texture we own rather than on the canvas because
+	 * a canvas framebuffer cannot be read back: the post chain samples this
+	 * texture, and the temporal history is copied out of it. Writing it to the
+	 * canvas instead made `copyFramebufferToTexture()` resolve its source to
+	 * three's internal post target -- which was never written.
+	 */
+	private readonly compositeRT = new WebGLRenderTarget(1, 1, {
+		depthBuffer: true,
+		stencilBuffer: false,
+	});
+	private readonly compositeScene = new Scene();
+	private readonly compositeQuad: ReturnType<typeof createFullscreenQuad>;
 	private readonly presentScene = new Scene();
 	private readonly presentQuad: ReturnType<typeof createFullscreenQuad>;
 	private postOptions: PostProcessingOptions | false = {};
@@ -436,8 +450,12 @@ export class GlassLayer implements Disposable {
 		this.backdropResource = resourceRegistry.track("backdrop");
 		this.backdropQuad = createFullscreenQuad(this.backdrop.material);
 		this.backdropScene.add(this.backdropQuad.mesh);
-		this.presentQuad = createFullscreenQuad(
+		this.compositeQuad = createFullscreenQuad(
 			new MeshBasicMaterial({ map: this.backdropRT.texture }),
+		);
+		this.compositeScene.add(this.compositeQuad.mesh);
+		this.presentQuad = createFullscreenQuad(
+			new MeshBasicMaterial({ map: this.compositeRT.texture }),
 		);
 		this.presentScene.add(this.presentQuad.mesh);
 		this.worldDepth.name = "ui-lib:world-depth";
@@ -459,6 +477,7 @@ export class GlassLayer implements Disposable {
 		// The gradient quad must not fill the depth buffer, or every fragment
 		// looks like world geometry and camera reprojection smears the glass.
 		this.silenceDepth(this.backdropQuad.mesh.material);
+		this.silenceDepth(this.compositeQuad.mesh.material);
 		this.silenceDepth(this.presentQuad.mesh.material);
 		this.setPostProcessing(options.post ?? {});
 
@@ -521,12 +540,22 @@ export class GlassLayer implements Disposable {
 		this.disposer.add(() => this.backdropRT.dispose());
 		this.disposer.add(() => this.worldDepth.dispose());
 		this.disposer.add(() => this.refractionRT.dispose());
+		this.disposer.add(() => this.compositeRT.dispose());
+		this.disposer.add(() => this.compositeQuad.dispose());
+		this.disposer.add(() => {
+			const material = this.compositeQuad.mesh.material;
+			if (!Array.isArray(material)) material.dispose();
+		});
 		this.disposer.add(() => this.refractionBlit.dispose());
 		this.disposer.add(() => {
 			const material = this.refractionBlit.mesh.material;
 			if (!Array.isArray(material)) material.dispose();
 		});
 		this.disposer.add(() => this.presentQuad.dispose());
+		this.disposer.add(() => {
+			const material = this.presentQuad.mesh.material;
+			if (!Array.isArray(material)) material.dispose();
+		});
 		this.disposer.add(() => this.postPipeline?.dispose());
 		this.disposer.add(() => this.postProcessing?.dispose());
 		this.disposer.add(() => this.postResource?.dispose());
@@ -1081,6 +1110,7 @@ export class GlassLayer implements Disposable {
 				...this.postOptions,
 				quality: this.postQuality(),
 				depthTexture: this.worldDepth,
+				sourceTexture: this.compositeRT.texture,
 			});
 			const pipeline = new RenderPipeline(this.ui.renderer);
 			pipeline.outputNode = post.outputNode;
@@ -1282,6 +1312,7 @@ export class GlassLayer implements Disposable {
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
 		this.backdropRT.setSize(bufferWidth, bufferHeight);
 		this.refractionRT.setSize(bufferWidth, bufferHeight);
+		this.compositeRT.setSize(bufferWidth, bufferHeight);
 		for (const sample of this.worldVelocitySamples.values()) sample.initialized = false;
 		this.vpReady = false;
 		this.motionPointsReady = false;
@@ -1595,21 +1626,18 @@ export class GlassLayer implements Disposable {
 
 	private renderFrame(): void {
 		const { renderer } = this.ui;
-		const previousToneMapping = renderer.toneMapping;
-		const previousColorSpace = renderer.outputColorSpace;
 		const usesPost = this.postPipeline !== null && this.postProcessing !== null;
 
 		this.syncRoomBasis();
 		renderer.autoClear = false;
 
-		// Keep the intermediate buffers in working-linear space. The RenderPipeline
-		// applies tone mapping and the output colour transform exactly once after the
-		// bloom / aberration / grain nodes have sampled it.
-		if (usesPost) {
-			renderer.toneMapping = NoToneMapping;
-			renderer.outputColorSpace = LinearSRGBColorSpace;
-		}
-
+		// Every intermediate below is a render target, and a render target is
+		// never an output target, so three applies no tone mapping or colour
+		// transform to it. The transform happens exactly once, at the canvas:
+		// inside the RenderPipeline's output node when post is active, and in
+		// three's own output pass when it is not. Nothing here has to flip
+		// `toneMapping` / `outputColorSpace` per frame.
+		//
 		// 1. Backdrop + world objects render into a dedicated off-screen target.
 		//    Glass samples this target directly (never the live framebuffer), so
 		//    WebGPU sees no read-after-write and no MSAA sample-count clash.
@@ -1675,24 +1703,29 @@ export class GlassLayer implements Disposable {
 		}
 		renderer.setRenderTarget(null);
 
-		// 3. Screen base = the rendered backdrop (also the glass refraction source).
+		// 3. Screen base = the rendered backdrop (also the glass refraction
+		//    source) + the glass panels, composited into a target we own. The
+		//    canvas is not readable, so the composite has to live in a texture
+		//    for the post chain to sample it and for the temporal history to be
+		//    copied out of it.
+		renderer.setRenderTarget(this.compositeRT);
 		renderer.clear(true, true, false);
-		renderer.render(this.presentScene, this.presentQuad.camera);
+		renderer.render(this.compositeScene, this.compositeQuad.camera);
 
 		// 4. Glass panels on top, sampling `backdropRT` in a separate render call.
 		renderer.render(this.glassScene, this.glassCamera);
+		renderer.setRenderTarget(null);
 
-		// 5. The final canvas image becomes a TSL input. Put the renderer's output
-		// settings back before `_update()` so RenderPipeline captures the real
-		// target transform and applies tone mapping / sRGB exactly once.
+		// 5. Post samples the composite and writes the canvas itself, applying
+		//    tone mapping and the output colour transform once in its output
+		//    node. Without post, one present pass moves the composite to the
+		//    canvas and three's own output pass does the transform.
 		const depth = stepDepthHistory(
 			{ live: this.depthHistoryLive },
 			{ usesPost, hasWorldObjects },
 		);
 		if (depth.resetHistory) this.postProcessing?.resetHistory();
 		if (usesPost) {
-			renderer.toneMapping = previousToneMapping;
-			renderer.outputColorSpace = previousColorSpace;
 			this.postPipeline?.render();
 			this.postProcessing?.commit(renderer);
 			// History depth is a texture copy of `worldDepth`, not a framebuffer
@@ -1703,11 +1736,11 @@ export class GlassLayer implements Disposable {
 				this.postProcessing?.captureDepth(renderer);
 				renderer.setRenderTarget(null);
 			}
+		} else {
+			renderer.clear(true, true, false);
+			renderer.render(this.presentScene, this.presentQuad.camera);
 		}
 		this.depthHistoryLive = depth.live;
-
-		renderer.toneMapping = previousToneMapping;
-		renderer.outputColorSpace = previousColorSpace;
 	}
 }
 
