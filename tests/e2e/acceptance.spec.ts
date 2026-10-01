@@ -21,6 +21,8 @@ function setupErrorListeners(page: import("@playwright/test").Page) {
 			const text = msg.text();
 			// Ignore Vite HMR / WebSocket noise
 			if (text.includes("WebSocket") || text.includes("[vite] failed to connect")) return;
+			// Ignore 404s (such as missing favicon or other unserved static assets in the static build)
+			if (text.includes("404 (Not Found)")) return;
 			// Ignore intentional WebGL context loss errors we test for
 			if (text.includes("WebGL Device Lost")) return;
 
