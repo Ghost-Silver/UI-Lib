@@ -6,11 +6,11 @@ import { defineConfig, devices } from "@playwright/test";
  * Screenshots are only comparable within one browser/GPU bucket. CI may add
  * WebGPU-capable projects without changing the test contract.
  *
- * On CI the whole suite is deliberately fenced in. The context-loss probe
- * wedged a runner once: every test reported, then the browser context close
- * never returned and the job sat there until its own 20-minute ceiling. A
- * hung close has no timeout of its own, so the run needs a ceiling here and
- * an artifact to inspect afterwards.
+ * On CI the whole suite is deliberately fenced in. Twice now the browser job
+ * reported every test and then never exited: the second run finished all 17
+ * tests in 65 seconds, then waited 480s on the webServer teardown until the
+ * global timeout aborted it. A hung teardown has no timeout of its own, so
+ * the run needs a ceiling here and an artifact to inspect afterwards.
  */
 export default defineConfig({
 	testDir: "./tests/e2e",
@@ -44,7 +44,17 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: "pnpm --filter @ui-lib/docs dev --host 127.0.0.1",
+		// Locally this is the Vite dev server, so the playground hot-reloads
+		// library sources. On CI it serves the built playground instead: the
+		// dev server keeps a long-lived esbuild dependency-optimizer service
+		// alive, that service inherits the webServer's stdio pipes, and
+		// Playwright's teardown then waits on a pipe that never closes. The
+		// suite reported all 17 tests green and still sat there for eight
+		// minutes. `vite preview` spawns no such service, and it is also the
+		// artifact that actually gets deployed.
+		command: process.env.CI
+			? "pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 5173 --strictPort"
+			: "pnpm --filter @ui-lib/docs dev --host 127.0.0.1",
 		url: "http://127.0.0.1:5173",
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000,

@@ -83,6 +83,11 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
+      # The acceptance suite serves the built playground on CI (see the
+      # webServer comment in playwright.config.ts), so it has to exist first.
+      - name: Build docs playground
+        run: pnpm --filter @ui-lib/docs build
+
       - name: Acceptance suite
         run: pnpm test:e2e
 
