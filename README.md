@@ -51,6 +51,8 @@ pnpm lint
 
 它仍然是**语义**验收而不是像素门禁——仓库里没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约，不是 Metal 或独显上真正画出了什么。
 
+`.github/workflows/ci.yml` 把这两组检查接进了 CI：`verify` job 跑 build → typecheck → test → size → lint，`browser` job 在 headless Chromium 上跑同一套验收。browser job 自己带 8 分钟的全局上限，失败时会留下 HTML 报告与 trace 作为产物——因为卡死的浏览器不会往控制台输出任何东西。
+
 ## 下一步
 
 Liquid Glass Pro 已经是旗舰页。还没做的是：

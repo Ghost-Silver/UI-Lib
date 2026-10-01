@@ -28,7 +28,11 @@ for (const demo of demos) {
 	test(`${demo} has the GPU/WebGL route and fallback route`, async ({ page }) => {
 		await page.goto(`/?demo=${demo}&backend=webgl`);
 		const stage = page.locator("[data-ui-lib-stage]");
-		await expect(stage).toHaveAttribute("data-ui-lib-stage", /ready|unsupported/);
+		// Cold shader compilation on a software renderer takes far longer than
+		// the 5s default, and the stage sits at "loading" until it finishes.
+		await expect(stage).toHaveAttribute("data-ui-lib-stage", /ready|unsupported/, {
+			timeout: 20_000,
+		});
 		await expect(page.locator(`[data-ui-lib-acceptance="${demo}"]`)).toBeVisible();
 	});
 }

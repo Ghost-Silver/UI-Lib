@@ -55,7 +55,9 @@ jobs:
   browser:
     name: browser acceptance (chromium)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The suite has its own 8-minute global ceiling; this is the backstop for
+    # a wedged browser that refuses to shut down.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +85,19 @@ jobs:
 
       - name: Acceptance suite
         run: pnpm test:e2e
+
+      # A browser that wedges leaves no console output. The HTML report and
+      # any retained traces are the only evidence, so always collect them.
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
 
 # What this workflow deliberately does NOT gate on:
 #
