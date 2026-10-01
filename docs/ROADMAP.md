@@ -5,7 +5,7 @@
 >
 > 状态：**M0 地基、M1 液态玻璃、M2 粒子引擎、M3 后处理、M4 DOM 桥与滚动叙事均已有可运行切片**（更新于 2026-10-01）。
 > 六个旗舰页已构建并部署上线，Playwright 语义验收在 headless Chromium 下 17 项通过；体积预算门禁与 CI 流水线已落地。
-> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了三个缺陷**：WebGPU 下 post 的时间性链路格式不匹配、`historyValid` 误报；强制 WebGL2 回退路径每帧抛异常。前两个已修（宿主 `RenderTarget` + `renderer.initRenderTarget()`；`framebufferCopyWouldFail()` 守卫）。修好崩溃后第三个显形：**WebGL2 的 post 链把背景世界整块打黑**，仍在 P0 待修。
+> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了三个缺陷**：WebGPU 下 post 的时间性链路格式不匹配、`historyValid` 误报；强制 WebGL2 回退路径每帧抛异常。前两个已修（宿主 `RenderTarget` + `renderer.initRenderTarget()`；`framebufferCopyWouldFail()` 守卫）。第三个追下去比预想严重：**post 链在两条后端上都没在干活**——WebGL2 画面全黑（逐帧切 `outputColorSpace` 翻转了 `needsFrameBufferTarget`，链的输入是空图），WebGPU 的 post 管线根本编译不过（Tint 降级失败）、链路静默空转。**因此现有的帧节奏数字都不含后处理。** 仍在 P0 待修。
 > 下文是完整规划；M5 多框架与发布仍为待办。实现过程中与草案不同的决策记录在文末「实现记录」。
 
 ---
@@ -198,7 +198,7 @@
 
 ### M6 · 真机基线暴露的三个缺陷 🔴 P0
 
-真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了三个既有缺陷，都不被现有测试覆盖。前两个已修，第三个是修好前两个之后才显形的。
+真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了三个既有缺陷，都不被现有测试覆盖。前两个已修，第三个是修好前两个之后才显形的，而且比前两个都严重。
 
 1. **强制 WebGL2 回退路径每帧抛异常。** ✅ 已修。`packages/post/src/postProcessing.ts` 的 `captureDepth()` 把世界深度拷进 `new DepthTexture(1, 1)`——一个没有挂在任何 render target 上的裸深度纹理。three 的 WebGL 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，裸纹理的 `renderTarget` 是 `undefined`，`backend.get(undefined)` 触发 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态：此后每帧都画进离屏目标，`reportStats()` 被跳过导致所有观测属性为空。
    **修法**：给 history 深度纹理配一个只作宿主、从不被绘制的 `RenderTarget`，并在拷贝前用 three 的公开方法 `renderer.initRenderTarget(host)` 预建它的 framebuffer。**`setRenderTarget(host)` 不够**——它只设 `_currentRenderTarget`，不会走 `_textures.updateRenderTarget()` / `_renderContexts.get()` / `backend.initRenderTarget()`，framebuffer 根本不会建，深度纹理也不会被登记。`initRenderTarget` 在 three 内部没有任何调用点，专供调用方预建。WebGPU 后端是真正的纹理对纹理拷贝、不需要宿主，所以这份分配只在 WebGL 路径上真正生效。
@@ -206,11 +206,13 @@
 2. **WebGPU 下 post 的时间性链路没有真正生效。** ✅ 已修。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回，不做拷贝，随后 `historyValid` 仍被置 1。同一路由下另有一个 render pipeline 因 Tint 编译器错误（`swizzle view instruction still has usages after lowering`）编译失败。
    **修法**：新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找（`_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()`，**不是** `getRenderTarget()`——后者在渲染管线内部目标仍绑定时报 null），在拷贝会被拒绝时把 `historyValid` 置 0 并 return。声明一份不存在的历史比不声明更糟。
    **验证**：诊断输出与 three 的警告逐字一致（`source= rgba16float dest= bgra8unorm`），警告从 698 行降到 10 行（每秒约 115 次 → 1 次；剩下那次是首帧帧缓冲纹理尚未登记、无法判定格式，保留原行为）。
-3. **WebGL2 下 post 链把背景世界整块打黑。** 🔴 未修。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板，透镜、晶体、辉光、轨道线全都不见了——GPU 世界整块缺失。用"临时关掉 post 链"的决胜实验定位：关掉后世界正常出现，说明 **WebGL2 的世界渲染本身是好的，是 post 链把背景打黑**（临时补丁已撤销，`git diff packages/renderer/src/glassLayer.ts` 为空）。这条推翻了此前"崩溃导致黑屏"的表述：崩溃与黑屏是两个独立问题。
-   **待决**：是 post 链在 WebGL2 上的合成顺序 / 目标绑定有误，还是某一步 pass 在 WebGL2 上静默失败（`rgba16float` 中间目标在 WebGL2 上是否真的可渲染、TAA / bloom 的哪一步吃掉了背景）。
+3. **post 链在两条后端上都没在干活。** 🔴 未修，比前两条严重。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板——GPU 世界整块缺失。排除实验（关掉 post 链世界就回来 → 把 `enabled` 改成纯透传仍全黑 → 输出固定成常量红则整块画布变红 → 输出 `vec4(uv.x, uv.y, baseSample.r, 1)` 时 UV 正确而采样值恒为 0）把根因钉在**链的输入为空**：`renderFrame()` 逐帧切换 `renderer.outputColorSpace` / `toneMapping` 会翻转 three 的 `needsFrameBufferTarget`，使场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 随后从"内部 framebuffer target"取源，那个 target 从没被写过。
+   顺着这一半追下去才看到 WebGPU 那一半：**post 管线的 Tint IR 生成失败**（`swizzle view instruction still has usages after lowering`），three 只打日志、不抛异常，每帧继续提交 invalid command buffer。于是 WebGPU 画布上是**未经后处理**的原始合成，`docs/benchmarks` 的帧节奏数字也都不含后处理。关掉 post 链能让这一串错误全部消失，据此确认失败的就是 post 管线。把 post 图里的深度纹理采样换成常量，错误依旧，触发点不在那一处。
+   **WebGL2 那一半的修法已真机验证**：不再依赖 `copyFramebufferToTexture` 猜"当前输出是谁"，把步骤 3–4 合成到显式 render target、post 采样它、画布只由 `RenderPipeline` 写；render target 渲染天然是 working-linear，那两行逐帧切换可以整个删掉。验证结果：WebGL2 世界完整恢复、控制台零错误、`fps=120.0`。**没有提交**——它会把 WebGPU 暴露成黑屏，而 WebGPU 的管线编译失败是另一件事。两半必须一起修。
+   **待决**：定位 TSL 图里哪一种"纹理采样 + swizzle"组合触发 Tint 降级失败（候选：多个 `texture()` 结果之间取 `.r` / `.b` 拼 `vec3`、`historyTexture` 的 `vec4` 与 `historyDepthTexture` 的标量混用），再决定改图、绕开还是向 three 报 issue。
 
-- **验收**：强制 WebGL2 的页面零 `pageerror`、`data-ui-lib-backend` 为 `webgl2`、背景世界可见；WebGPU 控制台无 `copyFramebufferToTexture` 警告；两条路径都能给出 `docs/benchmarks/` 记录
-- **已达成**：零 `pageerror`、`backend=webgl2`、WebGPU 无格式警告；**未达成**：WebGL2 背景世界可见、WebGL2 的 `docs/benchmarks/` 记录
+- **验收**：强制 WebGL2 的页面零 `pageerror`、`data-ui-lib-backend` 为 `webgl2`、背景世界可见；两条后端控制台都无管线编译失败、画面都确实经过后处理；两条路径都能给出 `docs/benchmarks/` 记录
+- **已达成**：零 `pageerror`、`backend=webgl2`、WebGPU 无 `copyFramebufferToTexture` 格式警告；**未达成**：WebGL2 背景世界可见、两条后端的画面确实经过后处理、WebGL2 的 `docs/benchmarks/` 记录
 
 ### M5 · 多框架与发布 🚧 工程门禁已就位
 - Vue / Svelte 适配、SSR examples（Next / Nuxt / SvelteKit）
@@ -320,3 +322,17 @@
     第二条修法是**镜像 three 自己的查找顺序，而不是猜**。WebGPU 的 `copyFramebufferToTexture` 在源 / 目标格式不一致时只警告并返回，没有返回值也没有异常。我第一版守卫直接读 `getRenderTarget()`，诊断出来 `source= bgra8unorm dest= bgra8unorm`（看起来匹配、于是放行），而 three 实际报的是 `rgba16float` / `bgra8unorm`。原因是 `Renderer.copyFramebufferToTexture` 用的是私有 `this._currentRenderContext.renderTarget`，并且有 `_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()` 三级回退；`getRenderTarget()` 在渲染管线内部目标仍绑定时报 null。逐字照抄这条链之后，诊断输出与 three 的警告一字不差，警告从每秒约 115 次降到 1 次。
 
     两条修复都**只在真机上验证过**，没有留下回归断言——现有 17 项语义验收既不检查帧回调是否抛异常，也不检查画面是否整块缺失。补断言列为 M6 待办。
+
+18. **逐帧改 `renderer.outputColorSpace` 会让"当前输出是谁"改变答案。** 追第 16 条之后那一半黑屏时踩到的坑。`glassLayer.renderFrame()` 为了让中间缓冲留在 working-linear 空间，在场景那几趟把 `renderer.outputColorSpace` 设成 `LinearSRGBColorSpace`、`toneMapping` 设成 `NoToneMapping`，画完再恢复。而 three 用这两个值算 `needsFrameBufferTarget`：
+
+    ```js
+    get needsFrameBufferTarget() {
+      const useToneMapping = this.currentToneMapping !== NoToneMapping;
+      const useColorSpace = this.currentColorSpace !== ColorManagement.workingColorSpace;
+      return useToneMapping || useColorSpace;
+    }
+    ```
+
+    它一变，画布那一趟到底"直接画进画布"还是"先画进 three 的内部 framebuffer target 再输出转换"就跟着变；`copyFramebufferToTexture()` 解析源的时候走的是 `this._renderTarget || this._getFrameBufferTarget()`，`_getFrameBufferTarget()` 在 `needsFrameBufferTarget === false` 时**返回 null**。于是"切换 → 场景直接画进画布 → 恢复 → 拷贝从内部 target 取源"就得到一张从没被写过的图。教训是：**凡是"取当前画布"这类调用，都必须保证调用时的渲染目标状态与写入时一致**；想避开这种耦合，就不要让中间结果落在画布上——渲染到自己的 render target，画布只由最终的 `RenderPipeline` 写。
+
+    同一个坑还有第二个受害者：`commit()` 的 `copyFramebufferToTexture()` 报的源格式是 `rgba16float`，那正是 three 的内部 target 格式，不是画布。第 17 条的守卫只挡住了"拷贝被拒后仍声明历史有效"，没有解决"拷错了源"。**这条仍未修**——它和 WebGPU 的 post 管线编译失败（Tint `swizzle view instruction still has usages after lowering`）必须一起处理，见 M6 第 3 条。
