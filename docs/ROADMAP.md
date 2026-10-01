@@ -5,7 +5,7 @@
 >
 > 状态：**M0 地基、M1 液态玻璃、M2 粒子引擎、M3 后处理、M4 DOM 桥与滚动叙事均已有可运行切片**（更新于 2026-10-01）。
 > 六个旗舰页已构建并部署上线，Playwright 语义验收在 headless Chromium 下 17 项通过；体积预算门禁与 CI 流水线已落地。
-> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了两个缺陷**：强制 WebGL2 回退路径每帧抛异常、画面不完整；WebGPU 下 post 的时间性链路格式不匹配、`historyValid` 误报。两者都在 P0 待修。
+> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了三个缺陷**：WebGPU 下 post 的时间性链路格式不匹配、`historyValid` 误报；强制 WebGL2 回退路径每帧抛异常。前两个已修（宿主 `RenderTarget` + `renderer.initRenderTarget()`；`framebufferCopyWouldFail()` 守卫）。修好崩溃后第三个显形：**WebGL2 的 post 链把背景世界整块打黑**，仍在 P0 待修。
 > 下文是完整规划；M5 多框架与发布仍为待办。实现过程中与草案不同的决策记录在文末「实现记录」。
 
 ---
@@ -196,16 +196,21 @@
 - 世界物体跟随 DOM 槽位已落地（不是 element→texture）：`GlassLayer.worldAt` / `follow` 在 render 相位、相机更新之后、TAA jitter 之前把槽位中心解到世界坐标。`fit` 按槽位短边解距离，变焦不呼吸；`distance` 锁射线距离，推拉仍变大。挂锚的粒子在锚点之后 step，与透镜同一帧。不写 React state，粒子系统不因位移重建。Lumen 的空列和 Cinema 的空场都用它。`@ui-lib/dom` 的 HTML 快照、3D→DOM（Html bind）、图片转场仍未开始
 - **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用。真机帧节奏已有第一份数据（DPR 1 六页全部锁 120 fps；DPR 2 中位帧间隔 8.3–8.5 ms，偶发 16.8 ms 台阶），像素对齐与键盘/读屏断言仍待补
 
-### M6 · 修掉真机基线暴露的两个缺陷 🔴 P0
+### M6 · 真机基线暴露的三个缺陷 🔴 P0
 
-真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了两个既有缺陷，都不被现有测试覆盖：
+真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了三个既有缺陷，都不被现有测试覆盖。前两个已修，第三个是修好前两个之后才显形的。
 
-1. **强制 WebGL2 回退路径每帧抛异常、画面不完整。** `packages/post/src/postProcessing.ts` 的 `captureDepth()` 把世界深度拷进 `new DepthTexture(1, 1)`——一个没有挂在任何 render target 上的裸深度纹理。three 的 WebGL 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，裸纹理的 `renderTarget` 是 `undefined`，`backend.get(undefined)` 触发 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态：此后每帧都画进离屏目标，背后世界整块变黑，`reportStats()` 被跳过导致所有观测属性为空。WebGPU 后端的 `copyTextureToTexture` 是真正的纹理对纹理拷贝，不需要 framebuffer，所以只有 WebGL2 炸。
-   **待决**：是给 history 深度纹理配一个 render target（保住 disocclusion），还是让 WebGL2 明确跳过深度历史（放弃 disocclusion）。前者更完整，后者更小。
-2. **WebGPU 下 post 的时间性链路没有真正生效。** `commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回，不做拷贝，随后 `historyValid` 仍被置 1。同一路由下另有一个 render pipeline 因 Tint 编译器错误（`swizzle view instruction still has usages after lowering`）编译失败。
-   **待决**：history 纹理应当采用渲染目标的格式，还是让 `commit()` 在格式不匹配时不声明有效历史。
+1. **强制 WebGL2 回退路径每帧抛异常。** ✅ 已修。`packages/post/src/postProcessing.ts` 的 `captureDepth()` 把世界深度拷进 `new DepthTexture(1, 1)`——一个没有挂在任何 render target 上的裸深度纹理。three 的 WebGL 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，裸纹理的 `renderTarget` 是 `undefined`，`backend.get(undefined)` 触发 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态：此后每帧都画进离屏目标，`reportStats()` 被跳过导致所有观测属性为空。
+   **修法**：给 history 深度纹理配一个只作宿主、从不被绘制的 `RenderTarget`，并在拷贝前用 three 的公开方法 `renderer.initRenderTarget(host)` 预建它的 framebuffer。**`setRenderTarget(host)` 不够**——它只设 `_currentRenderTarget`，不会走 `_textures.updateRenderTarget()` / `_renderContexts.get()` / `backend.initRenderTarget()`，framebuffer 根本不会建，深度纹理也不会被登记。`initRenderTarget` 在 three 内部没有任何调用点，专供调用方预建。WebGPU 后端是真正的纹理对纹理拷贝、不需要宿主，所以这份分配只在 WebGL 路径上真正生效。
+   **验证**：`Invalid value used as weak map key` 从 693 次降到 0，`data-ui-lib-backend` 由 `unknown` 恢复为 `webgl2`，`tier=3`、`fps=120.0`。
+2. **WebGPU 下 post 的时间性链路没有真正生效。** ✅ 已修。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回，不做拷贝，随后 `historyValid` 仍被置 1。同一路由下另有一个 render pipeline 因 Tint 编译器错误（`swizzle view instruction still has usages after lowering`）编译失败。
+   **修法**：新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找（`_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()`，**不是** `getRenderTarget()`——后者在渲染管线内部目标仍绑定时报 null），在拷贝会被拒绝时把 `historyValid` 置 0 并 return。声明一份不存在的历史比不声明更糟。
+   **验证**：诊断输出与 three 的警告逐字一致（`source= rgba16float dest= bgra8unorm`），警告从 698 行降到 10 行（每秒约 115 次 → 1 次；剩下那次是首帧帧缓冲纹理尚未登记、无法判定格式，保留原行为）。
+3. **WebGL2 下 post 链把背景世界整块打黑。** 🔴 未修。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板，透镜、晶体、辉光、轨道线全都不见了——GPU 世界整块缺失。用"临时关掉 post 链"的决胜实验定位：关掉后世界正常出现，说明 **WebGL2 的世界渲染本身是好的，是 post 链把背景打黑**（临时补丁已撤销，`git diff packages/renderer/src/glassLayer.ts` 为空）。这条推翻了此前"崩溃导致黑屏"的表述：崩溃与黑屏是两个独立问题。
+   **待决**：是 post 链在 WebGL2 上的合成顺序 / 目标绑定有误，还是某一步 pass 在 WebGL2 上静默失败（`rgba16float` 中间目标在 WebGL2 上是否真的可渲染、TAA / bloom 的哪一步吃掉了背景）。
 
 - **验收**：强制 WebGL2 的页面零 `pageerror`、`data-ui-lib-backend` 为 `webgl2`、背景世界可见；WebGPU 控制台无 `copyFramebufferToTexture` 警告；两条路径都能给出 `docs/benchmarks/` 记录
+- **已达成**：零 `pageerror`、`backend=webgl2`、WebGPU 无格式警告；**未达成**：WebGL2 背景世界可见、WebGL2 的 `docs/benchmarks/` 记录
 
 ### M5 · 多框架与发布 🚧 工程门禁已就位
 - Vue / Svelte 适配、SSR examples（Next / Nuxt / SvelteKit）
@@ -309,3 +314,9 @@
 16. **第 13 条只修了 WebGPU，把 WebGL2 修坏了。** 那条把历史深度从 `copyFramebufferToTexture` 换成 `copyTextureToTexture(worldDepth, historyDepth)`，在 WebGPU 上成立——那边的 `copyTextureToTexture` 是真正的纹理对纹理拷贝。但 three 的 **WebGL** 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，而 `historyDepth` 是一个 `new DepthTexture(1, 1)`，没有 render target，`renderTarget` 为 `undefined`，`backend.get(undefined)` 让 `WeakMap.set` 抛 `TypeError`。更糟的是抛出点夹在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 停在离屏目标上，之后每帧都画不出去，`reportStats()` 也永远执行不到。
 
     教训不是"不要用 `copyTextureToTexture`"，而是**两条后端路径必须分别验证**：这条改动只在 WebGPU 上跑过，而当时的验收用例只断言 DOM 语义，帧回调抛异常不影响任何断言。真机测量脚本在两条路径上都抓到了它。同一轮测量还发现 WebGPU 自己的 `commit()` 仍在走第 13 条已经记为失败的 `copyFramebufferToTexture` 路径，并在拷贝被拒绝后把 `historyValid` 置 1。
+
+17. **预建 framebuffer 要用 `renderer.initRenderTarget()`，不是 `setRenderTarget()`。** 修第 16 条的第一次尝试是给历史深度配一个宿主 `RenderTarget` 然后 `renderer.setRenderTarget(host)`——无效，`Invalid value used as weak map key` 仍然是 693 次。原因是 `setRenderTarget` 只写 `_currentRenderTarget`，不会触发 `_textures.updateRenderTarget()` → `_renderContexts.get()` → `backend.initRenderTarget()` 这条链，framebuffer 从未被创建，深度纹理也没被登记进 `backend` 的纹理表，blit 查找照样落空。改成 three 的公开方法 `renderer.initRenderTarget(host)` 后立刻归零——这个方法在 three 内部没有任何调用点，专供调用方预建 framebuffer。附带约束：`RenderTarget.setSize()` 只缩放 `textures[]`，不同步 `depthTexture`，所以深度尺寸要单独跟踪；`options.count` 必须 ≥ 1，否则 `getCacheKey` 读 `texture.format` 会崩。
+
+    第二条修法是**镜像 three 自己的查找顺序，而不是猜**。WebGPU 的 `copyFramebufferToTexture` 在源 / 目标格式不一致时只警告并返回，没有返回值也没有异常。我第一版守卫直接读 `getRenderTarget()`，诊断出来 `source= bgra8unorm dest= bgra8unorm`（看起来匹配、于是放行），而 three 实际报的是 `rgba16float` / `bgra8unorm`。原因是 `Renderer.copyFramebufferToTexture` 用的是私有 `this._currentRenderContext.renderTarget`，并且有 `_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()` 三级回退；`getRenderTarget()` 在渲染管线内部目标仍绑定时报 null。逐字照抄这条链之后，诊断输出与 three 的警告一字不差，警告从每秒约 115 次降到 1 次。
+
+    两条修复都**只在真机上验证过**，没有留下回归断言——现有 17 项语义验收既不检查帧回调是否抛异常，也不检查画面是否整块缺失。补断言列为 M6 待办。

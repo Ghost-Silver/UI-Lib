@@ -3,6 +3,7 @@ export {
 	assertDepthHistoryFormats,
 	type DepthHistoryTexture,
 	depthHistoryCompatible,
+	framebufferCopyWouldFail,
 	readGpuTextureFormat,
 } from "./depthCopy.js";
 export { LOOKS, type LookName, resolveLook } from "./looks.js";

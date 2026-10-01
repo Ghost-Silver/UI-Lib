@@ -91,3 +91,62 @@ export function assertDepthHistoryFormats(
 		`ui-lib: depth history GPU formats differ (${sourceFormat} vs ${destFormat}). Refusing a silent copy.`,
 	);
 }
+
+interface BoundTarget {
+	textures?: readonly object[];
+}
+
+interface RendererLike {
+	_currentRenderContext?: { renderTarget?: BoundTarget | null } | null;
+	_renderTarget?: BoundTarget | null;
+	_getFrameBufferTarget?: () => BoundTarget | null;
+	getRenderTarget?: () => BoundTarget | null;
+	backend?: {
+		isWebGPUBackend?: boolean;
+		context?: { getCurrentTexture?: () => { format?: string } | null };
+	};
+}
+
+/**
+ * Whether `renderer.copyFramebufferToTexture()` would refuse the copy.
+ *
+ * three's WebGPU backend compares the bound framebuffer's GPU format against
+ * the destination texture's and, when they differ, logs
+ * `Source and destination formats do not match` and returns **without
+ * copying**. There is no return value and no exception, so the only way to know
+ * is to run the same lookup three runs:
+ *
+ * - a bound render target contributes its first colour attachment;
+ * - with nothing bound the source is the presented canvas texture, read
+ *   straight off the swap chain rather than through the backend's texture map.
+ *
+ * The WebGL backend copies through `copyTexSubImage2D`, which converts between
+ * internal formats, so it has no such restriction and this reports `false`.
+ */
+export function framebufferCopyWouldFail(renderer: object, texture: object): boolean {
+	const typed = renderer as RendererLike;
+	const backend = typed.backend;
+	if (backend?.isWebGPUBackend !== true) return false;
+
+	// Mirror three's own source lookup exactly. It reads the render context the
+	// last `render()` left behind -- not `getRenderTarget()`, which reports null
+	// while a render pipeline still has an internal target current -- and falls
+	// back to the frame buffer target when that context is gone. Guessing
+	// "nothing is bound, so the source is the canvas" reads `bgra8unorm` and
+	// misses the `rgba16float` intermediate three actually copies from.
+	const context = typed._currentRenderContext ?? null;
+	const bound =
+		context?.renderTarget ??
+		typed._renderTarget ??
+		typed._getFrameBufferTarget?.() ??
+		typed.getRenderTarget?.() ??
+		null;
+	const attachment = bound?.textures?.[0] ?? null;
+	const sourceFormat = attachment
+		? readGpuTextureFormat(renderer, attachment)
+		: (backend.context?.getCurrentTexture?.()?.format ?? null);
+	const destinationFormat = readGpuTextureFormat(renderer, texture);
+
+	if (sourceFormat === null || destinationFormat === null) return false;
+	return sourceFormat !== destinationFormat;
+}

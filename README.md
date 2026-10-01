@@ -4,7 +4,7 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面——真机画面已经有了第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），而它立刻暴露出两个缺陷：**强制 WebGL2 回退路径当前是坏的**，WebGPU 下 post 的时间性链路没有真正生效。细节见[真机基线](#真机基线)。
+> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面——真机画面已经有了第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），它立刻暴露出三个缺陷：**WebGPU 下 post 的时间性链路没有真正生效**与**强制 WebGL2 回退路径每帧抛异常**（两者已修），以及**崩溃消失后 WebGL2 的 post 链把背景世界整块打黑**（仍未修）。细节见[真机基线](#真机基线)。
 
 [在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
 
@@ -57,9 +57,7 @@ pnpm lint
 
 Liquid Glass Pro 已经是旗舰页。还没做的是：
 
-1. 修掉真机基线暴露的两个缺陷。按优先级：
-   - **强制 WebGL2 回退路径每帧抛异常、画面不完整**（P0）。`packages/post` 的 `captureDepth()` 把世界深度拷进一个裸 `DepthTexture`；three 的 WebGL 后端把这条拷贝实现为两个 render target 的 framebuffer 之间的 blit，裸纹理没有 framebuffer，于是 `WeakMap.set(undefined, …)` 抛错。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态，此后每一帧都画进离屏目标，同时 `reportStats()` 被跳过。DOM 文字和玻璃面板正常，背后的世界整块变黑。
-   - **WebGPU 下 post 的时间性链路没有真正生效**（P1）。`commit()` 把 canvas 格式的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标；three 在格式不匹配时只警告并返回，随后 `historyValid` 仍被置 1。**这也意味着已测到的 120 fps 是上限而不是典型值。**
+1. 修掉真机基线暴露的第三个缺陷：**WebGL2 下 post 链把背景世界整块打黑**（P0，仍未修）。前两个缺陷已修：强制 WebGL2 的 `captureDepth()` 崩溃（给裸 `DepthTexture` 配宿主 `RenderTarget`，并在拷贝前用 `renderer.initRenderTarget()` 预建 framebuffer）与 WebGPU 的 `historyValid` 误报（`commit()` 在格式不匹配时不再声明有效历史）。第 1 条的修复让页面不再崩溃，却也第一次让"世界整块缺失"显形——用临时关掉 post 链的实验定位到 post 链本身。两个已修项都只在真机验证过，回归断言仍待补。
 2. 1M @ 60fps 仍然没测。旗舰页跑的是固定 36k（Aurora Flow）与 9k（Wake），不是 `count: "auto"` 的百万级配置。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。
 
 先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
@@ -135,7 +133,7 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 
 下面这些仍然是待完成项，而不是 README 中的营销承诺：
 
-- 真机 **WebGL2** 视觉回归基线（WebGPU 侧已有第一份记录，但回退路径本身坏了，那一组数字已作废）
+- 真机 **WebGL2** 视觉回归基线（WebGPU 侧已有第一份记录；回退路径的崩溃已修，但 post 链仍把背景打黑，那一组数字要等第三个缺陷修好后重测）
 - 跨浏览器 FPS、掉帧和交互延迟门禁（只有本机 Chromium 一个数据点）
 - 真实 GPU VRAM 统计与 device-specific benchmark（只有一个 GPU bucket）
 - 变形粒子场的 world-only per-pixel velocity MRT（刚体相机重投影已有，不是完整速度缓冲）
@@ -185,7 +183,7 @@ pnpm test:e2e
 
 `pnpm test:e2e` 已在 headless Chromium 上跑通 17 项，覆盖六个 demo 的降级与 GPU 路由、滚动轨道、section pin、reduced motion 和 context loss 恢复。它仍然是**语义**验收而不是像素门禁——仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约。WebGPU device profile 和实际 FPS 结论必须在有真实 GPU 的机器上生成。
 
-它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常**。强制 WebGL2 的页面当前每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。详见[真机基线](#3-真机基线)。
+它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常，也测不到画面是不是整块缺了。** 强制 WebGL2 的页面曾经每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。修复那个异常之后世界仍然缺失，17 项也仍然全绿。详见[真机基线](#3-真机基线)。
 
 ## React 用法
 
@@ -396,6 +394,14 @@ node scripts/measure-device.mjs --dpr 2
 
 按现有数据，**可以当基线的只有 `p50` 和"是否出现 16.7 ms 台阶"**；`max` 与 `>16.7ms` 计数在两次运行之间可以差一倍以上，不适合做门禁。
 
+#### 测量抓到的三个缺陷
+
+这轮测量的价值不在数字，在于它在两条后端路径上都抓到了既有测试看不见的问题。三个缺陷里前两个已修，第三个是修完前两个才显形的。
+
+1. **强制 WebGL2 每帧抛异常**（已修）。`captureDepth()` 把世界深度拷进一个裸 `DepthTexture`；three 的 WebGL 后端把这条拷贝实现为两个 render target 的 framebuffer 之间的 blit，裸纹理没有 framebuffer，于是 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态，`reportStats()` 再也执行不到，观测属性集体为空。修法是给历史深度配一个只作宿主的 `RenderTarget`，并在拷贝前调用 three 的公开方法 `renderer.initRenderTarget(host)` 预建它的 framebuffer——`setRenderTarget(host)` 不够，它不会触发 framebuffer 创建，也不会登记纹理。修后 `Invalid value used as weak map key` 从 693 次降到 0，`data-ui-lib-backend` 由 `unknown` 恢复为 `webgl2`。
+2. **WebGPU 的 `historyValid` 误报**（已修）。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回、不拷贝，随后 `historyValid` 仍被置 1，时间性链路实际未生效。修法是新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找，在拷贝会被拒绝时把 `historyValid` 置 0 并 return。修后警告从每秒约 115 次降到 1 次（剩的那次是首帧帧缓冲纹理尚未登记、无法判定格式，保留原行为）。
+3. **WebGL2 下 post 链把背景世界整块打黑**（仍未修）。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板，透镜、晶体、辉光、轨道线全都不见了。用"临时关掉 post 链"的决胜实验定位到 post 链：关掉后世界正常出现，说明**WebGL2 的世界渲染本身是好的，是 post 链把背景打黑**（临时补丁已撤销）。这条也推翻了此前"崩溃导致黑屏"的说法——崩溃与黑屏是两个独立问题。
+
 ### 4. FPS 与掉帧统计
 
 `FrameScheduler` 会记录：
@@ -504,7 +510,7 @@ input → GPU compute → DOM/state update → backdrop → particles → glass 
 
 最终 backend 取决于浏览器、操作系统、驱动、设备策略和 context 是否可创建。UI-Lib 不会在没有运行 browser matrix 的情况下写死浏览器版本承诺。
 
-> **第 2 条当前是坏的。** 强制 WebGL2 时 `postProcessing.captureDepth()` 每帧抛 `TypeError`，render target 停在离屏目标上，DOM 与玻璃面板正常但背后的世界整块变黑，运行时统计属性集体为空。原因与复现见 [`docs/benchmarks`](docs/benchmarks/2026-10-01-apple-m3-pro.md)。修好之前，请把 WebGL2 当作"能创建 context、但画不出完整画面"的路径。
+> **第 2 条当前只走通了一半。** 强制 WebGL2 时 `postProcessing.captureDepth()` 每帧抛 `TypeError` 的崩溃已修，观测属性恢复，但 post 链会把背后的世界整块打黑——DOM 与玻璃面板正常，透镜与粒子不见。原因、复现与决胜实验见 [`docs/benchmarks`](docs/benchmarks/2026-10-01-apple-m3-pro.md)。修好之前，请把 WebGL2 当作"能创建 context、能跑完帧、但画不出完整画面"的路径。
 
 ### 质量等级
 
@@ -555,9 +561,11 @@ UI-Lib 以约束而不是营销数字为中心：
 - [x] WebGPU/WebGL2 loss 通知与 React stage 重建入口
 - [x] React SSR smoke test
 - [x] 真机帧节奏测量脚本与第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)）
-- [ ] 修掉强制 WebGL2 回退路径每帧抛异常、画面不完整的问题
-- [ ] 修掉 WebGPU 下 post 时间性链路的格式不匹配与 `historyValid` 误报
-- [ ] 真机 WebGL2 帧节奏与像素基线（回退路径修好后重测）
+- [x] 修掉强制 WebGL2 回退路径每帧抛异常的问题（宿主 `RenderTarget` + `renderer.initRenderTarget()`）
+- [x] 修掉 WebGPU 下 post 时间性链路的格式不匹配与 `historyValid` 误报（`framebufferCopyWouldFail()` 守卫）
+- [ ] 修掉 WebGL2 下 post 链把背景世界整块打黑的问题
+- [ ] 为上面两个已修项补回归断言（现有 17 项语义验收抓不到帧回调异常与画面缺失）
+- [ ] 真机 WebGL2 帧节奏与像素基线（post 链修好后重测）
 - [ ] 跨浏览器 screenshot baseline
 - [ ] GPU 设备矩阵、1M 粒子 FPS 与 GPU memory profiling
 - [ ] device lost / context lost 的真实注入与恢复回归

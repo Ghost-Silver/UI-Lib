@@ -16,7 +16,7 @@
 			"maxDtsBytes": 13500
 		},
 		"post": {
-			"maxJsBytes": 22000,
+			"maxJsBytes": 24000,
 			"maxDtsBytes": 11500
 		},
 		"motion": {

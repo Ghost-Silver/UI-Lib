@@ -29,6 +29,7 @@ import {
 	FramebufferTexture,
 	Matrix4,
 	type Node,
+	RenderTarget,
 	SRGBColorSpace,
 	type Texture,
 	Vector2,
@@ -38,6 +39,7 @@ import {
 	alignDepthHistory,
 	assertDepthHistoryFormats,
 	depthHistoryCompatible,
+	framebufferCopyWouldFail,
 	readGpuTextureFormat,
 } from "./depthCopy.js";
 
@@ -316,6 +318,22 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	historyTexture.name = "ui-lib:post-history";
 	const historyDepthTexture = new DepthTexture(1, 1);
 	historyDepthTexture.name = "ui-lib:post-depth-history";
+	// three's WebGL backend implements a depth-texture copy as a `blitFramebuffer`
+	// between the two textures' render-target framebuffers, so the destination
+	// needs a render target of its own even though nothing is ever drawn into it.
+	// A bare `DepthTexture` has no framebuffer, which is what made
+	// `copyTextureToTexture` throw `Invalid value used as weak map key` on
+	// WebGL2. The WebGPU backend copies texture to texture and needs no host, so
+	// the allocation is only ever realised on the WebGL path.
+	const historyDepthHost = new RenderTarget(1, 1, {
+		depthTexture: historyDepthTexture,
+		depthBuffer: true,
+		stencilBuffer: false,
+	});
+	historyDepthHost.texture.name = "ui-lib:post-depth-history-host";
+	// `RenderTarget.setSize` resizes the colour attachments but leaves
+	// `depthTexture` alone, so the depth size is tracked and applied separately.
+	let historyHostSize = { width: 0, height: 0 };
 	let jitterIndex = 0;
 
 	const source = viewportTexture();
@@ -560,6 +578,35 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 	const temporal = mix(effected, historyColour, temporalWeight);
 	const outputNode = mix(baseSample, temporal, uniforms.enabled);
 
+	/**
+	 * Gives the WebGL backend a framebuffer for the depth history, sized to the
+	 * world depth. Activating the target once is what makes the backend create
+	 * that framebuffer and stamp the target onto the depth texture; without it
+	 * the depth blit has no destination framebuffer to bind and throws. The
+	 * WebGPU backend copies texture to texture, so nothing is primed there and
+	 * the host is never allocated.
+	 */
+	const primeDepthHistoryHost = (
+		renderer: WebGPURenderer,
+		width: number,
+		height: number,
+	): void => {
+		// `isWebGLBackend` is set by three but is not part of the `Backend` type.
+		const backend = renderer.backend as { isWebGLBackend?: boolean } | undefined;
+		if (backend?.isWebGLBackend !== true) return;
+		if (historyHostSize.width === width && historyHostSize.height === height) return;
+		historyHostSize = { width, height };
+		historyDepthHost.setSize(width, height);
+		historyDepthTexture.image.width = width;
+		historyDepthTexture.image.height = height;
+		historyDepthTexture.needsUpdate = true;
+		// `Renderer.initRenderTarget` is the documented way to build a render
+		// target's framebuffer ahead of time; nothing inside three calls it. It
+		// is what attaches the depth texture to a framebuffer and stamps the
+		// render target onto it, which is exactly what the depth blit looks up.
+		renderer.initRenderTarget(historyDepthHost);
+	};
+
 	return {
 		outputNode,
 		uniforms,
@@ -586,6 +633,16 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			// Colour history is a framebuffer texture, so three sizes its GPU
 			// format to the canvas. Depth is not copied here: the screen depth
 			// is the present quad, and a depth texture cannot accept that copy.
+			//
+			// On WebGPU the copy only runs when the bound framebuffer's format
+			// matches the history's; otherwise three logs and returns without
+			// copying. Claiming the history is valid after a copy that did not
+			// happen is worse than not claiming it -- the temporal pass would
+			// blend against a texture nothing ever wrote. Ask first.
+			if (framebufferCopyWouldFail(renderer, historyTexture)) {
+				uniforms.historyValid.value = 0;
+				return;
+			}
 			renderer.copyFramebufferToTexture(historyTexture);
 			uniforms.historyValid.value = 1;
 		},
@@ -612,6 +669,13 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 					"ui-lib: depth history could not be aligned to the world depth texture.",
 				);
 			}
+			// `alignDepthHistory` has already written the world depth's extent
+			// into the history image; the fallback only satisfies the type.
+			primeDepthHistoryHost(
+				renderer,
+				historyDepthTexture.image.width ?? 1,
+				historyDepthTexture.image.height ?? 1,
+			);
 			renderer.copyTextureToTexture(depthTexture, historyDepthTexture);
 			assertDepthHistoryFormats(
 				readGpuTextureFormat(renderer, depthTexture),
@@ -681,6 +745,8 @@ export function createPostProcessing(options: PostProcessingOptions = {}): PostP
 			// ours, so release it explicitly.
 			historyTexture.dispose();
 			historyDepthTexture.dispose();
+			historyDepthHost.dispose();
+			historyHostSize = { width: 0, height: 0 };
 		},
 	};
 }
