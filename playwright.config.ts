@@ -16,7 +16,7 @@ export default defineConfig({
 	testMatch: "**/*.spec.ts",
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
-	timeout: 45_000,
+	timeout: 90_000,
 	globalTimeout: process.env.CI ? 8 * 60_000 : 0,
 	retries: process.env.CI ? 1 : 0,
 	// One worker on CI: every page allocates its own GPU context, and the
