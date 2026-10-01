@@ -4,7 +4,7 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面——真机画面已经有了第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），它立刻暴露出三个缺陷：**WebGPU 下 post 的时间性链路没有真正生效**与**强制 WebGL2 回退路径每帧抛异常**（两者已修），以及**post 链在两条后端上其实都没在干活**——WebGL2 画面全黑，WebGPU 的管线根本编译不过、链路静默空转（仍未修，也意味着页面上的性能数字不含后处理）。细节见[真机基线](#3-真机基线)。
+> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面——真机画面已经有了按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），它暴露出的**四个缺陷现已全部修复**，其中最关键的一条是**post 链在两条后端上其实都没在干活**（WebGL2 画面全黑，WebGPU 的管线根本编译不过、链路静默空转），修好之后又暴露出**自有 render target 的 UV 上下翻转**。修复后复测：WebGPU 在 2880×2000 上六页守住 120 fps，WebGL2 在同分辨率下明显吃不住。细节见[真机基线](#3-真机基线)。
 
 [在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
 
@@ -57,11 +57,10 @@ pnpm lint
 
 Liquid Glass Pro 已经是旗舰页。还没做的是：
 
-1. 修掉真机基线暴露的第三个缺陷：**post 链在两条后端上都没在干活**（P0，仍未修，比前两个都严重）。前两个缺陷已修：强制 WebGL2 的 `captureDepth()` 崩溃（给裸 `DepthTexture` 配宿主 `RenderTarget`，并在拷贝前用 `renderer.initRenderTarget()` 预建 framebuffer）与 WebGPU 的 `historyValid` 误报（`commit()` 在格式不匹配时不再声明有效历史）。
-   - **WebGL2 全黑**：逐帧切换 `renderer.outputColorSpace` / `toneMapping` 会翻转 three 的 `needsFrameBufferTarget`，于是场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 解析出的源是那个从没被写过的内部 target——整条链拿到一张空图。已真机验证过修法（把步骤 3–4 合成到显式 render target、post 采样它、画布只由管线写），**但没有提交**：它会把 WebGPU 暴露成黑屏。
-   - **WebGPU 管线编译失败**：post 管线的 Tint IR 生成报 `swizzle view instruction still has usages after lowering`，three 只打日志、不抛异常，每帧继续提交 invalid command buffer。结果画布上是**未经后处理**的原始合成，`docs/benchmarks` 里的 120 fps 也不含后处理。关掉 post 链可让这一串错误全部消失，据此确认失败的就是 post 管线。
-   - 两半必须一起修：只修 WebGL2 等于拿主后端的画面换次后端。
+1. 把真机基线暴露出的四个缺陷补上回归断言（四个本身**已全部修复**）。现有 17 项语义验收抓不到帧回调异常、画面缺失，也抓不到"管线编译失败但每帧照跑"。真机着色器门禁（`pnpm check:shaders`）已经覆盖了最后一类，其余仍待补。
 2. 1M @ 60fps 仍然没测。旗舰页跑的是固定 36k（Aurora Flow）与 9k（Wake），不是 `count: "auto"` 的百万级配置。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。
+3. WebGL2 在 DPR 2 上的帧节奏还没调过。六页里五页出现 120/60 Hz 双峰台阶，`aurora-flow` 的 `max` 冲到 750 ms（它同时被降到 tier 2，降档重建很可能是原因，但没做隔离实验）。
+4. 跨浏览器与 GPU 设备矩阵：只有本机 Chromium / Apple M3 Pro 一个 bucket。
 
 先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
 
@@ -187,6 +186,23 @@ pnpm test:e2e
 `pnpm test:e2e` 已在 headless Chromium 上跑通 17 项，覆盖六个 demo 的降级与 GPU 路由、滚动轨道、section pin、reduced motion 和 context loss 恢复。它仍然是**语义**验收而不是像素门禁——仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约。WebGPU device profile 和实际 FPS 结论必须在有真实 GPU 的机器上生成。
 
 它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常，也测不到画面是不是整块缺了，更测不到"管线编译失败但每帧照跑"。** 强制 WebGL2 的页面曾经每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。修复那个异常之后世界仍然缺失，17 项也仍然全绿。WebGPU 上 post 管线编译失败、链路静默空转，画面退化成未经后处理的原始合成，17 项同样全绿。详见[真机基线](#3-真机基线)。
+
+### 着色器编译门禁
+
+上面那个盲区现在有一个专门的门禁：
+
+```bash
+pnpm --filter @ui-lib/docs build
+pnpm check:shaders              # 有头 Chromium + 真 GPU，六页 × 两条后端
+pnpm check:shaders -- --demos wake   # 单页
+```
+
+它 patch `GPUDevice.prototype.createShaderModule` 与 `requestDevice`，把 three 从不读取的 `getCompilationInfo()` 结果、无人认领的 `uncapturederror` 事件、以及 `queue.submit` 的次数都收上来，然后逐页断言：没有失败的着色器模块、没有控制台失败模式、没有 page error、没有未捕获的 WebGPU 校验错误；WebGPU 侧还必须**确实创建过 device、创建过着色器模块、提交过命令缓冲**——一个什么都没渲染的页面是安静的，这几条让它无法靠沉默过关。
+
+两条设计约束：
+
+- **它刻意不进 CI。** Tint 的降级失败可以是**适配器特异**的：`swizzle view instruction still has usages after lowering` 在 Metal 适配器上稳定复现，而同一份 WGSL 在 SwiftShader 上通过。headless runner 没有 GPU，这个门禁会在那里长绿而什么也保护不了。改动画布合成或 node graph 之后，在真机跑 `pnpm verify:device` 再推。
+- **探针本身要被证伪。** `pnpm check:shaders:self-test` 会喂给探针一段 Tint 解析不了的 WGSL、一个没人开 error scope 的非法 `createBuffer`、一次真实提交，然后要求三者都被记录到。如果它一条都没记到，说明门禁是瞎的，自检直接失败。一个只会说"全绿"的判定器没有价值。
 
 ## React 用法
 
@@ -386,26 +402,42 @@ pnpm test:e2e:update
 
 ```bash
 pnpm build
-pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 5173 --strictPort
-node scripts/measure-device.mjs --dpr 1
-node scripts/measure-device.mjs --dpr 2
+pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 4173 --strictPort
+node scripts/measure-device.mjs --url http://127.0.0.1:4173 --dpr 1
+node scripts/measure-device.mjs --url http://127.0.0.1:4173 --dpr 2
+node scripts/measure-device.mjs --url http://127.0.0.1:4173 --backend webgl --dpr 2
 ```
 
-结果写到 `reports/device/<gpu-bucket>-dpr<N>/`（`measurement.json` + `measurement.md` + 六张 PNG），并按 GPU 分桶。`reports/` 不入库——那些数字描述的是某一台机器，不是这个项目。已跑过的记录整理在 [`docs/benchmarks`](docs/benchmarks/README.md)。
+结果写到 `reports/device/<gpu-bucket>-dpr<N>[-webgl2]/`（`measurement.json` + `measurement.md` + 六张 PNG），并按 GPU 分桶。`reports/` 不入库——那些数字描述的是某一台机器，不是这个项目。已跑过的记录整理在 [`docs/benchmarks`](docs/benchmarks/README.md)。
 
 帧间隔由脚本自己的 `rAF` 循环在页面内采样，**不读运行时自己的计数器**。运行时的计数单独记录，两者刻意分开：`droppedFrames` 的定义是 `expectedFrames = max(1, round(raw × 60))`，按固定 60 Hz 预算累计，是累计值而不是掉帧率，只应看窗口内的增量。
 
 按现有数据，**可以当基线的只有 `p50` 和"是否出现 16.7 ms 台阶"**；`max` 与 `>16.7ms` 计数在两次运行之间可以差一倍以上，不适合做门禁。
 
-#### 测量抓到的三个缺陷
+当前基线（Apple M3 Pro / Metal，1440×1000，后处理链开启）：
 
-这轮测量的价值不在数字，在于它在两条后端路径上都抓到了既有测试看不见的问题。三个缺陷里前两个已修，第三个是修完前两个才显形的。
+| 配置 | 结果 |
+|---|---|
+| WebGPU @ DPR 1 | 六页锁 120 fps，`p95` 9.0–9.2 ms，零超标帧 |
+| WebGPU @ DPR 2（2880×2000） | 六页锁 120 fps，`p95` 9.1–9.3 ms，仅 `liquid-glass` 2 个超标帧 |
+| WebGL2 @ DPR 1 | 六页锁 120 fps，`aurora-flow` 59 个超标帧 |
+| WebGL2 @ DPR 2 | 五页 `p50` 掉到 8.7–16.2 ms，四页出现双峰台阶，`aurora-flow` 被降到 tier 2 |
+
+两个读表时要注意的坑：`cursor-field` 是指针驱动的场，测量里没有指针输入，它的 120 fps 只描述一个空闲页面；`max` 与 `>16.7ms` 计数不要当门禁用。
+
+**"链路开着"不等于"链路在跑"。** 第一版记录就是栽在这里：后处理链配置上开着，实际在两条后端上都没画任何东西，而当时的性能数字看起来完全正常。确认链路真的生效要用两个独立检查，不要靠看截图：`pnpm check:shaders`（给出确切的着色器模块数与管线数）与「透传态 vs 关闭态」的像素残差（健康值 1 以下，实测 0.92；第一版是 10.61，即链路输入是错的）。
+
+#### 测量抓到的四个缺陷
+
+这轮测量的价值不在数字，在于它在两条后端路径上都抓到了既有测试看不见的问题。四个缺陷现已全部修复；第 4 个是修第 3 个的过程中才暴露出来的。
 
 1. **强制 WebGL2 每帧抛异常**（已修）。`captureDepth()` 把世界深度拷进一个裸 `DepthTexture`；three 的 WebGL 后端把这条拷贝实现为两个 render target 的 framebuffer 之间的 blit，裸纹理没有 framebuffer，于是 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态，`reportStats()` 再也执行不到，观测属性集体为空。修法是给历史深度配一个只作宿主的 `RenderTarget`，并在拷贝前调用 three 的公开方法 `renderer.initRenderTarget(host)` 预建它的 framebuffer——`setRenderTarget(host)` 不够，它不会触发 framebuffer 创建，也不会登记纹理。修后 `Invalid value used as weak map key` 从 693 次降到 0，`data-ui-lib-backend` 由 `unknown` 恢复为 `webgl2`。
-2. **WebGPU 的 `historyValid` 误报**（已修）。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回、不拷贝，随后 `historyValid` 仍被置 1，时间性链路实际未生效。修法是新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找，在拷贝会被拒绝时把 `historyValid` 置 0 并 return。修后警告从每秒约 115 次降到 1 次（剩的那次是首帧帧缓冲纹理尚未登记、无法判定格式，保留原行为）。
-3. **post 链在两条后端上都没在干活**（仍未修，比前两个都严重）。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板。逐项排除（关掉 post 链世界就回来 → 把 `enabled` 改成纯透传仍全黑 → 把输出固定成常量红，整块画布变红 → 输出 `vec4(uv.x, uv.y, baseSample.r, 1)`，UV 正确而采样值恒为 0）把根因钉在**链的输入为空**：`renderFrame()` 逐帧切换 `renderer.outputColorSpace` / `toneMapping`，这会翻转 three 的 `needsFrameBufferTarget`，使场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 随后从"内部 framebuffer target"取源——那个 target 从没被写过。
-   顺着这一半追下去才发现 WebGPU 那一半：**post 管线的 Tint IR 生成失败**（`swizzle view instruction still has usages after lowering`），three 只打日志不抛异常，每帧继续提交 invalid command buffer。所以 WebGPU 画布上是**未经后处理**的原始合成——本文的性能数字都不含后处理。关掉 post 链可让这一串错误全部消失，据此确认失败的就是 post 管线。
-   WebGL2 那一半的修法已真机验证（把步骤 3–4 合成到显式 render target、post 采样它、画布只由管线写，WebGL2 世界完整恢复），但**没有提交**：它会把 WebGPU 暴露成黑屏。两半必须一起修，只修 WebGL2 等于拿主后端的画面换次后端。
+2. **WebGPU 的 `historyValid` 误报**（已修）。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回、不拷贝，随后 `historyValid` 仍被置 1，时间性链路实际未生效。当时的修法是新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找，在拷贝会被拒绝时把 `historyValid` 置 0。**这条守卫在第 3 条修完后已经删掉**——链路不再去猜"当前输出是谁"，而是由调用方显式传入源纹理，格式在构造期就对齐，事后补救的判据没有存在必要。
+3. **post 链在两条后端上都没在干活**（已修，比前两个都严重）。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板。逐项排除（关掉 post 链世界就回来 → 把 `enabled` 改成纯透传仍全黑 → 把输出固定成常量红，整块画布变红 → 输出 `vec4(uv.x, uv.y, baseSample.r, 1)`，UV 正确而采样值恒为 0）把根因钉在**链的输入为空**：`renderFrame()` 逐帧切换 `renderer.outputColorSpace` / `toneMapping`，这会翻转 three 的 `needsFrameBufferTarget`，使场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 随后从"内部 framebuffer target"取源——那个 target 从没被写过。
+   顺着这一半追下去才发现 WebGPU 那一半：**post 管线的 Tint IR 生成失败**（`swizzle view instruction still has usages after lowering`），three 只打日志不抛异常，每帧继续提交 invalid command buffer。所以 WebGPU 画布上是**未经后处理**的原始合成。关掉 post 链可让这一串错误全部消失，据此确认失败的就是 post 管线。
+   **修法**：两半一起修。步骤 3–4 合成到自建的 `compositeRT`，post 链从 `compositeRT.texture` 采样，画布只由 `RenderPipeline` 写（无 post 时由 Node 版全屏 quad 搬一次），于是逐帧切换 `toneMapping` / `outputColorSpace` 整段删除；`commit()` 改用 `renderer.copyTextureToTexture()`，源与历史缓冲的格式在构造期对齐。Tint 的降级失败根因是**模块级 `var<private>` 上的嵌套 swizzle**（`vec3(v.xyz.y, …)` 形式），把该表达式移到函数内 `let` 上即通过；色散基准因此改走 `resolved.g`。
+4. **自有 render target 的 UV 上下翻转**（已修，第 3 条修好后显形）。链用 `screenUV` 采样自己的 render target，而 three 按 GL 约定自下而上存储目标纹理，`isFlipY()` 在 WebGPU 与 WebGL 两条 node builder 上**都**返回 `false`，不会替调用方补偿。判定过程：截图看起来像"构图错了"，试过 `rotate(180)`（残差 21.93）与 `FLIP_LEFT_RIGHT`（24.69）都不对，扫描"绕不同水平轴翻转"后定位到**绕画面正中 y=450 翻转**（残差 1.32）——分界线在画面中部，这正是"只翻了 UV"而不是"整页转了 180°"的特征。修法是 `vec2(screenUV.x, oneMinus(screenUV.y))`，源纹理、深度纹理、历史纹理、采样偏移与 reprojection clip 全部改用该空间。
+   判定用的硬指标是**「透传态 vs 关闭态」的像素残差**：`enabled: false` 的链路应当等价于完全不跑链路，修前残差 10.61、修后 0.92（噪声地板 0.20）。这比肉眼比对或网格差可靠得多，也是确认"后处理是否真的生效"的通用手段。
 
 ### 4. FPS 与掉帧统计
 
@@ -567,10 +599,11 @@ UI-Lib 以约束而不是营销数字为中心：
 - [x] React SSR smoke test
 - [x] 真机帧节奏测量脚本与第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)）
 - [x] 修掉强制 WebGL2 回退路径每帧抛异常的问题（宿主 `RenderTarget` + `renderer.initRenderTarget()`）
-- [x] 修掉 WebGPU 下 post 时间性链路的格式不匹配与 `historyValid` 误报（`framebufferCopyWouldFail()` 守卫）
-- [ ] 修掉 WebGL2 下 post 链把背景世界整块打黑的问题（根因已定位：`needsFrameBufferTarget` 翻转；修法已真机验证，未提交）
-- [ ] 修掉 WebGPU 下 post 管线编译失败（Tint `swizzle view instruction still has usages after lowering`）导致链路静默空转的问题
-- [ ] 为上面两个已修项补回归断言（现有 17 项语义验收抓不到帧回调异常、画面缺失，也抓不到"管线编译失败但每帧照跑"）
+- [x] 修掉 WebGPU 下 post 时间性链路的格式不匹配与 `historyValid` 误报（改为调用方显式传入源纹理，构造期对齐格式）
+- [x] 修掉 post 链在两条后端上都没在干活的问题（自建 `compositeRT` + `copyTextureToTexture`；Tint 降级失败根因是模块级 `var<private>` 上的嵌套 swizzle）
+- [x] 修掉自有 render target 的 UV 上下翻转（`isFlipY()` 在两条 node builder 上都是 `false`）
+- [x] 真机着色器编译门禁（`pnpm check:shaders`，有头 + 真 GPU；`--self-test` 证伪探针本身；**刻意不进 CI**，理由见 `docs/benchmarks`）
+- [ ] 为上面几个已修项补回归断言（现有 17 项语义验收抓不到帧回调异常、画面缺失，也抓不到"管线编译失败但每帧照跑"）
 - [ ] 真机 WebGL2 帧节奏与像素基线（post 链修好后重测；现有全部数字都不含后处理）
 - [ ] 跨浏览器 screenshot baseline
 - [ ] GPU 设备矩阵、1M 粒子 FPS 与 GPU memory profiling
@@ -640,6 +673,7 @@ UI-Lib 以约束而不是营销数字为中心：
 pnpm install
 pnpm dev              # Vite Playground
 pnpm verify           # 门禁：build → typecheck → test → size budget
+pnpm verify:device    # 上面的全部 + 真机着色器编译门禁
 pnpm test             # 先构建 dist，再跑 Vitest
 pnpm typecheck        # 全 workspace TypeScript
 pnpm size             # 体积预算门禁（读 size-budget.json）
@@ -648,6 +682,8 @@ pnpm build            # 包构建
 pnpm test:e2e         # Playwright 浏览器验收（headless Chromium）
 pnpm test:e2e:update  # 更新视觉 baseline
 pnpm measure          # 真机帧节奏测量（需要真实 GPU；脚本不会启停服务器）
+pnpm check:shaders    # 真机着色器/管线编译门禁（需要真实 GPU；先构建 apps/docs）
+pnpm check:shaders:self-test  # 证伪探针本身：确认门禁不是瞎的
 ```
 
 当前仓库仍处在 experimental monorepo 阶段。第一个 stable release 之前，公开 API 可能发生变化；依赖规划中或 experimental 标记的能力前，请先查看 [`docs/ROADMAP.md`](docs/ROADMAP.md)。

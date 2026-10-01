@@ -5,7 +5,7 @@
 >
 > 状态：**M0 地基、M1 液态玻璃、M2 粒子引擎、M3 后处理、M4 DOM 桥与滚动叙事均已有可运行切片**（更新于 2026-10-01）。
 > 六个旗舰页已构建并部署上线，Playwright 语义验收在 headless Chromium 下 17 项通过；体积预算门禁与 CI 流水线已落地。
-> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了三个缺陷**：WebGPU 下 post 的时间性链路格式不匹配、`historyValid` 误报；强制 WebGL2 回退路径每帧抛异常。前两个已修（宿主 `RenderTarget` + `renderer.initRenderTarget()`；`framebufferCopyWouldFail()` 守卫）。第三个追下去比预想严重：**post 链在两条后端上都没在干活**——WebGL2 画面全黑（逐帧切 `outputColorSpace` 翻转了 `needsFrameBufferTarget`，链的输入是空图），WebGPU 的 post 管线根本编译不过（Tint 降级失败）、链路静默空转。**因此现有的帧节奏数字都不含后处理。** 仍在 P0 待修。
+> 真机帧节奏测量已落地，第一份按 GPU 分桶的记录在 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)。**它立刻暴露了三个缺陷，追下去变成四个，现已全部修复。** 最关键的一条是 **post 链在两条后端上都没在干活**：WebGL2 画面全黑（逐帧切 `outputColorSpace` 翻转了 `needsFrameBufferTarget`，链的输入是空图），WebGPU 的 post 管线根本编译不过（Tint 降级失败于模块级 `var<private>` 上的嵌套 swizzle）、链路静默空转；修好后还暴露了第四条——自有 render target 的 UV 上下翻转（`isFlipY()` 在两条 node builder 上都是 `false`）。真机着色器编译门禁 `pnpm check:shaders` 已落地并**刻意不进 CI**（该失败是适配器特异的）。**`docs/benchmarks` 里的帧节奏数字仍待重测**——现有那批是在链路空转时取的，不含后处理。
 > 下文是完整规划；M5 多框架与发布仍为待办。实现过程中与草案不同的决策记录在文末「实现记录」。
 
 ---
@@ -196,23 +196,30 @@
 - 世界物体跟随 DOM 槽位已落地（不是 element→texture）：`GlassLayer.worldAt` / `follow` 在 render 相位、相机更新之后、TAA jitter 之前把槽位中心解到世界坐标。`fit` 按槽位短边解距离，变焦不呼吸；`distance` 锁射线距离，推拉仍变大。挂锚的粒子在锚点之后 step，与透镜同一帧。不写 React state，粒子系统不因位移重建。Lumen 的空列和 Cinema 的空场都用它。`@ui-lib/dom` 的 HTML 快照、3D→DOM（Html bind）、图片转场仍未开始
 - **验收**：滚动 60fps、DOM 与 WebGL 无抖动错位（像素对齐断言）、键盘/读屏可用。真机帧节奏已有第一份数据（DPR 1 六页全部锁 120 fps；DPR 2 中位帧间隔 8.3–8.5 ms，偶发 16.8 ms 台阶），像素对齐与键盘/读屏断言仍待补
 
-### M6 · 真机基线暴露的三个缺陷 🔴 P0
+### M6 · 真机基线暴露的四个缺陷 ✅ 全部修复
 
-真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了三个既有缺陷，都不被现有测试覆盖。前两个已修，第三个是修好前两个之后才显形的，而且比前两个都严重。
+真机测量（见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md)）暴露了三个既有缺陷，都不被现有测试覆盖。修第 3 条的过程中又暴露出第 4 条。
 
 1. **强制 WebGL2 回退路径每帧抛异常。** ✅ 已修。`packages/post/src/postProcessing.ts` 的 `captureDepth()` 把世界深度拷进 `new DepthTexture(1, 1)`——一个没有挂在任何 render target 上的裸深度纹理。three 的 WebGL 后端把深度拷贝实现为两个纹理各自 render target 的 framebuffer 之间的 `blitFramebuffer`，裸纹理的 `renderTarget` 是 `undefined`，`backend.get(undefined)` 触发 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态：此后每帧都画进离屏目标，`reportStats()` 被跳过导致所有观测属性为空。
    **修法**：给 history 深度纹理配一个只作宿主、从不被绘制的 `RenderTarget`，并在拷贝前用 three 的公开方法 `renderer.initRenderTarget(host)` 预建它的 framebuffer。**`setRenderTarget(host)` 不够**——它只设 `_currentRenderTarget`，不会走 `_textures.updateRenderTarget()` / `_renderContexts.get()` / `backend.initRenderTarget()`，framebuffer 根本不会建，深度纹理也不会被登记。`initRenderTarget` 在 three 内部没有任何调用点，专供调用方预建。WebGPU 后端是真正的纹理对纹理拷贝、不需要宿主，所以这份分配只在 WebGL 路径上真正生效。
    **验证**：`Invalid value used as weak map key` 从 693 次降到 0，`data-ui-lib-backend` 由 `unknown` 恢复为 `webgl2`，`tier=3`、`fps=120.0`。
-2. **WebGPU 下 post 的时间性链路没有真正生效。** ✅ 已修。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回，不做拷贝，随后 `historyValid` 仍被置 1。同一路由下另有一个 render pipeline 因 Tint 编译器错误（`swizzle view instruction still has usages after lowering`）编译失败。
-   **修法**：新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找（`_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()`，**不是** `getRenderTarget()`——后者在渲染管线内部目标仍绑定时报 null），在拷贝会被拒绝时把 `historyValid` 置 0 并 return。声明一份不存在的历史比不声明更糟。
-   **验证**：诊断输出与 three 的警告逐字一致（`source= rgba16float dest= bgra8unorm`），警告从 698 行降到 10 行（每秒约 115 次 → 1 次；剩下那次是首帧帧缓冲纹理尚未登记、无法判定格式，保留原行为）。
-3. **post 链在两条后端上都没在干活。** 🔴 未修，比前两条严重。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板——GPU 世界整块缺失。排除实验（关掉 post 链世界就回来 → 把 `enabled` 改成纯透传仍全黑 → 输出固定成常量红则整块画布变红 → 输出 `vec4(uv.x, uv.y, baseSample.r, 1)` 时 UV 正确而采样值恒为 0）把根因钉在**链的输入为空**：`renderFrame()` 逐帧切换 `renderer.outputColorSpace` / `toneMapping` 会翻转 three 的 `needsFrameBufferTarget`，使场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 随后从"内部 framebuffer target"取源，那个 target 从没被写过。
-   顺着这一半追下去才看到 WebGPU 那一半：**post 管线的 Tint IR 生成失败**（`swizzle view instruction still has usages after lowering`），three 只打日志、不抛异常，每帧继续提交 invalid command buffer。于是 WebGPU 画布上是**未经后处理**的原始合成，`docs/benchmarks` 的帧节奏数字也都不含后处理。关掉 post 链能让这一串错误全部消失，据此确认失败的就是 post 管线。把 post 图里的深度纹理采样换成常量，错误依旧，触发点不在那一处。
-   **WebGL2 那一半的修法已真机验证**：不再依赖 `copyFramebufferToTexture` 猜"当前输出是谁"，把步骤 3–4 合成到显式 render target、post 采样它、画布只由 `RenderPipeline` 写；render target 渲染天然是 working-linear，那两行逐帧切换可以整个删掉。验证结果：WebGL2 世界完整恢复、控制台零错误、`fps=120.0`。**没有提交**——它会把 WebGPU 暴露成黑屏，而 WebGPU 的管线编译失败是另一件事。两半必须一起修。
-   **待决**：定位 TSL 图里哪一种"纹理采样 + swizzle"组合触发 Tint 降级失败（候选：多个 `texture()` 结果之间取 `.r` / `.b` 拼 `vec3`、`historyTexture` 的 `vec4` 与 `historyDepthTexture` 的标量混用），再决定改图、绕开还是向 three 报 issue。
+2. **WebGPU 下 post 的时间性链路没有真正生效。** ✅ 已修，且修法在第 3 条落地后**换了**。当时的问题是 `commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回，不做拷贝，随后 `historyValid` 仍被置 1。
+   **当时的修法**：新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找（`_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()`，**不是** `getRenderTarget()`——后者在渲染管线内部目标仍绑定时报 null），在拷贝会被拒绝时把 `historyValid` 置 0 并 return。警告从 698 行降到 10 行。
+   **修法已替换**：第 3 条落地后，链不再需要猜"当前输出是谁"，`commit()` 直接 `renderer.copyTextureToTexture(sourceTexture, historyTexture)`，格式由构造期对齐。`framebufferCopyWouldFail()` 连同它的导出、测试用例与文档说明**全部删除**——事后补救的判据没有存在必要了。这正是当时保留它的代价：它把 three 的私有查找逐字抄了一遍，而真正的修法让这份抄写失去意义。
+3. **post 链在两条后端上都没在干活。** ✅ 已修，比前两条严重。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板——GPU 世界整块缺失。排除实验（关掉 post 链世界就回来 → 把 `enabled` 改成纯透传仍全黑 → 输出固定成常量红则整块画布变红 → 输出 `vec4(uv.x, uv.y, baseSample.r, 1)` 时 UV 正确而采样值恒为 0）把根因钉在**链的输入为空**：`renderFrame()` 逐帧切换 `renderer.outputColorSpace` / `toneMapping` 会翻转 three 的 `needsFrameBufferTarget`，使场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 随后从"内部 framebuffer target"取源，那个 target 从没被写过。
+   顺着这一半追下去才看到 WebGPU 那一半：**post 管线的 Tint IR 生成失败**（`swizzle view instruction still has usages after lowering`），three 只打日志、不抛异常，每帧继续提交 invalid command buffer。于是 WebGPU 画布上是**未经后处理**的原始合成。关掉 post 链能让这一串错误全部消失，据此确认失败的就是 post 管线。
+   **Tint 失败根因已定位**：TSL 把**每个中间结果**都落到模块级 `var<private> nodeVarN`，而**模块级私有变量上的嵌套 swizzle**（`vec3<f32>(v.xyz.y, …)` 这种"从 swizzle 再取分量"的形式）会让 Tint 的降级后使用计数失衡。把同一表达式移到函数内 `let` 上即通过。色散基准因此改走 `resolved.g` 而不是嵌套 swizzle。这条**不是 three 的 bug**，是 TSL 在模块级私有变量上的一种组合限制。
+   **修法**：两半一起修。步骤 3–4 合成到自建的 `compositeRT`，post 链从 `compositeRT.texture` 采样，画布只由 `RenderPipeline` 写（无 post 时由 Node 版全屏 quad 搬一次），于是逐帧切换 `toneMapping` / `outputColorSpace` 整段删除；`commit()` 改用 `renderer.copyTextureToTexture()`。
+   另外把「深度解算 + 时间累积」**上移到效果链之前**：画布不可回读之后历史从 `compositeRT` 拷贝，若仍把 TAA 放在链尾，就会把"后处理过的值（含颗粒）"与原始值按 0.88 反馈相混，几乎抵消整条链。颗粒与暗角留在解析之后——颗粒是逐帧图案，回灌进历史只会被平均掉。
+   **验证**：`scripts/check-shaders.mjs` 六页 × 两条后端 12/12 编译干净（WebGPU 侧 16–23 个着色器模块、6–12 条管线）。
+4. **自有 render target 的 UV 上下翻转。** ✅ 已修，第 3 条修好后显形。链用 `screenUV` 采样自己的 render target，而 three 按 GL 约定自下而上存储目标纹理，`isFlipY()` 在 WebGPU 与 WebGL 两条 node builder 上**都**返回 `false`，不会替调用方补偿。
+   **判定过程**：截图看起来像"构图错了"而不是"图像翻了"，试过 `rotate(180)`（残差 21.93）与 `FLIP_LEFT_RIGHT`（24.69）都不对；扫描"绕不同水平轴翻转"后定位到**绕画面正中 y=450 翻转**（残差 1.32）——分界线在画面中部，这正是"只翻了 UV"而非"整页转了 180°"的特征。
+   **修法**：`vec2(screenUV.x, oneMinus(screenUV.y))`；源纹理、深度纹理、历史纹理、采样偏移与 reprojection clip 全部改用该空间（`viewportTexture()` 回退路径仍用 `screenUV`）。
+   **判定指标**：「透传态 vs 关闭态」的像素残差——`enabled: false` 的链路应当等价于完全不跑链路。修前 10.61、修后 **0.92**（噪声地板 0.20）；「开启 vs 关闭」的真实观感差异 12.35。这个指标比肉眼比对或网格差可靠，也是确认"后处理是否真的生效"的通用手段。
 
 - **验收**：强制 WebGL2 的页面零 `pageerror`、`data-ui-lib-backend` 为 `webgl2`、背景世界可见；两条后端控制台都无管线编译失败、画面都确实经过后处理；两条路径都能给出 `docs/benchmarks/` 记录
-- **已达成**：零 `pageerror`、`backend=webgl2`、WebGPU 无 `copyFramebufferToTexture` 格式警告；**未达成**：WebGL2 背景世界可见、两条后端的画面确实经过后处理、WebGL2 的 `docs/benchmarks/` 记录
+- **已达成**：零 `pageerror`、`backend=webgl2`、两条后端控制台无管线编译失败、两条后端画面确实经过后处理（透传态 vs 关闭态残差 0.92）、真机着色器门禁 12/12
+- **未达成**：`docs/benchmarks` 的数字仍是链路空转时取的，需整组重测；WebGL2 的 `docs/benchmarks` 记录尚未建立
 
 ### M5 · 多框架与发布 🚧 工程门禁已就位
 - Vue / Svelte 适配、SSR examples（Next / Nuxt / SvelteKit）
@@ -288,11 +295,14 @@
    transform feedback。粒子默认 80k，demo 刻意用 24k 留出玻璃和低端设备余量；1M 基准和动态
    LOD 仍属于 M2 的后续验收，不把未经浏览器验证的数字写成已经完成。
 
-10. **M3 后处理作用于已经合成的 canvas，而不是重新渲染一遍 scene。** `@ui-lib/post` 用
+10. **M3 后处理作用于已经合成的 canvas，而不是重新渲染一遍 scene。** 原设计是 `@ui-lib/post` 用
     `viewportTexture()` 抓取 backdrop → particles → glass 的当前 framebuffer，TSL 图做 bloom /
-    chromatic aberration / grain / vignette，再由 three `RenderPipeline` 输出。这样仍是一个
+    chromatic aberration / grain / vignette，再由 three `RenderPipeline` 输出。**该设计已改为由调用方
+    显式传入源纹理**（`sourceTexture`，见第 19 条）——"抓当前 framebuffer"依赖调用时的绑定状态，
+    而那个状态会被逐帧的 `outputColorSpace` / `toneMapping` 切换改掉。这样仍是一个
     canvas，也不会破坏玻璃在前一 render call 里读取 `viewportSharedTexture()` 的折射语义。
-    中间帧暂时切到 working-linear，最终只做一次 tone mapping / sRGB transform；当前已经加入
+    中间帧保持在 render target 里（天然 working-linear），最终只做一次 tone mapping / sRGB transform；
+    当前已经加入
     history texture、16-step Halton world-camera jitter、depth-aware focus blur、world-object
     screen velocity、conservative history clamp 与 reactive rejection；world-depth mask 只对
     depth-backed world fragments 做 jitter + velocity reprojection，避免把稳定的 DOM glass 整帧
@@ -319,9 +329,11 @@
 
 17. **预建 framebuffer 要用 `renderer.initRenderTarget()`，不是 `setRenderTarget()`。** 修第 16 条的第一次尝试是给历史深度配一个宿主 `RenderTarget` 然后 `renderer.setRenderTarget(host)`——无效，`Invalid value used as weak map key` 仍然是 693 次。原因是 `setRenderTarget` 只写 `_currentRenderTarget`，不会触发 `_textures.updateRenderTarget()` → `_renderContexts.get()` → `backend.initRenderTarget()` 这条链，framebuffer 从未被创建，深度纹理也没被登记进 `backend` 的纹理表，blit 查找照样落空。改成 three 的公开方法 `renderer.initRenderTarget(host)` 后立刻归零——这个方法在 three 内部没有任何调用点，专供调用方预建 framebuffer。附带约束：`RenderTarget.setSize()` 只缩放 `textures[]`，不同步 `depthTexture`，所以深度尺寸要单独跟踪；`options.count` 必须 ≥ 1，否则 `getCacheKey` 读 `texture.format` 会崩。
 
-    第二条修法是**镜像 three 自己的查找顺序，而不是猜**。WebGPU 的 `copyFramebufferToTexture` 在源 / 目标格式不一致时只警告并返回，没有返回值也没有异常。我第一版守卫直接读 `getRenderTarget()`，诊断出来 `source= bgra8unorm dest= bgra8unorm`（看起来匹配、于是放行），而 three 实际报的是 `rgba16float` / `bgra8unorm`。原因是 `Renderer.copyFramebufferToTexture` 用的是私有 `this._currentRenderContext.renderTarget`，并且有 `_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()` 三级回退；`getRenderTarget()` 在渲染管线内部目标仍绑定时报 null。逐字照抄这条链之后，诊断输出与 three 的警告一字不差，警告从每秒约 115 次降到 1 次。
+    第二条修法当时是**镜像 three 自己的查找顺序，而不是猜**。WebGPU 的 `copyFramebufferToTexture` 在源 / 目标格式不一致时只警告并返回，没有返回值也没有异常。第一版守卫直接读 `getRenderTarget()`，诊断出来 `source= bgra8unorm dest= bgra8unorm`（看起来匹配、于是放行），而 three 实际报的是 `rgba16float` / `bgra8unorm`。原因是 `Renderer.copyFramebufferToTexture` 用的是私有 `this._currentRenderContext.renderTarget`，并且有 `_currentRenderContext` → `_renderTarget` → `_getFrameBufferTarget()` 三级回退；`getRenderTarget()` 在渲染管线内部目标仍绑定时报 null。逐字照抄这条链之后，诊断输出与 three 的警告一字不差，警告从每秒约 115 次降到 1 次。
 
-    两条修复都**只在真机上验证过**，没有留下回归断言——现有 17 项语义验收既不检查帧回调是否抛异常，也不检查画面是否整块缺失。补断言列为 M6 待办。
+    **这份守卫已经删除**（见第 19 条）。它是一份对 three 私有实现的逐字抄写，只解决"拷贝被拒后不要谎报历史有效"，不解决"拷错了源"。改成由调用方显式传入源纹理、格式在构造期对齐之后，事后判定的必要前提消失了。教训：**镜像私有实现的补丁应当被当作临时脚手架，而不是终点**——它的存在本身就在提示上游的调用契约用错了。
+
+    这些修复当时都**只在真机上验证过**，没有留下回归断言——现有 17 项语义验收既不检查帧回调是否抛异常，也不检查画面是否整块缺失。真机着色器编译门禁（第 21 条）补上了其中"管线编译失败但每帧照跑"这一类；其余仍列为 M6 待办。
 
 18. **逐帧改 `renderer.outputColorSpace` 会让"当前输出是谁"改变答案。** 追第 16 条之后那一半黑屏时踩到的坑。`glassLayer.renderFrame()` 为了让中间缓冲留在 working-linear 空间，在场景那几趟把 `renderer.outputColorSpace` 设成 `LinearSRGBColorSpace`、`toneMapping` 设成 `NoToneMapping`，画完再恢复。而 three 用这两个值算 `needsFrameBufferTarget`：
 
@@ -335,4 +347,24 @@
 
     它一变，画布那一趟到底"直接画进画布"还是"先画进 three 的内部 framebuffer target 再输出转换"就跟着变；`copyFramebufferToTexture()` 解析源的时候走的是 `this._renderTarget || this._getFrameBufferTarget()`，`_getFrameBufferTarget()` 在 `needsFrameBufferTarget === false` 时**返回 null**。于是"切换 → 场景直接画进画布 → 恢复 → 拷贝从内部 target 取源"就得到一张从没被写过的图。教训是：**凡是"取当前画布"这类调用，都必须保证调用时的渲染目标状态与写入时一致**；想避开这种耦合，就不要让中间结果落在画布上——渲染到自己的 render target，画布只由最终的 `RenderPipeline` 写。
 
-    同一个坑还有第二个受害者：`commit()` 的 `copyFramebufferToTexture()` 报的源格式是 `rgba16float`，那正是 three 的内部 target 格式，不是画布。第 17 条的守卫只挡住了"拷贝被拒后仍声明历史有效"，没有解决"拷错了源"。**这条仍未修**——它和 WebGPU 的 post 管线编译失败（Tint `swizzle view instruction still has usages after lowering`）必须一起处理，见 M6 第 3 条。
+    同一个坑还有第二个受害者：`commit()` 的 `copyFramebufferToTexture()` 报的源格式是 `rgba16float`，那正是 three 的内部 target 格式，不是画布。第 17 条的守卫只挡住了"拷贝被拒后仍声明历史有效"，没有解决"拷错了源"。**已在第 19 条一并修掉。**
+
+19. **让调用方交出源纹理，而不是让链路去猜。** 第 18 条的教训直接导向修法：既然"当前画布是谁"会被调用方的状态切换改掉，那链路就不该问这个问题。`@ui-lib/post` 的 `PostProcessingOptions` 新增 `sourceTexture`，调用方把自己那份后处理前的合成结果显式传进来；`commit()` 用 `renderer.copyTextureToTexture(sourceTexture, historyTexture)`，源与历史缓冲的格式在构造期逐字段对齐（`format` / `type` / `colorSpace`）。`framebufferCopyWouldFail()` 连同它的导出、5 个测试用例与全部文档说明一起删除。`sourceTexture` 为空时链路退回 `viewportTexture()`，且 `commit()` 把 `historyValid` 置 0 直接返回——**声明一份不存在的历史比不声明更糟**。
+
+    与之配套，`packages/renderer/src/glassLayer.ts` 的 `renderFrame()` 不再逐帧切换 `renderer.toneMapping` / `outputColorSpace`：步骤 3–4 合成到自建的 `compositeRT`（render target 天然是 working-linear、无 tone mapping），画布只由 `RenderPipeline` 写，没有 post 时由 Node 版全屏 quad 搬一次。整段逐帧切换因此删除，第 18 条那个坑的入口不存在了。
+
+    代价是「深度解算 + 时间累积」必须**上移到效果链之前**。画布不可回读之后历史从 `compositeRT` 拷贝，若仍把 TAA 留在链尾，就会把"后处理过的值（含颗粒）"与原始值按 0.88 反馈相混，几乎抵消整条链。颗粒与暗角留在解析之后——颗粒是逐帧图案，回灌进历史只会被平均掉。选项语义不变：`temporalBlend` 仍只在历史有效时生效。
+
+20. **Tint 降级失败的根因是模块级 `var<private>` 上的嵌套 swizzle，不是 three 的 bug。** 定位方法是把判定器做成三件套：patch `GPUDevice.prototype.createShaderModule` 截获 WGSL、用 `createRenderPipelineAsync({ layout: "auto" })` + `popErrorScope` 单独复现、再对着 WGSL 做**语句级双向二分**（逐条删/逐条留，看错误在哪一侧消失）。结论：TSL 把**每个中间结果**都落到模块级 `var<private> nodeVarN`，而"从 swizzle 再取分量"的嵌套形式（`vec3<f32>(v.xyz.y, …)`，`v` 是模块级私有变量）会让 Tint 的降级后使用计数失衡，报 `swizzle view instruction still has usages after lowering`。**同一表达式写在函数内 `let` 上就通过。** 修法是让色散基准改走 `resolved.g`，避开嵌套 swizzle。
+
+    顺带确认了一件对判定很重要的事：**同一份 WGSL 在 Metal 适配器上失败、在 SwiftShader 适配器上通过**。所以无头 CI 永远抓不到这类失败——门禁必须是有头 + 真 GPU。
+
+21. **真机着色器编译门禁 `scripts/check-shaders.mjs`，以及它为什么刻意不进 CI。** 六页 × 两条后端，每页断言：没有失败的着色器模块（读 three 从不调用的 `getCompilationInfo()`）、没有控制台失败模式、没有 page error、没有未捕获的 WebGPU 校验错误（three 不开 error scope，所以监听 `uncapturederror`）；WebGPU 侧还必须确实创建过 device、创建过着色器模块、提交过命令缓冲——**一个什么都没渲染的页面是安静的**，这几条让它无法靠沉默过关。`data-ui-lib-backend` / `-tier` / `-fps` 也要求是真值，防止 stage 没初始化却靠"什么都不报"通过。
+
+    **不进 CI 是设计决定**，理由见第 20 条：该失败是适配器特异的，headless runner 会在那里长绿而什么也保护不了。CI 的 `ci.yml` 文末已写明这一点。真机门禁是 `pnpm verify:device`。
+
+    **探针本身必须可被证伪。** `pnpm check:shaders:self-test` 喂给探针一段 Tint 解析不了的 WGSL、一个没人开 error scope 的非法 `createBuffer`、一次真实提交，要求三者都被记录到；一条都没记到就说明门禁是瞎的，自检失败。一个只会说"全绿"的判定器没有价值。
+
+22. **自有 render target 的 UV 是自下而上的，`isFlipY()` 不会替你补偿。** 第 19 条改完之后画面上下翻转，而**分界线在画面正中**——这正是"只翻了 UV"而非"整页转了 180°"的特征。判定过程：`rotate(180)` 残差 21.93、`FLIP_LEFT_RIGHT` 24.69，都不对；扫描"绕不同水平轴翻转"后定位到绕画面正中 y=450 翻转，残差 1.32。根因是 three 按 GL 约定自下而上存储 render target 纹理，而 node builder 的 `isFlipY()` 在 **WebGPU 与 WebGL 两条路径上都返回 `false`**（`GLSLNodeBuilder` 返回 `true`，但那只在 `WebGLRenderer` + `WebGLNodeBuilder` 那条路上生效，走 `WebGPURenderer` 的 WebGL2 fallback 时用的是 `GLSLNodeBuilder` 的 `isFlipY()`……实际两条后端下都观察到没有补偿）。修法是显式 `vec2(screenUV.x, oneMinus(screenUV.y))`，源纹理、深度纹理、历史纹理、采样偏移与 reprojection clip 全部改用该空间。
+
+    判定「后处理是否真的生效」用的硬指标是**「透传态 vs 关闭态」的像素残差**：`enabled: false` 的链路应当等价于完全不跑链路。修前 10.61、修后 0.92（噪声地板 0.20）；「开启 vs 关闭」的真实观感差异 12.35。这比肉眼比对或网格差可靠得多。

@@ -36,16 +36,24 @@ if (useViewport) return viewportSharedTexture(uvNode);
 （见 `packages/renderer/src/glassLayer.ts` 的 `renderFrame`）：
 
 ```text
-[1] backdrop（背景）＋ [1.5] 世界粒子  ──render─→  backdropRT（独立 WebGLRenderTarget，非 MSAA）
-[2] setRenderTarget(null)
-[3] presentQuad（MeshBasicMaterial，map = backdropRT.texture）──→ 屏幕（backdrop 呈现）
-[4] 玻璃面板（采样 backdropRT.texture）───────────→ 屏幕（折射）
-[5] （可选）post 后处理链 ──→ 屏幕
+[1] backdrop（背景）＋ [1.5] 世界粒子  ──render──→  backdropRT（独立 WebGLRenderTarget，非 MSAA）
+[2] 世界物体（透镜 / inside / front，post 开启时带 Halton jitter）──→  backdropRT
+[3] presentQuad（MeshBasicMaterial，map = backdropRT.texture）＋ 玻璃面板（同样采样 backdropRT.texture）
+        ──render──→  compositeRT（自建，含深度）
+[4] 有 post：RenderPipeline 采样 compositeRT.texture ──→ 画布（tone mapping / 输出色彩变换只发生这一次）
+    无 post：presentQuad（map = compositeRT.texture）──→ 画布（由 three 自己的输出 pass 做变换）
 ```
 
 - 折射素材来源固定为 `backdropRT.texture`，**永远不会**去读正在被写入的 backbuffer；
 - 因为 same-pass read-after-write 被消除，也顺带消除了 MSAA 采样数冲突；
-- `backdropRT` 随分辨率在 `syncViewport` 里 `setSize` 同步，并在 `dispose()` 释放，无资源泄漏。
+- `backdropRT` / `compositeRT` 随分辨率在 `syncViewport` 里 `setSize` 同步，并在 `dispose()` 释放，无资源泄漏。
+
+> **后续变更（2026-10-01）**：最初的流程是「[3] presentQuad 把 backdrop 呈现到**屏幕**，[4] 玻璃面板再画到屏幕」，
+> 中间结果直接落在画布上。这条路径后来被证明有问题：它要求 post 链去猜「当前画布是谁」，而那个答案会被
+> 逐帧的 `toneMapping` / `outputColorSpace` 切换改掉，导致整条后处理链拿到一张空图（WebGL2 全黑），
+> 而 WebGPU 的 post 管线根本编译不过、链路静默空转。现在第 3–4 步合成到自建的 `compositeRT`，
+> 画布只由 `RenderPipeline`（或没有 post 时的 present pass）写，那两行逐帧切换整个删掉了。
+> 详见 [`benchmarks/2026-10-01-apple-m3-pro.md`](./benchmarks/2026-10-01-apple-m3-pro.md) 的缺陷 3。
 
 ## 改动清单
 
