@@ -18,7 +18,10 @@
 		"test:e2e:update": "playwright test --update-snapshots",
 		"size": "node scripts/check-size.mjs",
 		"measure": "node scripts/measure-device.mjs",
+		"check:shaders": "node scripts/check-shaders.mjs",
+		"check:shaders:self-test": "node scripts/check-shaders.mjs --self-test",
 		"verify": "pnpm test && pnpm typecheck && pnpm size",
+		"verify:device": "pnpm verify && pnpm check:shaders",
 		"lint": "biome check .",
 		"format": "biome format --write ."
 	},

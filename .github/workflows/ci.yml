@@ -128,3 +128,11 @@ jobs:
 #     GPU actually draws. Screenshot baselines need a GPU-bucketed matrix and
 #     are tracked in docs/ROADMAP.md under P0.
 #   * FPS, dropped frames and VRAM. Those need real devices.
+#
+#   * Shader and render-pipeline compilation. `pnpm check:shaders` covers that,
+#     and it is not wired in here on purpose: a Tint lowering failure can be
+#     adapter-specific (the `swizzle view instruction still has usages` bug
+#     reproduced on Metal and passed on SwiftShader with byte-identical WGSL),
+#     and a headless runner has no GPU. It stays green for months on end while
+#     the WebGPU post chain never runs. Run it on a machine with a real GPU
+#     before pushing anything that touches a node graph: `pnpm verify:device`.
