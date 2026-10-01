@@ -6,11 +6,10 @@ import { defineConfig, devices } from "@playwright/test";
  * Screenshots are only comparable within one browser/GPU bucket. CI may add
  * WebGPU-capable projects without changing the test contract.
  *
- * On CI the whole suite is deliberately fenced in. Twice now the browser job
- * reported every test and then never exited: the second run finished all 17
- * tests in 65 seconds, then waited 480s on the webServer teardown until the
- * global timeout aborted it. A hung teardown has no timeout of its own, so
- * the run needs a ceiling here and an artifact to inspect afterwards.
+ * On CI the whole suite is fenced in. Twice the browser job reported all 17
+ * tests green and then never exited, burning the job's budget. A hung
+ * teardown has no timeout of its own, so the run needs a ceiling here and an
+ * artifact to inspect afterwards.
  */
 export default defineConfig({
 	testDir: "./tests/e2e",
@@ -32,8 +31,9 @@ export default defineConfig({
 		colorScheme: "dark",
 		reducedMotion: "no-preference",
 		launchOptions: {
-			// GitHub runners hand Chromium a small /dev/shm. Without this the
-			// renderer can wedge, which is the failure mode described above.
+			// GitHub runners hand Chromium a small /dev/shm. This is the usual
+			// remedy for a renderer that wedges there; it is cheap insurance
+			// rather than a confirmed cause.
 			args: process.env.CI ? ["--disable-dev-shm-usage"] : [],
 		},
 	},
@@ -43,20 +43,23 @@ export default defineConfig({
 			use: { ...devices["Desktop Chrome"] },
 		},
 	],
-	webServer: {
-		// Locally this is the Vite dev server, so the playground hot-reloads
-		// library sources. On CI it serves the built playground instead: the
-		// dev server keeps a long-lived esbuild dependency-optimizer service
-		// alive, that service inherits the webServer's stdio pipes, and
-		// Playwright's teardown then waits on a pipe that never closes. The
-		// suite reported all 17 tests green and still sat there for eight
-		// minutes. `vite preview` spawns no such service, and it is also the
-		// artifact that actually gets deployed.
-		command: process.env.CI
-			? "pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 5173 --strictPort"
-			: "pnpm --filter @ui-lib/docs dev --host 127.0.0.1",
-		url: "http://127.0.0.1:5173",
-		reuseExistingServer: !process.env.CI,
-		timeout: 120_000,
-	},
+	// On CI the workflow starts and owns the server itself, so Playwright has
+	// nothing to spawn and nothing to tear down.
+	//
+	// Playwright's own webServer teardown hung twice on the Linux runner, both
+	// times after all 17 tests had already reported green: it kills the `pnpm`
+	// wrapper it spawned, the `vite` process behind it survives with the stdio
+	// pipes still open, and the teardown then waits on a pipe that never
+	// closes. Switching from the dev server to `vite preview` did not change
+	// it, which is what ruled the esbuild optimizer out. Locally this never
+	// reproduced because `reuseExistingServer` reuses an already-running
+	// server, so the spawn/teardown path is never taken.
+	webServer: process.env.CI
+		? undefined
+		: {
+				command: "pnpm --filter @ui-lib/docs dev --host 127.0.0.1",
+				url: "http://127.0.0.1:5173",
+				reuseExistingServer: true,
+				timeout: 120_000,
+			},
 });

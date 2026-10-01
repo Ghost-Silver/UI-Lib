@@ -83,10 +83,26 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      # The acceptance suite serves the built playground on CI (see the
-      # webServer comment in playwright.config.ts), so it has to exist first.
+      # The acceptance suite serves the built playground, so it has to exist
+      # first. CI runs the server here rather than letting Playwright spawn it:
+      # see the webServer comment in playwright.config.ts for why.
       - name: Build docs playground
         run: pnpm --filter @ui-lib/docs build
+
+      - name: Serve the playground
+        run: |
+          nohup pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 5173 --strictPort \
+            > "$RUNNER_TEMP/playground.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:5173/; then
+              echo "playground is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "playground never came up:"
+          cat "$RUNNER_TEMP/playground.log"
+          exit 1
 
       - name: Acceptance suite
         run: pnpm test:e2e
