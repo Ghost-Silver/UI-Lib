@@ -391,6 +391,26 @@ export const GLASS_LOOKS = {
 		pointerRadius: 200,
 		environment: 0.22,
 	},
+	/**
+	 * A small round badge. Fully rounded, soft frost and a wide bright rim, so
+	 * it reads as a glossy bead rather than a pane of glass. `BubbleBadge` is
+	 * the intended consumer; the pill radius comes from the component.
+	 */
+	iris: {
+		radius: 999,
+		bevel: 12,
+		refraction: 24,
+		dispersion: 0.14,
+		roughness: 0.06,
+		frost: 8,
+		tint: "#ffe9f3",
+		tintAmount: 0.18,
+		specular: 0.6,
+		edgeGlow: 0.34,
+		pointerStrength: 0.32,
+		pointerRadius: 120,
+		environment: 0.3,
+	},
 } as const satisfies Record<string, GlassPanelOptions>;
 
 export type GlassLookName = keyof typeof GLASS_LOOKS;
