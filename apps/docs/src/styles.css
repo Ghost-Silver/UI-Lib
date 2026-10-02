@@ -2025,3 +2025,158 @@ input[type="range"]::-moz-range-thumb {
 	letter-spacing: 0.08em;
 	color: rgba(244, 239, 230, 0.5);
 }
+
+/* ---- Candy Glass: the pastel line ---- */
+
+.candy-stage {
+	background: transparent;
+}
+
+.candy {
+	position: relative;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 28px;
+	padding: clamp(22px, 4.2vw, 64px);
+	color: #fdf2f7;
+	background: linear-gradient(
+		90deg,
+		rgba(22, 12, 28, 0.9) 0%,
+		rgba(22, 12, 28, 0.72) 34%,
+		rgba(22, 12, 28, 0.16) 58%,
+		rgba(22, 12, 28, 0.02) 72%
+	);
+	pointer-events: none;
+}
+
+.candy a,
+.candy-card,
+.candy-copy {
+	pointer-events: auto;
+}
+
+.candy-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 24px;
+}
+
+.candy-kicker {
+	margin: 0;
+	font-size: 11px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: rgba(253, 242, 247, 0.6);
+}
+
+.candy-kicker span {
+	margin-left: 10px;
+	color: rgba(253, 242, 247, 0.36);
+}
+
+.candy-links {
+	display: flex;
+	gap: 18px;
+	font-size: 13px;
+}
+
+.candy-links a {
+	color: rgba(253, 242, 247, 0.72);
+	text-decoration: none;
+}
+
+.candy-links a:hover {
+	color: #ffd6e8;
+}
+
+.candy-main {
+	display: grid;
+	flex: 1;
+	grid-template-columns: minmax(0, 0.9fr) minmax(240px, 340px);
+	align-items: end;
+	gap: clamp(28px, 5vw, 80px);
+	padding-bottom: 6vh;
+}
+
+.candy h1 {
+	margin: 0;
+	max-width: 8em;
+	font-size: clamp(58px, 7.6vw, 106px);
+	font-weight: 500;
+	letter-spacing: -0.05em;
+	line-height: 0.9;
+}
+
+.candy-lead {
+	max-width: 28em;
+	margin: 22px 0 0;
+	font-size: 18px;
+	line-height: 1.5;
+	color: rgba(253, 242, 247, 0.76);
+}
+
+/* The badges sit in the document flow, so they stay focusable and selectable. */
+.candy-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 26px;
+}
+
+.candy-badge {
+	color: #fdf2f7;
+}
+
+.candy-card-hold.ui-lib-magnetic {
+	align-self: center;
+	justify-self: end;
+	width: min(100%, 340px);
+}
+
+.candy-card {
+	padding: 26px 26px 22px;
+	color: #fdf2f7;
+	/* A quiet ground behind the glass, so the pastel cloud does not eat the type. */
+	background: rgba(24, 11, 30, 0.66);
+}
+
+.candy-card h2 {
+	margin: 10px 0 18px;
+	font-size: 28px;
+	font-weight: 500;
+	letter-spacing: -0.04em;
+}
+
+.candy-card ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 14px;
+}
+
+.candy-card li {
+	display: grid;
+	gap: 4px;
+	font-size: 14px;
+	line-height: 1.45;
+	color: rgba(253, 242, 247, 0.8);
+}
+
+.candy-card li span:first-child {
+	font-size: 11px;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: rgba(253, 242, 247, 0.48);
+}
+
+/* Empty on purpose: it is the layout slot the bead follows. */
+.candy-slot {
+	justify-self: end;
+	width: min(18vh, 120px);
+	aspect-ratio: 1;
+	pointer-events: none;
+}

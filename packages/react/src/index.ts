@@ -22,6 +22,8 @@ export {
 export type { GlassPanelHandle, GlassPanelOptions } from "@ui-lib/renderer";
 export { LOOKS, type LookName, resolveLook } from "@ui-lib/renderer";
 export type { DomAnchor } from "./anchor.js";
+export type { BubbleBadgeProps } from "./BubbleBadge.js";
+export { BubbleBadge } from "./BubbleBadge.js";
 export type { GlassStageStatus, GlassStageValue } from "./context.js";
 export { GlassStageContext, useGlassStage } from "./context.js";
 export type { GlassPanelProps } from "./GlassPanel.js";

@@ -103,6 +103,52 @@ export const LENS_LOOKS = {
 		rimStrength: 0.8,
 		environment: 0.4,
 	},
+	/**
+	 * Blossom glass. A cool pink core against a soft white rim, with the
+	 * lowest caustic of any optic so the bead stays gentle rather than hot.
+	 */
+	sakura: {
+		specular: 0.5,
+		shininess: 58,
+		caustic: 0.1,
+		fresnel: 0.62,
+		fresnelPower: 3.2,
+		tint: "#ffe4f0",
+		tintAmount: 0.16,
+		highlight: "#fff4fa",
+		lightDirection: [-0.28, 0.66],
+		pointerStrength: 0.4,
+		pointerRadius: 240,
+		coreColor: "#ffc2dc",
+		coreStrength: 0.38,
+		rimShadow: "#2a1420",
+		rimColor: "#ffe0ee",
+		rimStrength: 0.78,
+		environment: 0.34,
+	},
+	/**
+	 * Warm candy glass. Peach core, cream rim. Slightly stronger core than
+	 * `sakura`, still under `crystal` so it does not become a lamp.
+	 */
+	peach: {
+		specular: 0.52,
+		shininess: 48,
+		caustic: 0.13,
+		fresnel: 0.58,
+		fresnelPower: 3,
+		tint: "#ffe8d2",
+		tintAmount: 0.15,
+		highlight: "#fff6ea",
+		lightDirection: [-0.22, 0.6],
+		pointerStrength: 0.42,
+		pointerRadius: 250,
+		coreColor: "#ffcf9e",
+		coreStrength: 0.42,
+		rimShadow: "#26160e",
+		rimColor: "#ffe3c6",
+		rimStrength: 0.76,
+		environment: 0.36,
+	},
 } as const satisfies Record<string, LensOptical>;
 
 /**
@@ -129,7 +175,14 @@ export function resolveLensLook(
 	return { ...LENS_LOOKS[look], ...definedPatch(patch) };
 }
 
-export type FieldLookName = "mote" | "spark" | "quiet" | "cursor" | "aurora" | "wake";
+export type FieldLookName =
+	| "mote"
+	| "spark"
+	| "quiet"
+	| "cursor"
+	| "aurora"
+	| "wake"
+	| "pastel";
 
 /**
  * Particle clouds that belong with a lens. Counts stay high enough to read as
@@ -244,6 +297,48 @@ export const FIELD_LOOKS: Record<FieldLookName, ParticleSystemOptions> = {
 	},
 	/** Rising strokes with a GPU history. Not brighter than aurora's curtain. */
 	wake: WAKE_FIELD,
+	/**
+	 * A soft candy cloud. Pastel colours and a gentle drift, kept dimmer than
+	 * `aurora` so a bright field never washes out the type it floats behind.
+	 * Sits to the right so it reads beside a headline instead of over it.
+	 */
+	pastel: {
+		count: 14_000,
+		emitter: {
+			shape: "box",
+			position: [2.6, 0.55, 0.15],
+			size: [4.6, 2.6, 1.4],
+			speed: 0.05,
+			spread: 1,
+		},
+		forces: {
+			gravity: [0, 0.012, 0],
+			drag: 0.2,
+			wind: [0.09, 0.03, 0],
+			turbulence: 0.34,
+			noiseScale: 0.2,
+			noiseDrift: 0.04,
+			vortex: 0.1,
+			attractor: 0,
+			stir: 0.85,
+			stirRadius: 2.2,
+		},
+		colors: ["#ffc1de", "#c2dcff", "#ffe6a8"],
+		hotColor: "#fff4e8",
+		hotAmount: 0.12,
+		/** A blush tint for the stir. Still a colour, not extra intensity. */
+		stirColor: "#ff96c1",
+		stirTint: 0.8,
+		speedReference: 1.1,
+		size: [0.02, 0.05],
+		intensity: 0.46,
+		opacity: 0.56,
+		life: [9, 17],
+		bounds: "box",
+		boundsSize: [7.2, 3.8, 2.4],
+		bounce: 0.1,
+		blending: "additive",
+	},
 };
 
 /** Shallow-merge a field look. `emitter` and `forces` merge one level down. */
@@ -390,6 +485,26 @@ export const GLASS_LOOKS = {
 		pointerStrength: 0.26,
 		pointerRadius: 200,
 		environment: 0.22,
+	},
+	/**
+	 * A small round badge. Fully rounded, soft frost and a wide bright rim, so
+	 * it reads as a glossy bead rather than a pane of glass. `BubbleBadge` is
+	 * the intended consumer; the pill radius comes from the component.
+	 */
+	iris: {
+		radius: 999,
+		bevel: 12,
+		refraction: 24,
+		dispersion: 0.14,
+		roughness: 0.06,
+		frost: 8,
+		tint: "#ffe9f3",
+		tintAmount: 0.18,
+		specular: 0.6,
+		edgeGlow: 0.34,
+		pointerStrength: 0.32,
+		pointerRadius: 120,
+		environment: 0.3,
 	},
 } as const satisfies Record<string, GlassPanelOptions>;
 
