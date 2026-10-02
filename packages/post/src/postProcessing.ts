@@ -251,16 +251,21 @@ function halton(index: number, base: number): number {
 }
 
 const BLOOM_PYRAMID_LEVELS: readonly [number, number][] = [
-	[1, 0.42],
-	[2, 0.28],
-	[4, 0.18],
-	[8, 0.12],
+	[1.0, 0.42],
+	[2.5, 0.28],
+	[5.5, 0.18],
+	[10.0, 0.12],
 ];
 
+// Expanded 5-tap Gaussian-like kernel for a much smoother pseudo-bloom
+// compared to the basic 3-tap linear kernel, vastly reducing banding/blockiness
+// without dropping the single-pass architectural constraint.
 const SEPARABLE_TAPS: readonly [number, number][] = [
-	[-1, 0.25],
-	[0, 0.5],
-	[1, 0.25],
+	[-2, 0.06136],
+	[-1, 0.24477],
+	[0, 0.38774],
+	[1, 0.24477],
+	[2, 0.06136],
 ];
 
 const TAA_NEIGHBOUR_OFFSETS: readonly [number, number][] = [

@@ -1,0 +1,27 @@
+{
+	"name": "@ui-lib/dom",
+	"version": "0.0.1",
+	"description": "Imperative bridge for attaching UI-Lib GPU effects to raw DOM elements.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@ui-lib/core": "workspace:*",
+		"@ui-lib/particles": "workspace:*",
+		"@ui-lib/renderer": "workspace:*",
+		"@ui-lib/shaders": "workspace:*",
+		"three": "^0.186.1"
+	},
+	"devDependencies": {
+		"@types/three": "^0.186.0",
+		"tsup": "^8.5.1"
+	}
+}

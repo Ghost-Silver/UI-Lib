@@ -172,6 +172,9 @@ importers:
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -227,6 +230,31 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+
+  packages/dom:
+    dependencies:
+      '@ui-lib/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ui-lib/particles':
+        specifier: workspace:*
+        version: link:../particles
+      '@ui-lib/renderer':
+        specifier: workspace:*
+        version: link:../renderer
+      '@ui-lib/shaders':
+        specifier: workspace:*
+        version: link:../shaders
+      three:
+        specifier: ^0.186.1
+        version: 0.186.1
+    devDependencies:
+      '@types/three':
+        specifier: ^0.186.0
+        version: 0.186.0
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)
 
   packages/motion:
     dependencies:

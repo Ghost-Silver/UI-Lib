@@ -34,5 +34,6 @@ export {
 	STUDIO_ENVIRONMENT_SIZE,
 	studioEnvironment,
 } from "./studioEnvironment.js";
+export { evaluateMSDF } from "./text/msdf.js";
 export type { WorldLensMaterial, WorldLensOptions, WorldLensUniforms } from "./worldLens.js";
 export { createWorldLensMaterial, WORLD_LENS_DEFAULTS } from "./worldLens.js";
