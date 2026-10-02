@@ -1,42 +1,52 @@
-import { evaluateMSDF } from "@ui-lib/shaders";
-import { color, float, uv, vec4 } from "three/tsl";
-import { Color, DoubleSide, Mesh, TextureLoader } from "three";
-import { MeshBasicNodeMaterial } from "three/webgpu";
-import { type BMFont, createTextGeometry } from "./layout.js";
-// import { createEffect } from "../magic.js";
+import type { ParticleSystemOptions } from "@ui-lib/particles";
+import { magicText } from "../magic.js";
+import { type BMFont, createTextGeometry, sampleTextPoints } from "./layout.js";
 
-export interface MagicMSDFTextOptions {
+export interface MagicTextParticleOptions {
 	text: string;
 	fontUrl: string; // JSON atlas
-	textureUrl: string; // PNG MSDF texture
-	color?: string;
-	fontSize?: number;
+	particleOptions?: ParticleSystemOptions;
+	density?: number;
 }
 
 /**
- * Creates an MSDF text mesh and embeds it inside the UI-Lib shared layer
+ * Parses an MSDF font, maps the text glyphs, and hooks it to the particle engine.
+ * Particles will swarm and snap to the text boundary box natively, scaled to the HTML element.
  */
-export async function magicMSDFText(_element: HTMLElement, options: MagicMSDFTextOptions) {
-	const loader = new TextureLoader();
-	const texture = await loader.loadAsync(options.textureUrl);
+export async function magicParticleText(
+	element: HTMLElement,
+	options: MagicTextParticleOptions,
+) {
 	const fontRes = await fetch(options.fontUrl);
 	const fontJson = (await fontRes.json()) as BMFont;
 
-	const material = new MeshBasicNodeMaterial();
-	material.transparent = true;
-	material.side = DoubleSide;
-
-	// Use evaluateMSDF from shaders to calculate proper opacity
-	const msdfAlpha = evaluateMSDF(texture, uv(), float(4.0)); // 4.0 is pxRange
-	const tint = color(new Color(options.color || "#ffffff"));
-
-	// Assign to material output node using TSL
-	material.colorNode = vec4(tint.r, tint.g, tint.b, msdfAlpha);
-
+	// Generate text quads
 	const geometry = createTextGeometry(options.text, fontJson);
-	const mesh = new Mesh(geometry, material);
 
-	// Call base effect initializer but we would ideally add a 3D mesh instead of a panel.
-	// For now we just return the mesh as a proof of concept.
-	return mesh;
+	// Sample attractors over the text surface, bounding box is normalized to [-0.5, 0.5]
+	const pointsCloud = sampleTextPoints(geometry, options.density || 0.1);
+
+	// Approximate physical element scale. A full implementation would actively resize this array on ResizeObserver.
+	const rect = element.getBoundingClientRect();
+	// Magic scale approximation for viewport projection size
+	const scaleX = rect.width / 100;
+	const scaleY = rect.height / 100;
+
+	const scaledCloud = new Float32Array(pointsCloud.length);
+	for (let i = 0; i < pointsCloud.length; i += 3) {
+		scaledCloud[i] = (pointsCloud[i] as number) * scaleX;
+		scaledCloud[i + 1] = (pointsCloud[i + 1] as number) * scaleY;
+		scaledCloud[i + 2] = pointsCloud[i + 2] as number;
+	}
+
+	// Hand over to the primary particle magic wrapper
+	return magicText(element, {
+		...options.particleOptions,
+		attractorCloud: scaledCloud,
+		forces: {
+			...options.particleOptions?.forces,
+			// @ts-expect-error - Adding attractorMode which we monkeypatched dynamically into particle options
+			attractorMode: "cloud",
+		},
+	});
 }
