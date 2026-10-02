@@ -124,15 +124,57 @@ export function MagicHero() {
 如果你计划贡献代码，请在提交前执行门禁验证：
 
 ```shell
-# 1. 执行验证：包大小、测试、类型检查
+# 1. 执行验证：构建 → 类型检查 → 测试 → 体积预算
 pnpm verify
 
 # 2. 代码静态检查与格式化
 pnpm lint
 
-# 3. 运行核心架构的 Headless 浏览器验收测试
+# 3. 运行 Headless 浏览器验收测试
 pnpm test:e2e
 ```
+
+`pnpm test` 自己会先 `pnpm build`。包入口指向 `dist/`，跳过构建的话跨包测试解析不到。
+`pnpm size` 读 `size-budget.json`，给七个包的 `dist/index.js` 与 `index.d.ts` 设上限，超了就以非零码退出。
+
+#### 真机门禁（需要真实 GPU，不进 CI）
+
+上面三条是语义验收，不是像素门禁：仓库里没有截图 baseline，测试文件里也没有 `toHaveScreenshot`，
+所以它证明的是 DOM、降级路径和生命周期契约，不是 Metal 或独显上真正画出了什么。
+
+真机侧另有两条命令，它们**刻意不进 CI**——CI 是 headless 的，macOS 上 headless Chromium 会回退到
+SwiftShader，那描述的是软件光栅化器，不是用户的机器：
+
+```shell
+pnpm build
+pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 4173 --strictPort
+
+# 真机帧节奏测量，按 GPU 分桶写入 reports/device/
+pnpm measure
+
+# 真机着色器/管线编译门禁（有头 Chromium + 真 GPU）
+pnpm check:shaders
+pnpm check:shaders:self-test   # 证伪探针本身：确认门禁不是瞎的
+```
+
+`check:shaders` patch 了 `GPUDevice.prototype.createShaderModule` 与 `requestDevice`，把 three 从不读取的
+`getCompilationInfo()` 结果、无人认领的 `uncapturederror` 事件和 `queue.submit` 次数都收上来，然后逐页断言：
+没有失败的着色器模块、没有未捕获的 WebGPU 校验错误，且 WebGPU 侧**确实创建过 device、创建过着色器模块、
+提交过命令缓冲**——一个什么都没渲染的页面是安静的，这几条让它无法靠沉默过关。
+
+#### 「链路开着」不等于「链路在跑」
+
+真机测量最有价值的一条经验：**后处理链配置上开着，不等于它在画东西**。第一版性能记录就是栽在这里——
+链在两条后端上都没干活，而当时的数字看起来完全正常。
+
+判断链路是否真的生效，不要靠看截图，要用两个独立检查：
+
+1. `pnpm check:shaders` 给出确切的着色器模块数与管线数；
+2. **「透传态 vs 关闭态」的像素残差**：`enabled: false` 的链路应当等价于完全不跑链路。
+   健康值在 1 以下，实测 0.92；第一版是 10.61，即链路输入是错的。
+
+按现有数据，**可以当基线的只有 `p50` 和「是否出现 16.7 ms 台阶」**；`max` 与 `>16.7ms` 计数在两次运行之间
+可以差一倍以上，不适合做门禁。完整记录见 [`docs/benchmarks`](./docs/benchmarks/README.md)。
 
 ## 架构概览
 
@@ -157,6 +199,27 @@ flowchart TD
   User_Space --> Orchestration
   Orchestration --> Effects
   Effects --> WebGPU_GL["WebGPU / WebGL2 API"]
+```
+
+## 开发命令
+
+```bash
+pnpm install              # 安装依赖
+pnpm dev                  # Vite Playground
+pnpm verify               # 门禁：build → typecheck → test → size budget
+pnpm verify:device        # 上面的全部 + 真机着色器编译门禁
+pnpm test                 # 先构建 dist，再跑 Vitest
+pnpm typecheck            # 全 workspace TypeScript
+pnpm size                 # 体积预算门禁（读 size-budget.json）
+pnpm lint                 # Biome check
+pnpm format               # Biome format --write
+pnpm build                # 包构建
+pnpm test:watch           # Vitest watch 模式
+pnpm test:e2e             # Playwright 浏览器验收（headless Chromium）
+pnpm test:e2e:update      # 更新视觉 baseline（需能安装浏览器）
+pnpm measure              # 真机帧节奏测量（需要真实 GPU；脚本不会启停服务器）
+pnpm check:shaders        # 真机着色器/管线编译门禁（需要真实 GPU；先构建 apps/docs）
+pnpm check:shaders:self-test  # 证伪探针本身：确认门禁不是瞎的
 ```
 
 ## 特别感谢
