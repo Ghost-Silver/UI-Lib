@@ -1,118 +1,89 @@
-# UI-Lib
+<h1 align="center">UI-Lib</h1>
 
-**面向 Web 的 GPU 优先动效与视觉效果运行时。**
+<p align="center">面向 Web 的 GPU 优先动效与视觉效果运行时，为普通网页注入魔法。</p>
 
-UI-Lib 将实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带入普通网页界面。它的目标是服务于产品展示（Product Hero）、滚动叙事、交互表面和沉浸式体验，并且**绝对不**使用 Canvas 完全取代语义化 HTML。
+<p align="center">
+  [<a href="https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run">在线演示</a>] [<a href="./docs/ROADMAP.md">路线图</a>]
+</p>
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、部分渲染编排和共享时钟均已落地。兼容 WebGPU 与 WebGL2。
+<p align="center">
+  <a href="https://github.com/Ghost-Silver/UI-Lib/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat&colorA=080f12&colorB=1fa669"></a>
+  <a href="#"><img src="https://img.shields.io/badge/状态-实验性%200.0.1-orange.svg"></a>
+  <a href="#"><img src="https://img.shields.io/badge/引擎-Three.js%20%7C%20TSL-blueviolet"></a>
+</p>
 
-[在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs)
+> [!TIP]
+> **想看看实际效果吗？**
+>
+> 体验不同场景下的视觉能力（部署于 `apps/docs`，打开即滑）：
+> - 🧊 **Liquid Glass Pro:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=liquid-glass)（基于真实 DOM 的多层玻璃与折射）
+> - ✨ **Lumen (Product Hero):** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=product-hero)
+> - 🎞️ **Scroll Cinema:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=scroll-cinema)
+> - 🖱️ **Cursor Field:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=cursor-field)
+> - 🌌 **Aurora Flow:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=aurora-flow)
+> - 💫 **Wake:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=wake)
+>
+> 在 URL 后追加 `?fallback=1` 强制查看 CSS 降级效果；追加 `?backend=webgl` 强制使用 WebGL2 渲染。
 
-## 在线演示
+你是否也曾在开发 Web 界面时陷入两难：是用可访问性极佳但效果平淡的常规 DOM 和 CSS，还是砸上一个华丽却完全阻断 DOM 流的 Canvas 游戏引擎 Demo？
 
-您可以访问以下链接，体验不同场景下的视觉能力：
-
-**https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run**
-
-| 演示场景 | 链接 | 简介 |
-|---|---|---|
-| **Liquid Glass Pro** | [`/?demo=liquid-glass`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=liquid-glass) | 基于真实 DOM 的多层玻璃与折射。 |
-| **Lumen (Product Hero)** | [`/?demo=product-hero`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=product-hero) | 产品展示页，带相机轨道和镜头光学效果。 |
-| **Scroll Cinema** | [`/?demo=scroll-cinema`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=scroll-cinema) | 沉浸式滚动叙事，支持 Sticky Pin。 |
-| **Cursor Field** | [`/?demo=cursor-field`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=cursor-field) | 基于指针驱动的高光互动粒子场。 |
-| **Aurora Flow** | [`/?demo=aurora-flow`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=aurora-flow) | 整页流场与涡旋，纯净的视觉氛围。 |
-| **Wake** | [`/?demo=wake`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=wake) | 带有粒子生命周期和光辉拖尾的高级展示。 |
-
-> 提示：在 URL 后追加 `?fallback=1` 强制查看 CSS 降级效果；追加 `?backend=webgl` 强制使用 WebGL2 渲染。
-
----
+UI-Lib 将实时 Liquid Glass（液体玻璃）、GPU 粒子、3D 场景和 TSL（Three Shading Language）后处理带入了普通网页界面。它的目标绝不是用 Canvas 替代语义化 HTML，而是**附着于文档之上，作为装饰性的魔法增强层**。
 
 ## 核心设计理念
 
-Web 动效经常面临一个两难的选择：用 DOM 和 CSS（易于接入、可访问性好，但能力受限）还是用 Canvas Demo（视觉华丽，但破坏文档流、性能失控）。UI-Lib 的设计妥协点是：
-
 - **DOM 仍然是 DOM。** 文本、链接、表单、焦点和布局都保留在语义化 HTML 中。
-- **一个共享渲染运行时。** 整个页面仅使用一个 Canvas、一个 Renderer 和一个 Scheduler 来承载所有 UI-Lib 效果，不为每个组件新建上下文。
-- **渐进增强。** 优先尝试 WebGPU，自动回退 WebGL2；在没有 GPU 或开启 Reduced Motion 时，平稳回退到 CSS / 静态形态。
-- **唯一着色器语言 (TSL)。** 使用 Three Shading Language 节点图，自动编译为 WGSL 或 GLSL，抹平跨端差异。
+- **共享的渲染宇宙。** 整个页面仅使用一个 Canvas、一个 Renderer 和一个 Scheduler 来承载所有效果，告别资源失控。
+- **极致的渐进增强。** 优先 WebGPU，自动回退 WebGL2；在没有 GPU 或开启了 Reduced Motion 时，平稳回退到优雅的 CSS 形态。
+- **唯一着色器语言。** 统一基于 TSL 节点图，自动编译为 WGSL 或 GLSL，抹平跨端差异。
 
-## 核心能力
+> [!NOTE]
+>
+> 即使不熟悉 WebGPU 的开发者，只要使用 React 环境，就能轻松组合出极具高级感的视觉组件。如果您熟悉 Three.js 或对图形编程充满热情，欢迎探索底层的 `@ui-lib/shaders` 和 `@ui-lib/renderer`！
 
-### 🧊 Liquid Glass (液体玻璃)
-- 真实 DOM 元素映射到 WebGPU 渲染层的实时玻璃面板。
-- 基于 Rounded-rectangle SDF 的真实屏幕空间折射。
-- 支持 RGB 色散 (Chromatic Dispersion)、霜冻模糊 (Frost/Roughness)、边缘高光等光线追踪级效果。
+## 当前能力与进度
 
-### ☄️ GPU 粒子场 (GPU Particles)
-- WebGPU Compute 路径与 WebGL2 Transform-feedback 回退路径。
-- 支持引力、湍流、涡旋、拖拽等流场力学。
-- 基于屏幕空间的多层深度混合。
+目前我们已经能做到：
 
-### 🎞️ TSL 后处理 (Post Processing)
-- 支持泛光 (Bloom)、镜头光晕、色差 (Chromatic Aberration) 与暗角。
-- 支持方向性运动模糊、焦点模糊。
-- 自适应质量降级 (Adaptive Quality Tier)。
+- [x] **Liquid Glass (液体玻璃)**
+  - [x] 真实 DOM 元素映射到 WebGPU 渲染层
+  - [x] 基于 SDF 的真实屏幕空间折射与 Bevel 边缘
+  - [x] 支持 RGB 色散、霜冻模糊、边缘高光、Fresnel 与动态指针互动
+- [x] **GPU 粒子场 (GPU Particles)**
+  - [x] 包含引力、湍流、涡旋的流场力学
+  - [x] 基于屏幕空间的多层深度混合 (`scene`, `inside`, `front`)
+  - [x] WebGPU Compute 路径与 WebGL2 Transform-feedback 回退
+- [x] **TSL 后处理 (Post Processing)**
+  - [x] 泛光 (Bloom)、镜头光晕、色差与暗角
+  - [x] 焦点模糊、方向运动模糊与时间帧累积抗锯齿 (TAA)
+  - [x] 自适应降级与质量档位调度 (Adaptive Quality Tier)
+- [ ] **增强动效叙事层 (施工中)**
+  - [x] 与 Scheduler 同步的无尽滚动与章节编排
+  - [x] React SSR 安全的组件适配与 Fallback 样式
+  - [ ] 完整的时间线编排与 MSDF 文本渲染
+  - [ ] 面向 Vue / Svelte 的适配层
 
----
+## 快速开发指南
 
-## 快速开始
+### 本地启动
 
-### 运行环境
-- Node.js `>= 20.19`
-- pnpm `12.x`
+请确保您拥有 Node.js `>= 20.19` 以及 pnpm `12.x` 环境。
 
-### 本地开发
-
-```bash
+```shell
 # 安装依赖
 pnpm install
 
-# 启动本地 Playground
+# 启动本地开发 Playground
 pnpm dev
 ```
-打开 `http://localhost:5173`。
 
-### 工程门禁指令
+### React 用法尝鲜
 
-```bash
-# 执行完整验证流程（类型检查、测试、包大小预算校验）
-pnpm verify
-
-# 格式化与静态检查
-pnpm lint
-
-# 运行浏览器端自动化集成测试（Headless Chromium）
-pnpm test:e2e
-```
-
----
-
-## 包结构指南
-
-UI-Lib 是一个 Monorepo 仓库，所有模块严格隔离，支持逐步引入：
-
-| 模块包 | 核心职责 |
-| --- | --- |
-| [`@ui-lib/core`](packages/core) | 框架无关的基础设施：Device、Quality、Scheduler、Pointer、Lifecycle |
-| [`@ui-lib/shaders`](packages/shaders) | Liquid Glass、Backdrop 材质与核心 TSL 节点图 |
-| [`@ui-lib/particles`](packages/particles) | GPU 粒子模拟、流场、发射器与渲染 |
-| [`@ui-lib/post`](packages/post) | TSL 后处理图、时域混合、颜色管理 |
-| [`@ui-lib/renderer`](packages/renderer) | WebGPU/WebGL2 启动、Stage 编排、DOM 关联渲染引擎 |
-| [`@ui-lib/react`](packages/react) | React 适配层 (`GlassStage`, `GlassPanel` 等)，包含 SSR 回退与样式 |
-| [`@ui-lib/motion`](packages/motion) | 基于共享帧时钟的滚动追踪与动画编排 |
-
-*注意：所有渲染相关的包仅将 `three` 作为 Peer Dependency，不会自动打包 Three.js。*
-
----
-
-## React 用法示例
-
-在 React 环境下，保持页面语义结构不变，通过 `GlassStage` 和 `GlassPanel` 附加增强效果。
+下面展示了如何在保留语义的情况下，通过 `GlassStage` 渲染复杂的折射材质与粒子：
 
 ```tsx
 import { GlassPanel, GlassStage, ParticleField } from "@ui-lib/react";
 
-export function ProductHero() {
+export function MagicHero() {
   return (
     <GlassStage
       backdrop={{
@@ -122,35 +93,76 @@ export function ProductHero() {
       post={{
         bloomStrength: 0.4,
         chromaticAberration: 0.8,
-        focusBlur: 1.5,
       }}
     >
-      {/* 在统一上下文里添加粒子 */}
+      {/* 粒子在统一的共享图层内演算 */}
       <ParticleField
         options={{
           count: 24_000,
-          forces: { turbulence: 2.2, vortex: 1.4 },
-          colors: ["#5eead4", "#a78bfa", "#f472b6"],
+          forces: { turbulence: 2.2 },
+          colors: ["#5eead4", "#a78bfa"],
         }}
       />
 
-      {/* 这个卡片会被映射到 WebGPU 渲染空间中进行屏幕空间折射 */}
+      {/* 这个卡片会对背景的渐变和粒子产生光线追踪级的屏幕折射 */}
       <GlassPanel
         radius={34}
         refraction={46}
         dispersion={0.3}
-        className="product-card"
+        className="magic-card"
       >
-        <h2>语义化内容仍然在页面上。</h2>
-        <p>GPU layer 改变的是表面材质，而不是破坏您的 HTML 文档结构。</p>
+        <h2>真实的文本内容。</h2>
+        <p>您的 SEO、无障碍辅助和文本选中能力全都在这里。</p>
       </GlassPanel>
     </GlassStage>
   );
 }
 ```
 
----
+### 工程门禁
 
-## 许可证 (License)
+如果你计划贡献代码，请在提交前执行门禁验证：
 
-[MIT](LICENSE)
+```shell
+# 1. 执行验证：包大小、测试、类型检查
+pnpm verify
+
+# 2. 代码静态检查与格式化
+pnpm lint
+
+# 3. 运行核心架构的 Headless 浏览器验收测试
+pnpm test:e2e
+```
+
+## 架构概览
+
+```mermaid
+flowchart TD
+  subgraph User_Space [用户应用层]
+    DOM["语义化 DOM / 业务组件"]
+    React_Adapter["@ui-lib/react (GlassStage, GlassPanel)"]
+  end
+
+  subgraph Orchestration [编排与管理]
+    Renderer["@ui-lib/renderer (共享的渲染器层)"]
+    Core["@ui-lib/core (调度与设备降级管理)"]
+  end
+
+  subgraph Effects [视觉功能管线]
+    Shaders["@ui-lib/shaders (Liquid Glass 节点)"]
+    Particles["@ui-lib/particles (粒子模拟计算)"]
+    PostProcessing["@ui-lib/post (后处理图与深度合成)"]
+  end
+
+  User_Space --> Orchestration
+  Orchestration --> Effects
+  Effects --> WebGPU_GL["WebGPU / WebGL2 API"]
+```
+
+## 特别感谢
+
+该项目底层的光学效果灵感与渲染思路源于各类先锋的 WebGL Demo 实践，并受现代基于浏览器的图形框架（特别是 [Three.js](https://threejs.org)）支持。感谢所有推动 Web 前端图形生态发展的开发者！
+
+## 许可证
+
+本项目基于 [MIT License](LICENSE) 授权。
