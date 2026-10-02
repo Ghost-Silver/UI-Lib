@@ -21,6 +21,7 @@ import {
 } from "three/webgpu";
 import { AcceptanceDemo, type AcceptanceDemoId } from "./AcceptanceDemo.js";
 import { AuroraFlowPage } from "./AuroraFlow.js";
+import { CandyGlassPage } from "./CandyGlass.js";
 import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
@@ -285,6 +286,11 @@ function Scene(props: SceneProps) {
 					<Magnetic strength={0.4} radius={90}>
 						<a className="navlink" href="/?demo=wake">
 							Wake
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={90}>
+						<a className="navlink" href="/?demo=candy-glass">
+							Candy
 						</a>
 					</Magnetic>
 				</nav>
@@ -608,6 +614,7 @@ export default function App() {
 		if (demo === "aurora-flow") return <AuroraFlowPage />;
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
+		if (demo === "candy-glass") return <CandyGlassPage />;
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;
