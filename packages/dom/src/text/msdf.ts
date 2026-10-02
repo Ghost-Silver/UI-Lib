@@ -1,13 +1,8 @@
 import { evaluateMSDF } from "@ui-lib/shaders";
 import { color, float, uv, vec4 } from "three/tsl";
-import {
-	Color,
-	DoubleSide,
-	Mesh,
-	MeshBasicNodeMaterial,
-	PlaneGeometry,
-	TextureLoader,
-} from "three/webgpu";
+import { Color, DoubleSide, Mesh, TextureLoader } from "three";
+import { MeshBasicNodeMaterial } from "three/webgpu";
+import { type BMFont, createTextGeometry } from "./layout.js";
 // import { createEffect } from "../magic.js";
 
 export interface MagicMSDFTextOptions {
@@ -24,6 +19,8 @@ export interface MagicMSDFTextOptions {
 export async function magicMSDFText(_element: HTMLElement, options: MagicMSDFTextOptions) {
 	const loader = new TextureLoader();
 	const texture = await loader.loadAsync(options.textureUrl);
+	const fontRes = await fetch(options.fontUrl);
+	const fontJson = (await fontRes.json()) as BMFont;
 
 	const material = new MeshBasicNodeMaterial();
 	material.transparent = true;
@@ -36,10 +33,7 @@ export async function magicMSDFText(_element: HTMLElement, options: MagicMSDFTex
 	// Assign to material output node using TSL
 	material.colorNode = vec4(tint.r, tint.g, tint.b, msdfAlpha);
 
-	// Creates the text plane
-	// TODO: A complete implementation requires BMFont parsing to generate word wrapping
-	// and glyph layout buffers instead of a single plane.
-	const geometry = new PlaneGeometry(1, 1);
+	const geometry = createTextGeometry(options.text, fontJson);
 	const mesh = new Mesh(geometry, material);
 
 	// Call base effect initializer but we would ideally add a 3D mesh instead of a panel.
