@@ -239,7 +239,16 @@ importers:
       '@ui-lib/renderer':
         specifier: workspace:*
         version: link:../renderer
+      '@ui-lib/shaders':
+        specifier: workspace:*
+        version: link:../shaders
+      three:
+        specifier: ^0.186.1
+        version: 0.186.1
     devDependencies:
+      '@types/three':
+        specifier: ^0.186.0
+        version: 0.186.0
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(postcss@8.5.28)(typescript@5.9.3)

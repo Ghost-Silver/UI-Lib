@@ -7,5 +7,11 @@ export default defineConfig({
 	clean: true,
 	target: "es2022",
 	sourcemap: true,
-	external: ["@ui-lib/core", "@ui-lib/renderer", "@ui-lib/particles"],
+	external: [
+		"@ui-lib/core",
+		"@ui-lib/renderer",
+		"@ui-lib/particles",
+		"@ui-lib/shaders",
+		"three",
+	],
 });

@@ -16,9 +16,12 @@
 	"dependencies": {
 		"@ui-lib/core": "workspace:*",
 		"@ui-lib/particles": "workspace:*",
-		"@ui-lib/renderer": "workspace:*"
+		"@ui-lib/renderer": "workspace:*",
+		"@ui-lib/shaders": "workspace:*",
+		"three": "^0.186.1"
 	},
 	"devDependencies": {
+		"@types/three": "^0.186.0",
 		"tsup": "^8.5.1"
 	}
 }
