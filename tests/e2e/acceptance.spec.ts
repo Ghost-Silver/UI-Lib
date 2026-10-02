@@ -7,6 +7,7 @@ const demos = [
 	"scroll-cinema",
 	"cursor-field",
 	"wake",
+	"candy-glass",
 ] as const;
 
 function setupErrorListeners(page: import("@playwright/test").Page) {
@@ -41,7 +42,10 @@ for (const demo of demos) {
 		await expect(page.locator(`[data-ui-lib-acceptance="${demo}"]`)).toBeVisible();
 		await expect(page.locator("[data-ui-lib-mode]")).toHaveAttribute(
 			"data-ui-lib-mode",
-			demo === "scroll-cinema" || demo === "product-hero" || demo === "liquid-glass"
+			demo === "scroll-cinema" ||
+				demo === "product-hero" ||
+				demo === "liquid-glass" ||
+				demo === "candy-glass"
 				? "section"
 				: "viewport",
 		);
