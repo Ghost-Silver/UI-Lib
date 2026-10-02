@@ -22,6 +22,7 @@
 > - 🖱️ **Cursor Field:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=cursor-field)
 > - 🌌 **Aurora Flow:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=aurora-flow)
 > - 💫 **Wake:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=wake)
+> - 🍬 **Candy Glass:** [点此查看](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=candy-glass)（粉彩粒子与圆润徽章，萌系那条线）
 >
 > 在 URL 后追加 `?fallback=1` 强制查看 CSS 降级效果；追加 `?backend=webgl` 强制使用 WebGL2 渲染。
 
@@ -56,6 +57,11 @@ UI-Lib 将实时 Liquid Glass（液体玻璃）、GPU 粒子、3D 场景和 TSL�
   - [x] 泛光 (Bloom)、镜头光晕、色差与暗角
   - [x] 焦点模糊、方向运动模糊与时间帧累积抗锯齿 (TAA)
   - [x] 自适应降级与质量档位调度 (Adaptive Quality Tier)
+- [x] **萌系那条线 (Candy)**
+  - [x] `FIELD_LOOKS.pastel`：柔和粉彩粒子云，`intensity` 0.46，比 aurora 更暗，不会压住旁边的字
+  - [x] `GLASS_LOOKS.iris`：全圆角、宽亮边、淡粉色调，读起来像一颗有光泽的小珠子
+  - [x] `LENS_LOOKS.sakura` / `peach`：樱花与蜜桃两种镜头档位
+  - [x] `BubbleBadge`：面向小标签的圆润徽章，文字仍是可选中、可聚焦的真 DOM
 - [ ] **增强动效叙事层 (施工中)**
   - [x] 与 Scheduler 同步的无尽滚动与章节编排
   - [x] React SSR 安全的组件适配与 Fallback 样式
