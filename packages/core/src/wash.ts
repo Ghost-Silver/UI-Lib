@@ -230,10 +230,26 @@ export function createWash(options: WashOptions): WashResult {
 	 * through. `thickness` is the concentration, so `weight` drives it directly.
 	 */
 	const pigment = pigmentFromHex(hue);
-	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, ${mixToCss(
-		[pigment],
-		{ thickness: weight * 1.6, backing: 1 },
-	)} 0%, ${mixToCss([pigment], { thickness: weight * 1.1, backing: 1 })} 76%, transparent 95%)`;
+	const bodyCentre = mixToCss([pigment], { thickness: weight * 1.6, backing: 1 });
+	const bodyEdge = mixToCss([pigment], { thickness: weight * 1.1, backing: 1 });
+	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, ${bodyCentre} 0%, ${bodyEdge} 76%, transparent 95%)`;
+
+	/*
+	 * The same pigment as a **fill**, for a surface rather than a mark.
+	 *
+	 * `--wash-body` is a stroke: it fades out before its own box ends, because a
+	 * mark has a soft edge. A ground cannot use it — on a 460px table that fade
+	 * covers the outer quarter of every side, and the result reads as a dark
+	 * border with a lighter middle rather than as a surface made of pigment.
+	 * Measured on the table, the sides were visibly darker than the centre in a
+	 * way that had nothing to do with the grain.
+	 *
+	 * So the same two colours, with the fade moved past the edge. It is the same
+	 * pigment at the same strengths; only where it stops is different, and that is
+	 * a difference in *use* rather than in colour — which is why it is generated
+	 * here rather than derived in a stylesheet from a string it cannot take apart.
+	 */
+	const ground = `radial-gradient(120% 110% at 50% 46%, ${bodyCentre} 0%, ${bodyEdge} 62%, ${bodyEdge} 100%)`;
 
 	// The rim: pigment at its strongest, and the only element that uses the
 	// angular mask.
@@ -255,6 +271,7 @@ export function createWash(options: WashOptions): WashResult {
 			"--wash-width": `${size}px`,
 			"--wash-height": `${size}px`,
 			"--wash-body": body,
+			"--wash-ground": ground,
 			"--wash-rim": rim,
 			"--wash-opacity": String(opacity),
 			"--wash-blur": `${blur}px`,

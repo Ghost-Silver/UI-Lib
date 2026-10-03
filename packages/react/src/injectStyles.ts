@@ -3570,7 +3570,9 @@ const CSS = `
 	/* Paper, before pigment. A material surface is a sheet with pigment on it, and
 	   the pigment is painted over whatever is behind the card without this. */
 	background-color: var(--moe-card);
-	background-image: var(--wash-body, none), var(--wash-grain, none);
+	/* The *ground* body, not the mark body: a stroke fades before its own edge and
+	   a surface must not. See --wash-ground in the generator. */
+	background-image: var(--wash-ground, var(--wash-body, none)), var(--wash-grain, none);
 	/*
 	 * ## Known: the grain still tiles visibly on a wide surface
 	 *
@@ -3605,9 +3607,12 @@ const CSS = `
 	 * generated --wash-grain-offset is kept, because that is what stops two
 	 * surfaces on one page from sitting on the same patch of paper.
 	 */
-	background-size: 100% 100%, 240px 256px;
-	background-position: 0 0, var(--wash-grain-offset, 0 0);
-	background-repeat: no-repeat, repeat;
+	/* One entry per layer: the pigment, then the generator's two grain passes.
+	   All three sizes are listed because a short list is not an error — the extra
+	   layers silently take the initial value. */
+	background-size: 100% 100%, 240px 256px, 240px 256px;
+	background-position: 0 0, var(--wash-grain-offset, 0 0), var(--wash-grain-offset, 0 0);
+	background-repeat: no-repeat, repeat, repeat;
 	/*
 	 * The strengths, set by contrast rather than by eye.
 	 *
