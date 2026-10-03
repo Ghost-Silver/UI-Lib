@@ -1,4 +1,5 @@
 import { IRIS, IRIS_TONES, type IrisTone, type PlatformBudget } from "@ui-lib/core";
+import type { SoftToastData } from "@ui-lib/react";
 import {
 	Bling,
 	BubbleBadge,
@@ -17,6 +18,8 @@ import {
 	SoftSpinner,
 	SoftSwitch,
 	SoftTabs,
+	SoftToast,
+	SoftTooltip,
 	WatercolorCard,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
@@ -51,6 +54,7 @@ const COMPONENTS = [
 	"select",
 	"choice",
 	"loading",
+	"overlay",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -152,6 +156,27 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** A tooltip open, and the three tones of toast. */
+function OverlayKit() {
+	const [toasts] = useState<SoftToastData[]>([
+		{ id: "a", title: "已经保存了", body: "这一笔留住了。", tone: "success", duration: 0 },
+		{ id: "b", title: "网络抖了一下", body: "正在重试。", tone: "warn", duration: 0 },
+		{ id: "c", title: "三张卡片排好了", tone: "info", duration: 0 },
+	]);
+	return (
+		<div className="kit__overlay">
+			<SoftTooltip content="这会丢掉未保存的改动">
+				<PinkPaperButton tone="blossom">悬停或 Tab 到这里</PinkPaperButton>
+			</SoftTooltip>
+			<div className="ui-lib-soft-toaster kit__toaster">
+				{toasts.map((t) => (
+					<SoftToast key={t.id} {...t} onDismiss={() => undefined} />
+				))}
+			</div>
+		</div>
 	);
 }
 
@@ -372,6 +397,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "overlay":
+			return <OverlayKit />;
 		case "loading":
 			return <LoadingKit />;
 		case "choice":

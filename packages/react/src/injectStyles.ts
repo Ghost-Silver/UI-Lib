@@ -2441,6 +2441,238 @@ const CSS = `
 	}
 }
 
+
+/* --- tooltip -------------------------------------------------------------
+ *
+ * Two rules here are requirements rather than taste.
+ *
+ * The first is pointer-events: auto on the tooltip itself. A hint the reader
+ * cannot hover is a hint that vanishes the moment they move toward it, and the
+ * flicker that causes is worse than having no tooltip at all. WCAG's "Content on
+ * Hover or Focus" asks for the content to be *hoverable* for exactly this
+ * reason, and the default for a floating layer is to be transparent to the
+ * pointer.
+ *
+ * The second is that the tail is drawn from two rotated squares rather than a
+ * border triangle, so it keeps the same rounded language as everything else.
+ */
+
+/*
+ * Placement, and the first version was 171px out.
+ *
+ * It used top: anchor(top) with translate to lift
+ * the bubble above the trigger. That is correct until position-try-fallbacks
+ * flips it: the fallback moves the box to the other side but keeps the same
+ * anchor edge, so the offset that lifted it up now pushes it down. Measured, the
+ * trigger sat at y=424 and the tooltip at y=595.
+ *
+ * Both sides therefore have a complete placement of their own, written twice on
+ * purpose, and neither relies on a transform to reach its side. The gap is a
+ * margin, which is part of the box the browser positions rather than an offset
+ * applied after.
+ */
+.ui-lib-soft-tooltip {
+	position: fixed;
+	left: anchor(center);
+	translate: -50% 0;
+	bottom: calc(anchor(top) + 9px);
+	top: auto;
+	position-try-fallbacks: flip-block;
+	max-width: 260px;
+	padding: 7px 12px;
+	border-radius: var(--moe-radius-sm);
+	background: var(--moe-cocoa);
+	color: oklch(0.97 0.01 60);
+	font-family: var(--moe-font-rounded);
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 1.5;
+	box-shadow: 0 8px 20px -8px rgb(77 60 56 / 0.5);
+	pointer-events: auto;
+}
+
+.ui-lib-soft-tooltip[data-ui-lib-side="bottom"] {
+	bottom: auto;
+	top: calc(anchor(bottom) + 9px);
+	position-try-fallbacks: flip-block;
+}
+
+.ui-lib-soft-tooltip:not(:popover-open) {
+	display: none;
+}
+
+
+.ui-lib-soft-tooltip:not(:popover-open) {
+	display: none;
+}
+
+/* The tail. Sits below for a top-side tooltip, above for a bottom-side one. */
+.ui-lib-soft-tooltip::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	width: 8px;
+	height: 8px;
+	translate: -50%;
+	rotate: 45deg;
+	border-radius: 2px;
+	background: var(--moe-cocoa);
+}
+
+.ui-lib-soft-tooltip::after {
+	bottom: -3px;
+}
+
+.ui-lib-soft-tooltip[data-ui-lib-side="bottom"]::after {
+	bottom: auto;
+	top: -3px;
+}
+
+/*
+ * The anchor wrapper is only there to be positioned. It must not add a box of
+ * its own, or every mouseover region in the interface grows by the wrapper's
+ * padding and tooltips fire on empty space.
+ */
+.ui-lib-soft-tooltip__anchor {
+	display: contents;
+}
+
+/* --- toast ---------------------------------------------------------------
+ *
+ * Arrives from the edge rather than fading in place, because a notice has a
+ * direction of travel: it came from somewhere and it is going back. A fade says
+ * it was always there and is now gone.
+ */
+
+.ui-lib-soft-toast {
+	display: flex;
+	align-items: flex-start;
+	gap: 11px;
+	width: min(92vw, 340px);
+	padding: 13px 14px 13px 15px;
+	border-radius: var(--moe-radius-lg);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	color: var(--moe-cocoa);
+	font-family: var(--moe-font-rounded);
+	box-shadow: var(--moe-floating);
+	animation: ui-lib-moe-toast-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes ui-lib-moe-toast-in {
+	from {
+		opacity: 0;
+		transform: translateY(14px) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* A shape as well as a colour: a dot, a tick and a bar, so the tone survives
+   greyscale and a reader who does not separate the two hues. */
+.ui-lib-soft-toast__mark {
+	flex: none;
+	width: 9px;
+	height: 9px;
+	margin-top: 5px;
+	border-radius: var(--moe-radius-full);
+	background: var(--moe-taro-500);
+}
+
+.ui-lib-soft-toast[data-ui-lib-tone="success"] .ui-lib-soft-toast__mark {
+	border-radius: 2px;
+	background: var(--moe-mint-700);
+}
+
+.ui-lib-soft-toast[data-ui-lib-tone="warn"] .ui-lib-soft-toast__mark {
+	width: 4px;
+	height: 11px;
+	border-radius: 1px;
+	background: var(--moe-lemon-700);
+}
+
+.ui-lib-soft-toast__text {
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	gap: 2px;
+}
+
+.ui-lib-soft-toast__title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.45;
+}
+
+.ui-lib-soft-toast__body {
+	margin: 0;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.55;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-toast__close {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.95 0.01 20);
+	color: var(--moe-cocoa-soft);
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+	transition: transform 200ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-toast__close:hover {
+	transform: rotate(15deg);
+}
+
+.ui-lib-soft-toast__close:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+/* The stack. Fixed to a corner, and each toast is placed in flow inside it, so
+   several arriving at once push each other rather than overlapping. */
+.ui-lib-soft-toaster {
+	position: fixed;
+	right: 20px;
+	bottom: 20px;
+	z-index: 40;
+	display: grid;
+	gap: 10px;
+	justify-items: end;
+	pointer-events: none;
+}
+
+.ui-lib-soft-toaster > * {
+	pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-toast {
+		animation: none;
+	}
+
+	.ui-lib-soft-toast__close {
+		transition: none;
+	}
+
+	.ui-lib-soft-toast__close:hover {
+		transform: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

@@ -3028,3 +3028,16 @@ input[type="range"]::-moz-range-thumb {
 	align-items: center;
 	gap: 16px;
 }
+
+.kit__overlay {
+	display: grid;
+	gap: 20px;
+	place-items: center;
+	width: 340px;
+}
+
+/* The fixture pins the stack so a capture does not depend on the viewport. */
+.kit__toaster {
+	position: static;
+	justify-items: stretch;
+}

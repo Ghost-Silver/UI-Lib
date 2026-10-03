@@ -58,6 +58,7 @@ export type { MagneticProps } from "./Magnetic.js";
 export { Magnetic } from "./Magnetic.js";
 export type { OpticsProps } from "./Optics.js";
 export { Optics } from "./Optics.js";
+export { anchorNameFrom, usePopover } from "./overlay.js";
 export type { ParticleFieldProps } from "./ParticleField.js";
 export { ParticleField } from "./ParticleField.js";
 export type { PinkPaperButtonProps } from "./PinkPaperButton.js";
@@ -81,6 +82,8 @@ export type { SoftProgressProps, SoftSkeletonProps, SoftSpinnerProps } from "./S
 export { SoftProgress, SoftSkeleton, SoftSpinner } from "./SoftLoading.js";
 export type { SoftModalProps } from "./SoftModal.js";
 export { SoftModal } from "./SoftModal.js";
+export type { SoftToastData, SoftToastProps, SoftTooltipProps } from "./SoftOverlay.js";
+export { SoftToast, SoftTooltip } from "./SoftOverlay.js";
 export type { SoftSelectOption, SoftSelectProps } from "./SoftSelect.js";
 export { SoftSelect } from "./SoftSelect.js";
 export type { SoftSliderProps } from "./SoftSlider.js";
