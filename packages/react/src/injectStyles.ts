@@ -446,6 +446,38 @@ const CSS = `
 	--moe-state-blossom-strong: oklch(0.91 0.045 15);
 	--moe-state-mint: oklch(0.95 0.03 165);
 	--moe-state-sky: oklch(0.95 0.03 235);
+	/*
+	 * The four semantic states, each as a background, a border and a mark.
+	 *
+	 * These were the second half of the same problem the surfaces had: an alert's
+	 * fill, an error field's fill and a disabled control's fill were all literals,
+	 * so a dark theme showed a pink error panel inside an otherwise dark form —
+	 * worse than never theming, because the contrast that made it readable in the
+	 * light theme is exactly what is missing.
+	 *
+	 * Four states rather than six colour families: mint, lemon and sky are
+	 * not six unrelated hues, they are success, warning and info, and naming them
+	 * by what they mean is what lets a palette change which hue plays which part.
+	 */
+	--moe-state-success-bg: oklch(0.97 0.025 165);
+	--moe-state-success-border: oklch(0.9 0.05 165);
+	--moe-state-success-mark: oklch(0.92 0.06 165);
+	--moe-state-success-ink: oklch(0.42 0.09 165);
+	--moe-state-warning-bg: oklch(0.975 0.03 85);
+	--moe-state-warning-border: oklch(0.91 0.06 85);
+	--moe-state-warning-mark: oklch(0.93 0.07 85);
+	--moe-state-warning-ink: oklch(0.45 0.1 75);
+	--moe-state-danger-bg: oklch(0.985 0.008 20);
+	--moe-state-danger-border: oklch(0.9 0.055 20);
+	--moe-state-danger-mark: oklch(0.92 0.06 20);
+	--moe-state-danger-ink: oklch(0.44 0.13 20);
+	--moe-state-info-bg: oklch(0.97 0.02 300);
+	--moe-state-info-border: oklch(0.9 0.04 300);
+	--moe-state-info-mark: oklch(0.92 0.05 300);
+	--moe-state-info-ink: oklch(0.44 0.09 300);
+	/* A control that cannot be used, and the fill behind a dismiss affordance. */
+	--moe-state-disabled: oklch(0.95 0.01 20);
+	--moe-state-disabled-ink: var(--moe-state-disabled-ink);
 	--moe-text: var(--moe-cocoa);
 	--moe-text-soft: var(--moe-cocoa-soft);
 }
@@ -1297,7 +1329,7 @@ const CSS = `
 	padding: 0;
 	border: none;
 	border-radius: var(--moe-radius-full);
-	background: oklch(0.95 0.01 20);
+	background: var(--moe-state-disabled);
 	color: var(--moe-cocoa-soft);
 	font-size: 17px;
 	font-weight: 700;
@@ -1677,7 +1709,7 @@ const CSS = `
 }
 
 .ui-lib-soft-input__field::placeholder {
-	color: oklch(0.7 0.02 40);
+	color: var(--moe-state-disabled-ink);
 	font-weight: 500;
 }
 
@@ -1798,7 +1830,7 @@ const CSS = `
 	   pink end to end reads as a different control rather than as the same one
 	   with a problem — and it fights the text sitting on top of it. */
 	border-color: var(--moe-sakura-700);
-	background: oklch(0.985 0.008 20);
+	background: var(--moe-state-danger-bg);
 }
 
 .ui-lib-soft-input[data-ui-lib-invalid] .ui-lib-soft-input__ring {
@@ -1903,7 +1935,7 @@ const CSS = `
 }
 
 .ui-lib-soft-select__value[data-ui-lib-placeholder] {
-	color: oklch(0.7 0.02 40);
+	color: var(--moe-state-disabled-ink);
 	font-weight: 500;
 }
 
@@ -2462,7 +2494,7 @@ const CSS = `
 	min-height: 14px;
 	height: 100%;
 	border-radius: var(--moe-radius-sm);
-	background: oklch(0.945 0.012 320);
+	background: var(--moe-state-iris);
 }
 
 .ui-lib-soft-skeleton[data-ui-lib-variant="block"] .ui-lib-soft-skeleton__shape {
@@ -2716,7 +2748,7 @@ const CSS = `
 	padding: 0;
 	border: none;
 	border-radius: var(--moe-radius-full);
-	background: oklch(0.95 0.01 20);
+	background: var(--moe-state-disabled);
 	color: var(--moe-cocoa-soft);
 	font-size: 14px;
 	font-weight: 700;
@@ -2811,7 +2843,7 @@ const CSS = `
 	border-radius: var(--moe-radius-full);
 	overflow: hidden;
 	isolation: isolate;
-	background: oklch(0.96 0.01 320);
+	background: var(--moe-state-iris-soft);
 	vertical-align: middle;
 }
 
@@ -3937,39 +3969,39 @@ const CSS = `
 }
 
 .ui-lib-soft-alert[data-ui-lib-tone="info"] {
-	background: oklch(0.97 0.02 300);
-	border-color: oklch(0.9 0.04 300);
+	background: var(--moe-state-info-bg);
+	border-color: var(--moe-state-info-border);
 }
 .ui-lib-soft-alert[data-ui-lib-tone="info"] .ui-lib-soft-alert__mark {
-	background: oklch(0.92 0.05 300);
-	color: oklch(0.44 0.09 300);
+	background: var(--moe-state-info-mark);
+	color: var(--moe-state-info-ink);
 }
 
 .ui-lib-soft-alert[data-ui-lib-tone="success"] {
-	background: oklch(0.97 0.025 165);
-	border-color: oklch(0.9 0.05 165);
+	background: var(--moe-state-success-bg);
+	border-color: var(--moe-state-success-border);
 }
 .ui-lib-soft-alert[data-ui-lib-tone="success"] .ui-lib-soft-alert__mark {
-	background: oklch(0.92 0.06 165);
-	color: oklch(0.42 0.09 165);
+	background: var(--moe-state-success-mark);
+	color: var(--moe-state-success-ink);
 }
 
 .ui-lib-soft-alert[data-ui-lib-tone="warn"] {
-	background: oklch(0.975 0.03 85);
-	border-color: oklch(0.91 0.06 85);
+	background: var(--moe-state-warning-bg);
+	border-color: var(--moe-state-warning-border);
 }
 .ui-lib-soft-alert[data-ui-lib-tone="warn"] .ui-lib-soft-alert__mark {
-	background: oklch(0.93 0.07 85);
-	color: oklch(0.45 0.1 75);
+	background: var(--moe-state-warning-mark);
+	color: var(--moe-state-warning-ink);
 }
 
 .ui-lib-soft-alert[data-ui-lib-tone="danger"] {
-	background: oklch(0.97 0.028 20);
-	border-color: oklch(0.9 0.055 20);
+	background: var(--moe-state-danger-bg);
+	border-color: var(--moe-state-danger-border);
 }
 .ui-lib-soft-alert[data-ui-lib-tone="danger"] .ui-lib-soft-alert__mark {
-	background: oklch(0.92 0.06 20);
-	color: oklch(0.44 0.13 20);
+	background: var(--moe-state-danger-mark);
+	color: var(--moe-state-danger-ink);
 }
 
 /* --- empty state ---------------------------------------------------------
