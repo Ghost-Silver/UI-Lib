@@ -2434,3 +2434,8 @@ input[type="range"]::-moz-range-thumb {
 	gap: 12px;
 	flex-wrap: wrap;
 }
+
+.kit__modal {
+	display: grid;
+	place-items: center;
+}

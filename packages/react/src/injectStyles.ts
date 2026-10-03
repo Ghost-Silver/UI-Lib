@@ -1153,6 +1153,9 @@ const CSS = `
 	}
 }
 
+/* Twinkles in and then rests at a low glow. Ending at zero made the sparks a
+   one-shot effect that was over before anyone could look at the dialog — and
+   both then held them at exactly the state that shows nothing. */
 @keyframes ui-lib-moe-twinkle {
 	0% {
 		opacity: 0;
@@ -1163,8 +1166,8 @@ const CSS = `
 		transform: scale(1.15) rotate(28deg);
 	}
 	100% {
-		opacity: 0;
-		transform: scale(0.8) rotate(60deg);
+		opacity: 0.55;
+		transform: scale(0.95) rotate(52deg);
 	}
 }
 
@@ -1191,6 +1194,13 @@ const CSS = `
 
 .ui-lib-soft-modal[data-ui-lib-reduced] .ui-lib-soft-modal__panel {
 	animation: none;
+}
+
+/* The panel is focusable so the platform's first-focusable-child rule lands
+   here instead of on the dismiss button, but it is not an interactive control
+   and must not draw a ring for a click that opened it. */
+.ui-lib-soft-modal__panel:focus {
+	outline: none;
 }
 
 .ui-lib-soft-modal__spark {

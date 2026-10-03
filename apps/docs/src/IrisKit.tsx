@@ -5,6 +5,7 @@ import {
 	GlassStage,
 	PinkPaperButton,
 	SoftLightPanel,
+	SoftModal,
 	SoftSlider,
 	SoftSwitch,
 	SoftTabs,
@@ -37,6 +38,7 @@ const COMPONENTS = [
 	"switch",
 	"tabs",
 	"slider",
+	"modal",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -137,6 +139,27 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 	);
 }
 
+/** The dialog, opened on arrival so one capture shows the entry state. */
+function ModalKit() {
+	const [open, setOpen] = useState(true);
+	return (
+		<div className="kit__modal">
+			<PinkPaperButton tone="iris" onClick={() => setOpen(true)}>
+				打开
+			</PinkPaperButton>
+			<SoftModal
+				open={open}
+				onClose={() => setOpen(false)}
+				title="全部完成"
+				confirmLabel="好"
+				onConfirm={() => setOpen(false)}
+			>
+				<p>三张卡片都保存好了。</p>
+			</SoftModal>
+		</div>
+	);
+}
+
 /** Two sliders, so the held state and the resting state are both visible. */
 function SliderKit() {
 	const [a, setA] = useState(62);
@@ -228,6 +251,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 					<p>颜料是自己摊开的，上面盖着真玻璃。</p>
 				</WatercolorCard>
 			);
+		case "modal":
+			return <ModalKit />;
 		case "slider":
 			return <SliderKit />;
 		case "tabs":

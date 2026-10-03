@@ -135,7 +135,13 @@ export const SoftModal = forwardRef<HTMLDialogElement, SoftModalProps>(function 
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: Escape is handled via the dialog's cancel event */}
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape is handled via the dialog's cancel event */}
 			<div className="ui-lib-soft-modal__veil" onClick={handleBackdrop}>
-				<div className="ui-lib-soft-modal__panel">
+				{/* Focus goes to the panel, not to the dismiss button. The platform
+			    focuses the first focusable child, which put a visible ring around
+			    the × for every mouse user — correct for a keyboard user who
+			    opens with Enter, noise for anyone who clicked. The panel takes
+			    the focus and outlines nothing; Tab reaches the buttons from
+			    there, which is the order a keyboard user wants anyway. */}
+				<div className="ui-lib-soft-modal__panel" tabIndex={-1}>
 					{sparks &&
 						SPARKS.map((corner) => (
 							<span

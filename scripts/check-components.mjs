@@ -55,6 +55,7 @@ const COMPONENTS = [
 	{ name: "switch", toned: false },
 	{ name: "tabs", toned: false },
 	{ name: "slider", toned: false },
+	{ name: "modal", toned: false },
 ];
 const TONES = ["iris", "blossom", "mist"];
 
