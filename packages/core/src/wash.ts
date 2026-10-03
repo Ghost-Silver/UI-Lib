@@ -1,3 +1,4 @@
+import { mixToCss, PROCESS_PIGMENTS, pigmentFromHex } from "./kubelkaMunk.js";
 import { clamp01, fbm2D, lerp } from "./math.js";
 
 /**
@@ -212,11 +213,40 @@ export function createWash(options: WashOptions): WashResult {
 	// A body that is stronger in the middle of the mark and fades before the
 	// rim, so the deposit ring has somewhere to sit rather than being the only
 	// thing there.
-	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, color-mix(in oklab, ${hue} ${Math.round(weight * 30)}%, white) 0%, color-mix(in oklab, ${hue} ${Math.round(weight * 25)}%, white) 76%, transparent 95%)`;
+	/*
+	 * Mixing is done in Kubelka-Munk space, not in RGB.
+	 *
+	 * `color-mix(in oklab, ...)` is an interpolation in a *perceptual* space,
+	 * which is the right tool for blending two lights and the wrong one for
+	 * pigment. Watercolour is a subtractive absorbing medium: two washes of
+	 * different pigment over each other produce a third hue, and interpolating
+	 * the two colours directly takes a shortcut through the neutral axis. On the
+	 * worst case — blue and yellow — that is 63 per cent of the saturation
+	 * thrown away, which is why the first version of this read grey no matter
+	 * how the weight was tuned.
+	 *
+	 * The pigment is derived from the swatch and thinned with white the way a
+	 * painter does it: more white, less film thickness, and the paper shows
+	 * through. `thickness` is the concentration, so `weight` drives it directly.
+	 */
+	const pigment = pigmentFromHex(hue);
+	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, ${mixToCss(
+		[pigment],
+		{ thickness: weight * 1.6, backing: 1 },
+	)} 0%, ${mixToCss([pigment], { thickness: weight * 1.1, backing: 1 })} 76%, transparent 95%)`;
 
 	// The rim: pigment at its strongest, and the only element that uses the
 	// angular mask.
-	const rim = `color-mix(in oklab, ${hue} ${Math.round(weight * 88)}%, #2a1d33)`;
+	/*
+	 * The rim is the same pigment at full strength over dry paper, plus a touch
+	 * of the process black that real watercolour picks up where the water
+	 * saturates. Mixed in K-M rather than darkened in RGB, so it stays the same
+	 * hue instead of heading toward grey.
+	 */
+	const rim = mixToCss([pigment, { ...PROCESS_PIGMENTS.black, concentration: 0.06 * weight }], {
+		thickness: Math.max(weight, 0.25) * 4,
+		backing: 1,
+	});
 
 	return {
 		className: `ui-lib-wash ui-lib-wash--${state}`,

@@ -15,6 +15,16 @@ export {
 } from "./device.js";
 export type { IrisGlassLookName, IrisTone, IrisToneRoles } from "./iris.js";
 export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone } from "./iris.js";
+export type { KubelkaMunkPigment, ProcessPigmentName } from "./kubelkaMunk.js";
+export {
+	mixPigments,
+	mixToCss,
+	PROCESS_PIGMENTS,
+	parseHex,
+	pigmentFromColour,
+	pigmentFromHex,
+	reflectanceFromKS,
+} from "./kubelkaMunk.js";
 export type { Disposable, Teardown } from "./lifecycle.js";
 export { Disposer, nextFrame } from "./lifecycle.js";
 export type { EasingName, SpringOptions } from "./math.js";
