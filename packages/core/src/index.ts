@@ -44,6 +44,15 @@ export {
 	wrap,
 } from "./math.js";
 export { mergeDefined } from "./mergeDefined.js";
+export type { MotionPresetName, MotionSpec, SpringDriver } from "./motion.js";
+export {
+	createSpring,
+	driveSpring,
+	MOTION_PRESETS,
+	settleTime,
+	specToSpring,
+	springToSpec,
+} from "./motion.js";
 export type { PointerState, PointerTrackerOptions } from "./pointer.js";
 export { PointerTracker } from "./pointer.js";
 export type {
