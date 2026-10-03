@@ -4,7 +4,9 @@ import {
 	Bling,
 	BubbleBadge,
 	CrystalText,
+	fieldOptions,
 	GlassStage,
+	ParticleField,
 	PinkPaperButton,
 	Reveal,
 	SoftCard,
@@ -21,6 +23,37 @@ import { useEffect, useRef } from "react";
  * real DOM — the badges are focusable, the button takes the keyboard, and the
  * washes are painted behind selectable text.
  */
+
+/**
+ * World units, not pixels. One world unit is about 73px here.
+ *
+ * The layer's default particle camera sits at z = 14 looking at the origin with
+ * a 52 degree field of view, and nothing on a page moves it unless a page says
+ * so. At a 1000px viewport that makes the visible height 2 * 14 * tan(26
+ * degrees) = 13.66 world units, so one unit is 1000 / 13.66 = 73.2px — not the
+ * ~171px it is easy to assume from the fov and distance a different page
+ * happens to use.
+ *
+ * Getting this wrong is what made a cloud of 1600 motes render as a single
+ * dot and a line of type vanish off the edge: every value was out by two to
+ * five times, and a shape that far out of scale reads as "nothing was drawn".
+ * Anything positioned in the world on this page should be sized against this
+ * number rather than against a pixel count.
+ */
+const WORLD_UNIT_PX = 73.2;
+
+/**
+ * Screen position to world position, so the numbers below can be written the
+ * way they are reasoned about — "460px right of centre, 240px up" — rather
+ * than as world units nobody can check by reading.
+ */
+function screenToWorld(px: number, py: number, viewport = { width: 1440, height: 1000 }) {
+	return [
+		(px - viewport.width / 2) / WORLD_UNIT_PX,
+		(viewport.height / 2 - py) / WORLD_UNIT_PX,
+		0,
+	] as [number, number, number];
+}
 
 const BACKDROP: BackdropSpec = {
 	type: "gradient",
@@ -113,6 +146,16 @@ export function IrisShowcasePage() {
 							</PinkPaperButton>
 						</div>
 					</div>
+
+					{/* Behind the panels, so their glass has something to bend. Sized and
+					    placed in world units against WORLD_UNIT_PX above, not in pixels:
+					    6.28 world units right of centre is 460px, which is where the
+					    panel column sits. */}
+					<ParticleField
+						options={fieldOptions("halo")}
+						attractor={screenToWorld(1180, 360)}
+						depth="scene"
+					/>
 
 					<div className="iris__panels">
 						<SoftLightPanel tone="iris" className="iris__panel">

@@ -157,8 +157,10 @@ const IRIS_FIELD_LOOKS = {
 		// landed outside the card and the rest were too small to read as
 		// anything but sensor noise. Count, size and radius all went up
 		// together — one of the three alone changes nothing.
-		count: 900,
-		emitter: { shape: "sphere", radius: 1.05, speed: 0.05, spread: 0.95 },
+		count: 1_800,
+		// 4.2 units was a 300px sphere with 1100 motes in it, which reads as
+		// scattered debris. A tighter emitter and more of them is a cloud.
+		emitter: { shape: "sphere", radius: 2.6, speed: 0.13, spread: 0.95 },
 		// `attractor` near zero on purpose. With `anchor`, the attractor and the
 		// emitter are the same point, so a strong pull collects the entire cloud
 		// onto it — nine hundred motes rendered as one dot. The swirl is what
@@ -176,9 +178,9 @@ const IRIS_FIELD_LOOKS = {
 		// comes from the colour being deeper, not from adding glow — additive
 		// blending on white only makes more white.
 		colors: [IRIS.iris[700], IRIS.blossom[500], IRIS.mist[700]] as [string, string, string],
-		size: [0.03, 0.1] as [number, number],
+		size: [0.16, 0.42] as [number, number],
 		intensity: 1.3,
-		opacity: 0.82,
+		opacity: 0.85,
 		life: [9, 18] as [number, number],
 	},
 	/** The same field with more life in it, for open ground. */
@@ -187,7 +189,7 @@ const IRIS_FIELD_LOOKS = {
 		// field reads as sensor noise. Concentration is what makes a cloud:
 		// a smaller sphere, more of them, and each one large enough to see.
 		count: 1_600,
-		emitter: { shape: "sphere", radius: 0.55, speed: 0.06, spread: 0.8 },
+		emitter: { shape: "sphere", radius: 3.4, speed: 0.14, spread: 0.8 },
 		forces: {
 			turbulence: 0.5,
 			vortex: 0.46,
@@ -196,9 +198,9 @@ const IRIS_FIELD_LOOKS = {
 			attractorRadius: 1.8,
 		},
 		colors: [IRIS.blossom[500], IRIS.iris[700], IRIS.mist[700]] as [string, string, string],
-		size: [0.03, 0.085] as [number, number],
-		intensity: 1.5,
-		opacity: 0.9,
+		size: [0.13, 0.36] as [number, number],
+		intensity: 1.4,
+		opacity: 0.85,
 		life: [8, 16] as [number, number],
 	},
 } satisfies Record<string, ParticleSystemOptions>;
