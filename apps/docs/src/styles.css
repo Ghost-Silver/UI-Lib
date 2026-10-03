@@ -2439,3 +2439,352 @@ input[type="range"]::-moz-range-thumb {
 	display: grid;
 	place-items: center;
 }
+
+/* ==========================================================================
+ * Wet paper — the material study
+ *
+ * Three properties, and none of them is a gradient. Read the comments before
+ * changing a number here: each one is load-bearing and the naive version of
+ * each looks plausible while being wrong.
+ * ======================================================================== */
+
+.paper-stage {
+	background: #fdfaf6;
+	color: #4a3a33;
+	font-family: var(--font-mix, system-ui);
+}
+
+.paper {
+	max-width: 1180px;
+	margin: 0 auto;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 8px;
+	padding: clamp(24px, 3vw, 44px) clamp(20px, 4vw, 56px);
+}
+
+.paper__head {
+	max-width: 46em;
+	margin-bottom: 18px;
+}
+
+.paper__kicker {
+	margin: 0 0 10px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: #a8827a;
+}
+
+.paper__title {
+	margin: 0 0 10px;
+	font-size: clamp(24px, 2.6vw, 34px);
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+}
+
+.paper__lede {
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.85;
+	color: #7a6157;
+}
+
+.paper__row {
+	margin: 14px 0;
+}
+
+.paper__label {
+	margin: 0 0 18px;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	color: #8a6f64;
+}
+
+.paper__pair {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 28px;
+	align-items: flex-end;
+}
+
+.paper__specimen {
+	margin: 0;
+	display: grid;
+	gap: 10px;
+	justify-items: center;
+}
+
+.paper__specimen figcaption {
+	font-size: 12px;
+	letter-spacing: 0.04em;
+	color: #9c8177;
+}
+
+/* --- the wash ------------------------------------------------------------
+ *
+ * `--wash` is the pigment, `--weight` how much water carried it.
+ *
+ * The edge is what makes this watercolour rather than a blur, and it is built
+ * from three layers stacked in one element:
+ *
+ *   1. an inner pool — the single largest area of pigment, sitting off-centre
+ *   2. a rim — a ring of the SAME pigment, darker, because pigment is carried
+ *      outward as the water leaves. Every naive version of a wet mark gets this
+ *      backwards and puts the dark at the centre.
+ *   3. fibre — the paper's tooth, which has to interrupt both of the above or
+ *      the result reads as printed rather than absorbed.
+ */
+
+.wash {
+	position: relative;
+	display: block;
+	isolation: isolate;
+	/*
+	 * The shape is the first thing that gives it away.
+	 *
+	 * A perfect circle reads as a circle no matter how good the pigment is —
+	 * water does not spread evenly, and a real mark has a lumpy perimeter with
+	 * no two radii alike. The eight-value border-radius syntax is the only way
+	 * to say that in CSS: four horizontal radii and four vertical ones, all
+	 * different. `--lobes` lets a specimen shift its own silhouette so four of
+	 * them on one page are not the same blob repeated.
+	 */
+	--lobes: 0;
+	border-radius:
+		calc(48% + var(--lobes) * 1%) calc(52% - var(--lobes) * 1%) calc(45% + var(--lobes) * 2%)
+		calc(55% - var(--lobes) * 2%) / calc(54% - var(--lobes) * 2%) calc(46% + var(--lobes) * 1%)
+		calc(57% - var(--lobes) * 1%) calc(43% + var(--lobes) * 2%);
+	/* A slight rotation stops the eye locking onto the ellipse axes. */
+	transform: rotate(calc(var(--lobes) * -7deg));
+}
+
+/* The control. A plain radial gradient, which is what most "watercolour" CSS
+   actually is. It is here to be compared against, not to be used. */
+.wash--flat {
+	background:
+		radial-gradient(
+			closest-side,
+			color-mix(in oklab, var(--wash) 78%, white) 0%,
+			transparent 72%
+		),
+		color-mix(in oklab, var(--wash) 34%, white);
+	/* The dark centre the gradient produces. */
+	box-shadow: inset 0 0 30px 10px color-mix(in oklab, var(--wash) 55%, white);
+	opacity: 0.9;
+}
+
+/* Wet: pigment pooled, boundary soft, the rim just beginning to form. */
+.wash--wet {
+	background:
+		/* 2 — the rim, already forming. Wet pigment is on its way outward but has
+		   not arrived: the ring is present and softer than the dried one, which
+		   is the visible difference between the two states. */
+		radial-gradient(
+			92% 88% at 50% 50%,
+			transparent 68%,
+			color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 52%), white) 90%,
+			transparent 99%
+		),
+		/* 1 — the pool, off-centre so it is not a bullseye. */
+		radial-gradient(
+			72% 66% at 42% 40%,
+			color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 46%), white) 0%,
+			color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 30%), white) 56%,
+			transparent 80%
+		);
+	/* 3 — fibre: the paper's tooth breaking up the pigment. Two offset grain
+	   layers at low alpha; a single one is too regular and reads as noise. */
+	-webkit-mask-image:
+		radial-gradient(78% 74% at 46% 44%, #000 62%, transparent 88%),
+		repeating-conic-gradient(from 12deg at 30% 34%, rgb(0 0 0 / 0.86) 0deg 2deg, #000 2deg 5deg);
+	mask-image:
+		radial-gradient(78% 74% at 46% 44%, #000 62%, transparent 88%),
+		repeating-conic-gradient(from 12deg at 30% 34%, rgb(0 0 0 / 0.86) 0deg 2deg, #000 2deg 5deg);
+	filter: blur(7px);
+	opacity: calc(0.62 + var(--weight, 0.7) * 0.3);
+}
+
+/* Dried: the pool has gone and the pigment stayed where the water left it.
+   The edge is SHARP now — that is the whole difference between the two. */
+.wash--dry {
+	/*
+	 * How the edge deposit is built, and the four things that did not work.
+	 *
+	 * The property being imitated is that dried pigment is heavier in some arcs
+	 * of the rim than others — heavy where the water pooled and stopped,
+	 * almost absent where it ran off. That is an angular quantity, so the
+	 * obvious tool is a conic gradient.
+	 *
+	 *  1. Three concentric rings: spaced apart they read as a crescent, like a
+	 *     bitten moon; collapsed together they vanish. A ring can only be
+	 *     uniform or off-centre.
+	 *  2. A conic painted straight in: a pinwheel, because a conic sweeps
+	 *     outward along every ray and the rays are visible.
+	 *  3. A conic under an opaque radial: the middle is hidden and the rays
+	 *     still show either side of it.
+	 *  4. A conic masked to a band: a jelly gem. The mask did its job; the
+	 *     rays were still there inside the band.
+	 *
+	 * All four failed for one reason, and it is the thing to remember: **a
+	 * conic stop is a colour for a whole ray**, so any stop that is opaque
+	 * paints a stripe from the centre to the edge. The rim needs the strength
+	 * to vary around the circle while each individual ray stays one flat
+	 * colour — which means the stops have to be a *sequence of equal-alpha
+	 * bands*, not a gradient running in and out. There is no way to say that
+	 * with a single conic.
+	 *
+	 * So the deposit is drawn as what it physically is: a separate thin ring
+	 * with an angular alpha of its own, masked to the rim, sitting over the
+	 * body. The ring is the pigment that was carried outward; the body is what
+	 * stayed. Two elements, two jobs, and neither has to fake the other.
+	 */
+	background: radial-gradient(
+		72% 66% at 49% 47%,
+		color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 30%), white) 0%,
+		color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 25%), white) 76%,
+		transparent 95%
+	);
+	filter: blur(1.5px) saturate(1.08);
+	opacity: calc(0.74 + var(--weight, 0.7) * 0.22);
+}
+
+/*
+ * The deposit ring, a child element rather than a background layer.
+ *
+ * `--a` through `--e` are the five arcs and their strengths; the ring itself is
+ * a border with an angular mask, so each arc is a flat colour and no ray is
+ * ever painted. Strengths are deliberately unequal: an even sequence reads as
+ * a mechanical ring, which is the failure this whole comment exists to avoid.
+ */
+.wash__deposit {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	/*
+	 * `mask` with a conic that alternates opaque and clear: where it is opaque
+	 * the ring shows. This is the inverse of the mistake above — the conic here
+	 * controls *visibility* around the circle, and because the ring is already
+	 * a solid colour there are no rays to see.
+	 */
+	background: color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 88%), #2a1d33);
+	-webkit-mask-image:
+		radial-gradient(
+			closest-side,
+			transparent 72%,
+			rgb(0 0 0 / 1) 86%,
+			rgb(0 0 0 / 1) 97%,
+			transparent 100%
+		),
+		conic-gradient(
+			from -30deg,
+			rgb(0 0 0 / 0.05) 0deg 34deg,
+			rgb(0 0 0 / 0.92) 62deg,
+			rgb(0 0 0 / 0.22) 104deg,
+			rgb(0 0 0 / 0.06) 140deg,
+			rgb(0 0 0 / 1) 182deg,
+			rgb(0 0 0 / 0.3) 224deg,
+			rgb(0 0 0 / 0.1) 260deg,
+			rgb(0 0 0 / 0.78) 302deg,
+			rgb(0 0 0 / 0.05) 344deg
+		);
+	mask-image:
+		radial-gradient(
+			closest-side,
+			transparent 72%,
+			rgb(0 0 0 / 1) 86%,
+			rgb(0 0 0 / 1) 97%,
+			transparent 100%
+		),
+		conic-gradient(
+			from -30deg,
+			rgb(0 0 0 / 0.05) 0deg 34deg,
+			rgb(0 0 0 / 0.92) 62deg,
+			rgb(0 0 0 / 0.22) 104deg,
+			rgb(0 0 0 / 0.06) 140deg,
+			rgb(0 0 0 / 1) 182deg,
+			rgb(0 0 0 / 0.3) 224deg,
+			rgb(0 0 0 / 0.1) 260deg,
+			rgb(0 0 0 / 0.78) 302deg,
+			rgb(0 0 0 / 0.05) 344deg
+		);
+	/* The two masks intersect by default, which is what puts the angular
+	   variation only in the rim band. */
+	mask-composite: intersect;
+	-webkit-mask-composite: source-in;
+	filter: blur(2.5px);
+	pointer-events: none;
+}
+
+/* --- the paper itself ----------------------------------------------------
+ *
+ * The ground is not a flat fill. Paper has a direction — fibre runs one way
+ * through a sheet — and a surface with a direction is the difference between
+ * "a coloured background" and "something the paint sits on".
+ */
+
+.paper__row::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.paper__panels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	align-items: center;
+}
+
+.paper__film {
+	padding: 16px 40px;
+	border-radius: 30px;
+}
+
+.paper__film-text {
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	color: #55407e;
+}
+
+.paper__pane {
+	padding: 22px 26px;
+	max-width: 380px;
+	border-radius: 26px;
+}
+
+.paper__pane-title {
+	margin: 0 0 8px;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.paper__pane-body {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.7;
+	color: #6d564d;
+}
+
+/*
+ * Paper fibre. Two repeating gradients at different angles and very low alpha:
+ * one alone is a visible pattern, two at different pitches read as tooth.
+ * This sits under everything and is the reason the washes look absorbed.
+ */
+.paper::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background-image:
+		repeating-linear-gradient(101deg, rgb(122 97 87 / 0.032) 0 1px, transparent 1px 3px),
+		repeating-linear-gradient(11deg, rgb(122 97 87 / 0.026) 0 1px, transparent 1px 5px);
+	pointer-events: none;
+}

@@ -31,6 +31,7 @@ import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
 import { WakePage } from "./Wake.js";
+import { WetPaperPage } from "./WetPaper.js";
 
 const PALETTES = {
 	aurora: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"],
@@ -612,6 +613,7 @@ export default function App() {
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
 		if (demo === "iris") return <IrisShowcasePage />;
+		if (demo === "paper") return <WetPaperPage />;
 		if (demo === "iris-kit") {
 			const component = query.get("component") ?? "";
 			const tone = query.get("tone") ?? "iris";
