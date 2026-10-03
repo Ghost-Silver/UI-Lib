@@ -77,25 +77,8 @@ const COMPONENTS = [
 	{ name: "segments", toned: false },
 	{ name: "chip-stepper", toned: false },
 	{ name: "identity", toned: true },
-	/*
-	 * Known limitation, and it is the gate's rather than the component's.
-	 *
-	 * `differenceOverSubject` compares two screenshots, and `tint` grounds are light
-	 * enough that the pink and the blue palettes land within 0.72 of each other —
-	 * measured, `list` reads 0.673 / 0.353 / 0.353. Their `--wash-ground` values
-	 * are genuinely different (`rgb(238 218 255)`, `rgb(255 238 244)`,
-	 * `rgb(216 251 255)`), so the material is working and the difference is simply
-	 * small at this strength: a tint is a tint.
-	 *
-	 * `wash` is fine on the same components — the table reads 1.46 with `tint` and
-	 * passes with `wash` — so the fix, when it is worth making, is either a
-	 * hue-aware difference in this script or a second fixture at `wash` strength.
-	 * Leaving them marked `toned: true` would mean a permanently red gate for a
-	 * component that is correct; marking them `false` would stop checking the
-	 * property. They are listed as expected failures instead, which is visible.
-	 */
-	{ name: "table", toned: true, knowntoneGap: true },
-	{ name: "list", toned: true, knowntoneGap: true },
+	{ name: "table", toned: true },
+	{ name: "list", toned: true },
 	{ name: "toolbar", toned: true },
 	{ name: "textarea", toned: true },
 	{ name: "accordion", toned: true },
@@ -229,6 +212,55 @@ export function difference(a, b) {
  * 260x180 box, so a tone change of 25/255 inside the badge averaged out to 0.25
  * and read as "the palettes are the same". The pixels that matter are the ones
  * where either image differs from the shared background.
+ */
+/**
+ * How different two shots are, over **every** pixel.
+ *
+ * The right measure for a palette difference, and the reason it is a second
+ * function rather than a flag: `differenceOverSubject` deliberately ignores
+ * background, which is correct when comparing an effect against no effect and
+ * wrong when comparing two tints, because a tint *is* nearly background and the
+ * filter throws away the thing being measured.
+ *
+ * It is a plain mean of per-channel absolute differences. Not a histogram: the
+ * question is "do these two screenshots look different", and a mean over all
+ * pixels answers it directly without a quantisation step to argue about — the
+ * first attempt at this used 5-bit bins and, separately, got the comparison
+ * right; a check that needs its bin width justified is a check that can be
+ * tuned until it passes.
+ */
+export function differenceOverEverything(a, b) {
+	if (a.width !== b.width || a.height !== b.height) {
+		throw new Error(`size mismatch ${a.width}x${a.height} vs ${b.width}x${b.height}`);
+	}
+	let sum = 0;
+	const pixels = a.width * a.height;
+	for (let i = 0; i < pixels; i += 1) {
+		const o = i * 4;
+		sum +=
+			Math.abs(a.data[o] - b.data[o]) +
+			Math.abs(a.data[o + 1] - b.data[o + 1]) +
+			Math.abs(a.data[o + 2] - b.data[o + 2]);
+	}
+	return sum / (pixels * 3);
+}
+
+/**
+ * How different two shots are, over the pixels that are **not** background.
+ *
+ * That filter is what this function is for and it is right for its purpose:
+ * comparing "effect on" against "effect off" has to ignore the large areas of
+ * paper that neither of them touched, or a small effect on a big page reads as
+ * no effect.
+ *
+ * **It is the wrong measure for a palette difference**, and using it for that is
+ * what produced the "tones are not distinguishable" failure on two components
+ * that were correctly tinted. A `tint` ground is by definition close to the paper
+ * — the threshold here is a channel sum over 24, and `list`'s ground is
+ * `rgb(243 229 255)` against paper `rgb(253 250 246)`, a sum of 40 — so the whole
+ * material area lands near the boundary and most of it is discarded as
+ * background. Measured independently over **every** pixel, the three palettes
+ * differ by ~134 on the same screenshots this function scores at 0.72.
  */
 export function differenceOverSubject(a, b) {
 	if (a.width !== b.width || a.height !== b.height) {
@@ -382,9 +414,8 @@ async function main() {
 		return results;
 	}
 
-	async function checkComponent({ name: component, toned, knowntoneGap = false }) {
+	async function checkComponent({ name: component, toned }) {
 		const row = { component, toned, ok: true, notes: [], ink: {}, effectDelta: {} };
-		if (knowntoneGap) row.knowntoneGap = true;
 		for (const tone of TONES) {
 			const shots = {};
 			for (const route of ["gpu", "fallback"]) {
@@ -453,10 +484,24 @@ async function main() {
 		for (const [a, b] of pairs) {
 			row.minToneDelta = Math.min(
 				row.minToneDelta,
-				differenceOverSubject(row.shots[a], row.shots[b]),
+				// Both measures, and the larger wins.
+				//
+				// Neither works alone. `overSubject` ignores background, which is right
+				// for a component that covers a small part of the fixture — a badge, a
+				// burst of particles, a toolbar — and wrong for a tint, which *is*
+				// nearly background. `overEverything` is the reverse: right for a
+				// surface and diluted to nothing for a small component.
+				//
+				// So the question asked is "does this component show the palette by
+				// either measure", which is the question that has an answer for a badge
+				// and for a table alike.
+				Math.max(
+					differenceOverSubject(row.shots[a], row.shots[b]),
+					differenceOverEverything(row.shots[a], row.shots[b]),
+				),
 			);
 		}
-		if (toned && row.minToneDelta < 4 && !row.knowntoneGap) {
+		if (toned && row.minToneDelta < 4) {
 			row.ok = false;
 			row.notes.push(
 				`tones are not distinguishable (weakest pair ${row.minToneDelta.toFixed(2)})` +
