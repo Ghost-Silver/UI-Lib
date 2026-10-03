@@ -1933,6 +1933,256 @@ const CSS = `
 	}
 }
 
+
+/* --- soft choice ---------------------------------------------------------
+ *
+ * Checkbox and radio share a shell and differ in their mark and their corner.
+ * The box is a recess — the same inset shadow as the input's shell and the
+ * switch's track — because all three are places on the paper that something
+ * goes into. When it is filled, the inset stays, so the colour reads as pigment
+ * that settled into the groove rather than as a tile laid on top.
+ */
+
+.ui-lib-soft-choice {
+	display: inline-flex;
+	align-items: flex-start;
+	gap: 10px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	cursor: pointer;
+	user-select: none;
+}
+
+.ui-lib-soft-choice[data-ui-lib-disabled] {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+/*
+ * The real control, invisible but present.
+ *
+ * Not display: none, which would remove it from the tab order and from the
+ * accessibility tree, and not opacity: 0 alone, which leaves a target sitting
+ * on top of the drawing. Sized to the drawing and clipped to zero: it keeps its
+ * place in the tab order, its name, its role and its events, and it cannot be
+ * clicked by accident where it is not visible.
+ */
+.ui-lib-soft-choice__input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	margin: 0;
+	pointer-events: none;
+}
+
+.ui-lib-soft-choice__box {
+	position: relative;
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 22px;
+	height: 22px;
+	margin-top: 1px;
+	background: oklch(0.975 0.006 60);
+	box-shadow:
+		inset 0 2px 3px 0 rgb(77 60 56 / 0.12),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+	border: 1.5px solid transparent;
+	transition:
+		background 180ms ease-out,
+		border-color 180ms ease-out,
+		transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The checkbox keeps a small radius; the radio is a circle. The design system
+   asks for exactly this, and it is also the only shape difference a user can
+   rely on at a glance. */
+.ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__box {
+	border-radius: var(--moe-radius-xs);
+}
+
+.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__box {
+	border-radius: var(--moe-radius-full);
+}
+
+.ui-lib-soft-choice:hover .ui-lib-soft-choice__box {
+	transform: scale(1.06);
+}
+
+.ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 3px;
+}
+
+/* --- checked -------------------------------------------------------------
+ *
+ * The fill is the pigment, and the animation is on the mark rather than on the
+ * colour: a swell of colour that fades in reads as a highlight, where a stroke
+ * that draws itself reads as a mark being made.
+ */
+
+.ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__input:checked ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__input:indeterminate ~ .ui-lib-soft-choice__box {
+	background: var(--moe-sakura-500);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(194 82 108 / 0.28),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.5);
+}
+
+.ui-lib-soft-choice__mark {
+	width: 16px;
+	height: 16px;
+}
+
+.ui-lib-soft-choice__tick,
+.ui-lib-soft-choice__dash {
+	stroke: var(--moe-cocoa);
+	fill: none;
+}
+
+/*
+ * stroke-dasharray at the path's length, with the offset animated from that
+ * length to zero. The number is the path length, so it is set as a constant
+ * rather than measured: the path is fixed, and measuring it at runtime would
+ * need getTotalLength on every mount.
+ *
+ * A dash drawn from nothing to full, and a tick drawn from nothing to full, are
+ * the same animation — which is why the two paths share these rules.
+ */
+.ui-lib-soft-choice__tick {
+	stroke-dasharray: 17;
+	stroke-dashoffset: 17;
+	transition: stroke-dashoffset 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-lib-soft-choice__dash {
+	stroke-dasharray: 7;
+	stroke-dashoffset: 7;
+	transition: stroke-dashoffset 200ms ease-out;
+}
+
+.ui-lib-soft-choice__input:checked ~ .ui-lib-soft-choice__box .ui-lib-soft-choice__tick {
+	stroke-dashoffset: 0;
+}
+
+.ui-lib-soft-choice__input:indeterminate ~ .ui-lib-soft-choice__box .ui-lib-soft-choice__tick {
+	stroke-dashoffset: 17;
+}
+
+.ui-lib-soft-choice__input:indeterminate ~ .ui-lib-soft-choice__box .ui-lib-soft-choice__dash {
+	stroke-dashoffset: 0;
+}
+
+/* --- radio ---------------------------------------------------------------
+ *
+ * The dot grows from nothing rather than fading, so the two controls tell the
+ * same story with the same kind of motion.
+ */
+
+.ui-lib-soft-choice__dot {
+	width: 10px;
+	height: 10px;
+	border-radius: var(--moe-radius-full);
+	background: var(--moe-cocoa);
+	transform: scale(0);
+	transition: transform 240ms cubic-bezier(0.34, 1.78, 0.64, 1);
+}
+
+.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__input:checked ~ .ui-lib-soft-choice__box {
+	background: var(--moe-sakura-500);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(194 82 108 / 0.28),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.5);
+}
+
+.ui-lib-soft-choice[data-ui-lib-kind="radio"]
+	.ui-lib-soft-choice__input:checked
+	~ .ui-lib-soft-choice__box
+	.ui-lib-soft-choice__dot {
+	transform: scale(1);
+}
+
+/* Checkbox and radio both get their ink, but the radio's dot has to sit above
+   the checkbox's mark which is not rendered for radios at all. */
+.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__mark {
+	display: none;
+}
+
+.ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__dot {
+	display: none;
+}
+
+/* --- text ---------------------------------------------------------------- */
+
+.ui-lib-soft-choice__text {
+	display: grid;
+	gap: 1px;
+}
+
+.ui-lib-soft-choice__label {
+	font-size: 14.5px;
+	font-weight: 600;
+	line-height: 1.45;
+}
+
+.ui-lib-soft-choice__note {
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--moe-cocoa-soft);
+}
+
+/* --- group --------------------------------------------------------------- */
+
+.ui-lib-soft-radio-group {
+	display: grid;
+	gap: 12px;
+	border: none;
+	margin: 0;
+	padding: 0;
+}
+
+.ui-lib-soft-radio-group__legend {
+	padding: 0;
+	margin-bottom: 10px;
+	font-family: var(--moe-font-rounded);
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-choice__box,
+	.ui-lib-soft-choice__tick,
+	.ui-lib-soft-choice__dash,
+	.ui-lib-soft-choice__dot {
+		transition: none;
+	}
+
+	.ui-lib-soft-choice__tick,
+	.ui-lib-soft-choice__dash {
+		/* Land at the final state rather than at the start of an animation that
+		   will never run. */
+		stroke-dashoffset: 0;
+	}
+
+	.ui-lib-soft-choice__input:indeterminate ~ .ui-lib-soft-choice__box .ui-lib-soft-choice__tick {
+		stroke-dashoffset: 17;
+	}
+
+	.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__box .ui-lib-soft-choice__dot {
+		transform: scale(0);
+	}
+
+	.ui-lib-soft-choice[data-ui-lib-kind="radio"]
+		.ui-lib-soft-choice__input:checked
+		~ .ui-lib-soft-choice__box
+		.ui-lib-soft-choice__dot {
+		transform: scale(1);
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

@@ -4,9 +4,12 @@ import {
 	BubbleBadge,
 	GlassStage,
 	PinkPaperButton,
+	SoftCheckbox,
 	SoftInput,
 	SoftLightPanel,
 	SoftModal,
+	SoftRadio,
+	SoftRadioGroup,
 	SoftSelect,
 	SoftSlider,
 	SoftSwitch,
@@ -43,6 +46,7 @@ const COMPONENTS = [
 	"modal",
 	"input",
 	"select",
+	"choice",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -134,7 +138,8 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 						component === "tabs" ||
 						component === "switch" ||
 						component === "slider" ||
-						component === "input"
+						component === "input" ||
+						component === "choice"
 							? ""
 							: undefined
 					}
@@ -143,6 +148,44 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Every state of both controls, so one capture shows all of them. */
+function ChoiceKit() {
+	const [a, setA] = useState(true);
+	const [b, setB] = useState(false);
+	const [plan, setPlan] = useState("paper");
+	return (
+		<div className="kit__choices">
+			<SoftCheckbox
+				label="记住这一笔"
+				note="下次打开时还在"
+				checked={a}
+				onChange={(e) => setA(e.target.checked)}
+			/>
+			<SoftCheckbox label="未选中" checked={b} onChange={(e) => setB(e.target.checked)} />
+			<SoftCheckbox label="部分选中" indeterminate note="三张里有五张" />
+			<SoftCheckbox label="不可用" disabled />
+			<SoftRadioGroup legend="材质">
+				<SoftRadio
+					name="material"
+					value="paper"
+					label="水彩纸"
+					checked={plan === "paper"}
+					onChange={() => setPlan("paper")}
+				/>
+				<SoftRadio
+					name="material"
+					value="glass"
+					label="液态玻璃"
+					note="会折射"
+					checked={plan === "glass"}
+					onChange={() => setPlan("glass")}
+				/>
+				<SoftRadio name="material" value="clay" label="粘土" disabled />
+			</SoftRadioGroup>
+		</div>
 	);
 }
 
@@ -305,6 +348,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "choice":
+			return <ChoiceKit />;
 		case "select":
 			return <SelectKit />;
 		case "input":

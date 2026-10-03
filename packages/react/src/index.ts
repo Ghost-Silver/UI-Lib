@@ -71,6 +71,8 @@ export type { ScrollPinProps, ScrollTrackProps } from "./ScrollTrack.js";
 export { ScrollPin, ScrollTrack, useScrollTrack, useScrollTrackHandle } from "./ScrollTrack.js";
 export type { SoftCardProps } from "./SoftCard.js";
 export { SoftCard } from "./SoftCard.js";
+export type { SoftCheckboxProps, SoftRadioProps } from "./SoftChoice.js";
+export { SoftCheckbox, SoftRadio, SoftRadioGroup } from "./SoftChoice.js";
 export type { SoftInputProps } from "./SoftInput.js";
 export { SoftInput } from "./SoftInput.js";
 export type { SoftLightPanelProps } from "./SoftLightPanel.js";

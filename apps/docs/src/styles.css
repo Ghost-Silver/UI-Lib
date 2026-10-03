@@ -3008,3 +3008,10 @@ input[type="range"]::-moz-range-thumb {
 .kit__box[data-ui-lib-wide] .kit__inputs {
 	width: 300px;
 }
+
+.kit__choices {
+	display: grid;
+	gap: 14px;
+	width: 260px;
+	align-content: center;
+}
