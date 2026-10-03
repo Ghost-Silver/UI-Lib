@@ -2395,5 +2395,11 @@ input[type="range"]::-moz-range-thumb {
    the component under test. */
 .kit__box[data-ui-lib-wide] {
 	width: 420px;
-	height: 220px;
+	height: 380px;
+}
+
+.kit__sliders {
+	display: grid;
+	gap: 26px;
+	width: 320px;
 }

@@ -71,6 +71,8 @@ export type { SoftCardProps } from "./SoftCard.js";
 export { SoftCard } from "./SoftCard.js";
 export type { SoftLightPanelProps } from "./SoftLightPanel.js";
 export { SoftLightPanel } from "./SoftLightPanel.js";
+export type { SoftSliderProps } from "./SoftSlider.js";
+export { SoftSlider } from "./SoftSlider.js";
 export type { SoftSwitchProps } from "./SoftSwitch.js";
 export { SoftSwitch } from "./SoftSwitch.js";
 export type { SoftTabsProps } from "./SoftTabs.js";

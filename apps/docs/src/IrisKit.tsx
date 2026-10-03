@@ -5,6 +5,7 @@ import {
 	GlassStage,
 	PinkPaperButton,
 	SoftLightPanel,
+	SoftSlider,
 	SoftSwitch,
 	SoftTabs,
 	WatercolorCard,
@@ -35,6 +36,7 @@ const COMPONENTS = [
 	"bling",
 	"switch",
 	"tabs",
+	"slider",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -122,12 +124,37 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				<div
 					className="kit__box"
 					data-ui-lib-kit-box
-					data-ui-lib-wide={component === "tabs" || component === "switch" ? "" : undefined}
+					data-ui-lib-wide={
+						component === "tabs" || component === "switch" || component === "slider"
+							? ""
+							: undefined
+					}
 				>
 					<KitSubject component={component} tone={tone} />
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Two sliders, so the held state and the resting state are both visible. */
+function SliderKit() {
+	const [a, setA] = useState(62);
+	const [b, setB] = useState(0.4);
+	return (
+		<div className="kit__sliders">
+			<SoftSlider value={a} onChange={setA} label="亮度" format={(v) => `${v}%`} />
+			<SoftSlider
+				value={b}
+				onChange={setB}
+				min={0}
+				max={1}
+				step={0.05}
+				label="不透明度"
+				format={(v) => v.toFixed(2)}
+			/>
+			<SoftSlider value={30} softDisabled label="禁用" />
+		</div>
 	);
 }
 
@@ -201,6 +228,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 					<p>颜料是自己摊开的，上面盖着真玻璃。</p>
 				</WatercolorCard>
 			);
+		case "slider":
+			return <SliderKit />;
 		case "tabs":
 			return <TabsKit />;
 		case "switch":

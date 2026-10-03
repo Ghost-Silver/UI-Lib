@@ -939,6 +939,168 @@ const CSS = `
 	}
 }
 
+
+/* --- soft slider ---------------------------------------------------------
+ *
+ * A 10px groove with a 22px bead on it. The groove is thicker than a desktop
+ * slider's because this one is meant to be grabbed, and the bead is large
+ * enough to hold a thumb — the platform target is 44px of touch area even
+ * where the visible dot is smaller.
+ *
+ * The bubble only exists while held. A number parked next to the track makes
+ * the user look away from their own finger; one that appears under the thumb
+ * is read in the same glance.
+ */
+
+.ui-lib-soft-slider {
+	position: relative;
+	display: block;
+	width: 100%;
+	min-width: 140px;
+	height: 28px;
+	margin-top: 34px;
+	touch-action: none;
+	cursor: pointer;
+	font-family: var(--moe-font-rounded);
+}
+
+.ui-lib-soft-slider[data-ui-lib-soft-disabled] {
+	cursor: not-allowed;
+	filter: saturate(0.3);
+	opacity: 0.6;
+}
+
+.ui-lib-soft-slider__groove {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 10px;
+	transform: translateY(-50%);
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.93 0.006 60);
+	box-shadow: inset 0 2px 3px 0 rgb(77 60 56 / 0.14);
+	overflow: hidden;
+}
+
+.ui-lib-soft-slider__fill {
+	display: block;
+	height: 100%;
+	border-radius: var(--moe-radius-full);
+	background: linear-gradient(90deg, var(--moe-sakura-500), var(--moe-taro-500));
+	/* The moving highlight is what makes the fill read as liquid rather than as
+	   a progress bar: a fixed gradient looks painted on. */
+	background-size: 180% 100%;
+	animation: ui-lib-moe-flow 3.2s linear infinite;
+}
+
+@keyframes ui-lib-moe-flow {
+	from {
+		background-position: 0% 50%;
+	}
+	to {
+		background-position: 180% 50%;
+	}
+}
+
+.ui-lib-soft-slider__thumb {
+	position: absolute;
+	top: 50%;
+	width: 22px;
+	height: 22px;
+	border-radius: var(--moe-radius-full);
+	background: var(--moe-card);
+	box-shadow:
+		0 2px 6px -1px rgb(77 60 56 / 0.26),
+		inset 0 2px 3px 0 rgb(255 255 255 / 0.95),
+		inset 0 -2px 3px 0 rgb(77 60 56 / 0.08);
+	transition:
+		width 140ms var(--moe-ease-jelly),
+		height 140ms var(--moe-ease-jelly),
+		transform 200ms var(--moe-ease-jelly);
+	pointer-events: none;
+}
+
+/* Picked up: 22 -> 28. Enough to read as held, not enough to shift what the
+   hand was aiming at. */
+.ui-lib-soft-slider[data-ui-lib-held] .ui-lib-soft-slider__thumb {
+	width: 28px;
+	height: 28px;
+}
+
+.ui-lib-soft-slider__bubble {
+	position: absolute;
+	bottom: calc(50% + 20px);
+	transform: translateX(-50%) scale(0.72);
+	transform-origin: 50% 120%;
+	opacity: 0;
+	pointer-events: none;
+	transition:
+		opacity 140ms ease-out,
+		transform 200ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-slider[data-ui-lib-held] .ui-lib-soft-slider__bubble {
+	opacity: 1;
+	transform: translateX(-50%) scale(1);
+}
+
+.ui-lib-soft-slider__bubble-face {
+	display: inline-block;
+	padding: 4px 10px;
+	border-radius: var(--moe-radius-sm);
+	background: var(--moe-cocoa);
+	color: oklch(0.97 0.01 60);
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	box-shadow: 0 4px 10px -3px rgb(77 60 56 / 0.4);
+}
+
+/* The tail. A rotated square tucked behind the bubble, which is cheaper than a
+   border triangle and keeps the same radius language as everything else. */
+.ui-lib-soft-slider__bubble::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: -3px;
+	width: 8px;
+	height: 8px;
+	transform: translateX(-50%) rotate(45deg);
+	border-radius: 2px;
+	background: var(--moe-cocoa);
+}
+
+/* The real control, invisible but present: keyboard, touch and screen-reader
+   behaviour all come from here rather than from a reimplementation. */
+.ui-lib-soft-slider__input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.ui-lib-soft-slider__input:focus-visible + .ui-lib-soft-slider__bubble,
+.ui-lib-soft-slider:focus-within .ui-lib-soft-slider__thumb {
+	outline: 3px solid var(--moe-taro-500);
+	outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-slider__fill {
+		animation: none;
+	}
+
+	.ui-lib-soft-slider__thumb,
+	.ui-lib-soft-slider__bubble {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
