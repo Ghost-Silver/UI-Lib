@@ -16,6 +16,16 @@ import { useId } from "react";
  * is three places for it to drift, and the drift would be silent — every one of
  * them would look right.
  *
+ * ## What it is not for
+ *
+ * `SoftSelect` does **not** use this, and that is a decision rather than an
+ * oversight. It has no hint and no error, and it derives four ids from one base —
+ * a label, a listbox, a per-option id and an anchor name — so what it needs is a
+ * stable base, not a description contract. Adopting this there would mean
+ * carrying two unused parameters and a `describedBy` that is always undefined, in
+ * exchange for the appearance of consistency. A shared abstraction that a
+ * component has to be bent to fit is not shared; it is borrowed.
+ *
  * It returns ids and the `aria-describedby` value rather than rendering anything,
  * because the markup differs between a field with a ring and one with a popover,
  * and a hook that renders would have to take a layout prop and become a component

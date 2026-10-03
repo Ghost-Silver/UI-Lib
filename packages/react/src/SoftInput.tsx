@@ -1,12 +1,6 @@
 import { createSpring } from "@ui-lib/core";
-import {
-	forwardRef,
-	useCallback,
-	useEffect,
-	useId as useReactId,
-	useRef,
-	useState,
-} from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { fieldMessage, useField } from "./field.js";
 
 export interface SoftInputProps
 	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
@@ -89,9 +83,25 @@ export const SoftInput = forwardRef<HTMLInputElement, SoftInputProps>(function S
 	 * hook counts in the same component is a rules-of-hooks violation, and it
 	 * only shows up in whichever of the two cases is less well tested.
 	 */
-	const generatedId = useReactId();
-	const fieldId = id ?? generatedId;
-	const describedBy = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
+	/*
+	 * The shared field wiring, which used to be written here.
+	 *
+	 * This component had the contract first, and `SoftSelect` and `SoftTextarea`
+	 * each wrote it again, so it lives in `useField` now and this reads from it.
+	 * The ids, the error-wins-over-hint rule and the `aria-describedby` value are
+	 * unchanged; only where they are written changed.
+	 *
+	 * The local version had one history worth keeping in mind: it was first
+	 * written with a module-level counter, which is stable across renders of one
+	 * client and *not* matched by a server, so every `<label for>` pointed at an
+	 * id that did not exist after hydration. `useField` calls `useId`
+	 * unconditionally, because `id ?? useId()` is a bug — the right-hand side of
+	 * `??` is lazy, so the hook would run for some fields and not others.
+	 */
+	const wiring = useField({ id, hasHint: Boolean(hint), hasError: Boolean(error) });
+	const message = fieldMessage(wiring, { hint, error });
+	const fieldId = wiring.id;
+	const describedBy = wiring.describedBy;
 
 	/*
 	 * The focus ring, driven by a real spring.
@@ -185,15 +195,15 @@ export const SoftInput = forwardRef<HTMLInputElement, SoftInputProps>(function S
 			 * hoped for. An error that is only red is an error a screen reader
 			 * never hears.
 			 */}
-			{error ? (
-				<p className="ui-lib-soft-input__message" id={`${fieldId}-error`} role="alert">
-					{error}
+			{message && (
+				<p
+					className="ui-lib-soft-input__message"
+					id={message.id}
+					role={message.invalid ? "alert" : undefined}
+				>
+					{message.text}
 				</p>
-			) : hint ? (
-				<p className="ui-lib-soft-input__message" id={`${fieldId}-hint`}>
-					{hint}
-				</p>
-			) : null}
+			)}
 		</div>
 	);
 });
