@@ -88,6 +88,12 @@ export type { SoftProgressProps, SoftSkeletonProps, SoftSpinnerProps } from "./S
 export { SoftProgress, SoftSkeleton, SoftSpinner } from "./SoftLoading.js";
 export type { SoftModalProps } from "./SoftModal.js";
 export { SoftModal } from "./SoftModal.js";
+export type {
+	SoftBreadcrumbItem,
+	SoftBreadcrumbProps,
+	SoftPaginationProps,
+} from "./SoftNavigation.js";
+export { SoftBreadcrumb, SoftPagination } from "./SoftNavigation.js";
 export type { SoftToastData, SoftToastProps, SoftTooltipProps } from "./SoftOverlay.js";
 export { SoftToast, SoftTooltip } from "./SoftOverlay.js";
 export type { SoftSegmentedControlProps, SoftSegmentOption } from "./SoftSegmentedControl.js";
@@ -104,6 +110,7 @@ export type { SoftTableColumn, SoftTableProps } from "./SoftTable.js";
 export { SoftTable } from "./SoftTable.js";
 export type { SoftTabsProps } from "./SoftTabs.js";
 export { SoftTabs } from "./SoftTabs.js";
+export { pageRange } from "./softNavigationRange.js";
 export { useFrame } from "./useFrame.js";
 export type { WatercolorCardProps } from "./WatercolorCard.js";
 export { WatercolorCard } from "./WatercolorCard.js";

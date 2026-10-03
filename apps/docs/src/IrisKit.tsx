@@ -15,6 +15,7 @@ import {
 	SoftAccordion,
 	SoftAlert,
 	SoftAvatar,
+	SoftBreadcrumb,
 	SoftCard,
 	SoftCheckbox,
 	SoftDivider,
@@ -23,6 +24,7 @@ import {
 	SoftInput,
 	SoftLightPanel,
 	SoftModal,
+	SoftPagination,
 	SoftProgress,
 	SoftRadio,
 	SoftRadioGroup,
@@ -80,6 +82,7 @@ const COMPONENTS = [
 	"wash-canvas",
 	"segments",
 	"status",
+	"navigation",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -181,6 +184,26 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Pagination and a trail, with the current location not being a control. */
+function NavigationKit() {
+	const [page, setPage] = useState(6);
+	const [here, setHere] = useState("水彩纸");
+	return (
+		<div className="kit__navigation">
+			<SoftBreadcrumb
+				items={[
+					{ label: "首页", href: "#", onClick: () => setHere("首页") },
+					{ label: "材质", href: "#", onClick: () => setHere("材质") },
+					{ label: here },
+				]}
+			/>
+			<SoftPagination count={12} page={page} onChange={setPage} />
+			<SoftPagination count={4} page={2} onChange={() => undefined} />
+			<p className="kit__navigation-note">当前在第 {page} 页。</p>
+		</div>
 	);
 }
 
@@ -710,6 +733,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "navigation":
+			return <NavigationKit />;
 		case "status":
 			return <StatusKit />;
 		case "segments":

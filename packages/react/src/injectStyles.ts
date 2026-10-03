@@ -3881,6 +3881,151 @@ const CSS = `
 	}
 }
 
+
+/* --- pagination ----------------------------------------------------------
+ *
+ * The current page is the one thing on the row that is not a control, and it
+ * looks like it: no hover, no press, no pointer. It carries the accent instead,
+ * which is the same accent the segmented control's chosen segment uses, so
+ * "current" looks the same in both places.
+ */
+
+.ui-lib-soft-pagination__list {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-family: var(--moe-font-rounded);
+}
+
+.ui-lib-soft-pagination__page {
+	display: grid;
+	place-items: center;
+	min-width: 34px;
+	height: 34px;
+	padding: 0 9px;
+	border: 1.5px solid transparent;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	text-decoration: none;
+	cursor: pointer;
+	transition:
+		background 180ms ease-out,
+		color 180ms ease-out,
+		border-color 180ms ease-out;
+}
+
+.ui-lib-soft-pagination__page:hover {
+	background: oklch(0.95 0.018 310);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-pagination__page:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+/* The one that is not a control. No cursor, no hover, and it says where you are
+   rather than offering to take you somewhere. */
+.ui-lib-soft-pagination__page[data-ui-lib-current] {
+	background: var(--moe-taro-500);
+	color: var(--moe-cocoa);
+	cursor: default;
+}
+
+.ui-lib-soft-pagination__page[data-ui-lib-current]:hover {
+	background: var(--moe-taro-500);
+}
+
+.ui-lib-soft-pagination__gap {
+	display: grid;
+	place-items: center;
+	min-width: 20px;
+	height: 34px;
+	font-family: var(--moe-font-rounded);
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	opacity: 0.6;
+}
+
+/* --- breadcrumb ----------------------------------------------------------
+ *
+ * The trail is a row of peers with a separator between them, and the separator
+ * belongs to the item after it rather than being its own node — a list whose
+ * length includes the separators tells a reader there are five things when there
+ * are three.
+ */
+
+.ui-lib-soft-breadcrumb__list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-family: var(--moe-font-rounded);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.ui-lib-soft-breadcrumb__item {
+	display: inline-flex;
+	align-items: center;
+}
+
+.ui-lib-soft-breadcrumb__sep {
+	margin: 0 8px;
+	color: oklch(0.78 0.02 40);
+	font-weight: 500;
+}
+
+.ui-lib-soft-breadcrumb__link,
+.ui-lib-soft-breadcrumb__button {
+	padding: 3px 2px;
+	border: none;
+	background: none;
+	font: inherit;
+	color: var(--moe-cocoa-soft);
+	text-decoration: none;
+	cursor: pointer;
+	border-radius: var(--moe-radius-xs);
+	transition: color 160ms ease-out;
+}
+
+.ui-lib-soft-breadcrumb__link:hover,
+.ui-lib-soft-breadcrumb__button:hover {
+	color: var(--moe-taro-600);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.ui-lib-soft-breadcrumb__link:focus-visible,
+.ui-lib-soft-breadcrumb__button:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+/* Where the reader is. Not a link, and it does not pretend to be one. */
+.ui-lib-soft-breadcrumb__current {
+	padding: 3px 2px;
+	color: var(--moe-cocoa);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-pagination__page,
+	.ui-lib-soft-breadcrumb__link,
+	.ui-lib-soft-breadcrumb__button {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
