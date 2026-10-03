@@ -18,8 +18,14 @@ export interface GlassPanelProps
 	/** Element to render. Defaults to a `div`. */
 	as?: ElementType;
 	children?: ReactNode;
-	/** Render as plain DOM (no GPU effect) while keeping the same box. */
-	disabled?: boolean;
+	/**
+	 * Render as plain DOM, keeping the same box, without asking the layer for
+	 * glass. Named `plain` rather than `disabled` because `disabled` belongs to
+	 * the element: a `<button>` in the `as` slot needs it to mean "cannot be
+	 * activated", and a panel that consumed it silently dropped the attribute
+	 * from the DOM.
+	 */
+	plain?: boolean;
 	className?: string;
 	style?: CSSProperties;
 }
@@ -38,7 +44,7 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 	function GlassPanel(props, ref) {
 		const {
 			as: Tag = "div",
-			disabled = false,
+			plain = false,
 			children,
 			className,
 			style,
@@ -147,21 +153,21 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 
 		useIsomorphicLayoutEffect(() => {
 			const element = innerRef.current;
-			if (!layer || !element || disabled) return;
+			if (!layer || !element || plain) return;
 			const handle = layer.register(element, optionsRef.current);
 			handleRef.current = handle;
 			return () => {
 				handle.dispose();
 				handleRef.current = null;
 			};
-		}, [layer, disabled]);
+		}, [layer, plain]);
 
 		const optionsKey = stableKey(options);
 		useIsomorphicLayoutEffect(() => {
 			handleRef.current?.update(optionsRef.current);
 		}, [optionsKey]);
 
-		const glassState = disabled ? "off" : layer ? "gpu" : "fallback";
+		const glassState = plain ? "off" : layer ? "gpu" : "fallback";
 
 		return (
 			<Tag

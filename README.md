@@ -185,7 +185,7 @@ pnpm test:e2e
 
 `pnpm test:e2e` 已在 headless Chromium 上跑通 17 项，覆盖六个 demo 的降级与 GPU 路由、滚动轨道、section pin、reduced motion 和 context loss 恢复。它仍然是**语义**验收而不是像素门禁——仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约。WebGPU device profile 和实际 FPS 结论必须在有真实 GPU 的机器上生成。
 
-它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常，也测不到画面是不是整块缺了，更测不到"管线编译失败但每帧照跑"。** 强制 WebGL2 的页面曾经每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。修复那个异常之后世界仍然缺失，17 项也仍然全绿。WebGPU 上 post 管线编译失败、链路静默空转，画面退化成未经后处理的原始合成，17 项同样全绿。详见[真机基线](#3-真机基线)。
+它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常，也测不到画面是不是整块缺了，更测不到"管线编译失败但每帧照跑"。**（前两类现在由 `pnpm check:pixels` 覆盖，见下文；最后"画布在不在画"这一类也归它。） 强制 WebGL2 的页面曾经每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。修复那个异常之后世界仍然缺失，17 项也仍然全绿。WebGPU 上 post 管线编译失败、链路静默空转，画面退化成未经后处理的原始合成，17 项同样全绿。详见[真机基线](#3-真机基线)。
 
 ### 着色器编译门禁
 
@@ -203,6 +203,146 @@ pnpm check:shaders -- --demos wake   # 单页
 
 - **它刻意不进 CI。** Tint 的降级失败可以是**适配器特异**的：`swizzle view instruction still has usages after lowering` 在 Metal 适配器上稳定复现，而同一份 WGSL 在 SwiftShader 上通过。headless runner 没有 GPU，这个门禁会在那里长绿而什么也保护不了。改动画布合成或 node graph 之后，在真机跑 `pnpm verify:device` 再推。
 - **探针本身要被证伪。** `pnpm check:shaders:self-test` 会喂给探针一段 Tint 解析不了的 WGSL、一个没人开 error scope 的非法 `createBuffer`、一次真实提交，然后要求三者都被记录到。如果它一条都没记到，说明门禁是瞎的，自检直接失败。一个只会说"全绿"的判定器没有价值。
+
+### 像素门禁
+
+上面那个盲区还有另一半：语义验收看不见画布。`pnpm check:pixels` 看画布，只断言两件结构性的事。
+
+```bash
+pnpm check:pixels                    # 七个页面，headless
+pnpm check:pixels -- --demos iris    # 单页
+pnpm check:pixels:self-test          # 探针是不是瞎的
+```
+
+1. **画布确实在画。** `ink` 是与该帧自身众数颜色不同的像素占比。什么都没渲染的页面 `ink` 接近 0，而 stage 仍然报 `ready`。
+2. **玻璃在它自己元素的位置上。** 一次只隐藏一块面板，比较它矩形内的平均变化与矩形外的平均变化。位置正确时这个比值很高；画到别处时矩形内只剩外溢，比值塌下来。第 1 轮修掉的镜像 bug 在 `liquid-glass` 上把 3.60x 打到 **0.22x**，`scroll-cinema` 从 559x 掉到 **1.45x**，判据是 ≥1.6x。
+
+四条实测出来的约束，写在这里免得下次再犯：
+
+- **必须在冻结的页面上量。** 移除面板会让时间性累积历史失效，下一帧整幅闪变。位置检查因此跑在 `prefers-reduced-motion: reduce` 的页面上——库会停掉共享时钟，隐藏面板成为画面里唯一的变化。门禁顺带断言「冻结确实生效」，否则量到的是场景运动而不是玻璃。
+- **要除以矩形外的变化，而不是数「变化落在哪」。** 面板消失会连带改变周围的泛光。早期版本用「落点比例」，修复版上就误报了四页；改成内外均值比之后外溢被约掉。
+- **要一次只隐藏一块，不能一次全隐藏。** 全隐藏时只证明「信号落在这些矩形的并集里」——而一个**关于画布中心对称**的面板布局，镜像后映射到它自己，于是带 bug 也拿 0.95 分。`iris` 页正是这样漏过去的。
+- **提高阈值没用。** 从 24 扫到 200，结果一模一样：外溢像素的幅度和面板像素相当，靠阈值分不开，只能靠除法。
+
+**它可以进 CI，与 `check:shaders` 相反。** 两个断言都不依赖适配器：「有没有画出东西」和「画在不在元素位置」在 SwiftShader 上同样成立。它**不是**美学基线，判断不了玻璃好不好看——那仍然要靠真机上的 `measure` 与 `check:shaders`。
+
+**它的边界，也一并写清楚**：如果一处错位恰好把面板映到它自己矩形附近（布局对称，或面板本就靠近镜像轴），这个判据看不见。它抓的是**整块挪走**这一类，而那正是实际发生过的 bug。
+
+### 平台预算：第二个后端的接缝
+
+Web 端的渲染预算原本只能**探测**：`detectCapabilities()` 读浏览器，`scoreTier()` 选档，`QUALITY_PRESETS` 填数字。一个不是浏览器的宿主没有东西可探——它知道自己有多少算力，直接说就行。
+
+```ts
+import { createGlassLayer } from "@ui-lib/renderer";
+
+// Web：什么都不传，走探测。
+await createGlassLayer({ parent });
+
+// 非 Web 宿主：把数字说出来。
+await createGlassLayer({
+  parent,
+  budget: {
+    host: "ue5-metal",
+    source: "declared",
+    tier: 2,                                   // 只用来补没写的字段
+    preset: { particleBudget: 900_000, allowCompute: true, maxPanels: 64 },
+  },
+});
+```
+
+React 侧直接传 `budget` 即可（`GlassStage` 的 props 就是 layer options）。页面上可以用 `?budget=declared` 看这条路径。
+
+三条设计约束：
+
+- **只钉住宿主写出来的字段。** `preset` 里没提的（`blurTaps`、`dprCap`、面板上限）仍然跟着档位走，所以一份声明式预算**不会冻结自适应降档**。反过来，宿主写了的字段在降档时也不会被改掉——它不是在猜。
+- **声明压过探测。** 同时给 `budget` 和 `capabilities` 时以声明为准，因为说了数字的宿主不需要再猜一遍。
+- **来源必须可见。** `data-ui-lib-budget-host` / `-budget-source` 暴露到 DOM，`stats.budgetHost` / `budgetSource` 暴露给代码。一条只在类型里的声明和一个真的限制，验收时要能分开。
+
+```bash
+?demo=iris                   # host=web           source=probed    tier=3
+?demo=iris&budget=declared   # host=declared-demo source=declared  tier=2
+```
+
+#### 顺带发现：`maxPanels` 目前只是建议值
+
+`QUALITY_PRESETS` 每个档位都声明了 `maxPanels`，但 `register()` 超限时**只打一条 warn 然后照常创建并渲染**——而那条 warn 写的是「new panel will not render」，是假的。已改成如实描述，并把超出的数量暴露为 `stats.panelsOverBudget` 与 `data-ui-lib-panels-over-budget`。
+
+**没有在本轮强制执行**：强制执行会让每个注册数超过本档上限的页面掉面板（headless 环境稳定落在 tier 1，上限 8，而 Playground 注册 12），这需要七页逐页目视验证才能安全地改。先让它**可度量**，再谈约束。
+
+### 命名约定与已知冲突
+
+4.2 的命名审计做了一轮机器扫描：把三个 look 注册表的键、以及每个 `*Options` 接口的字段全部抽出来对比。结论是**光学参数名一路是一致的**——`refraction` / `dispersion` / `roughness` / `frost` / `tint` / `tintAmount` / `specular` / `shininess` / `fresnel` / `highlight` / `lightDirection` / `pointerStrength` / `pointerRadius` / `environment` 在 `GlassPanelOptions`、`LiquidGlassOptions`、`WorldLensOptions` 里含义相同、拼写相同。
+
+look 的键**不追求同一套隐喻**，这是有意的：`crystal` / `flare` / `ice` / `ember` 是光学气质，`product` / `cinema` 是使用场景，`pill` / `milk` / `veil` 是材质形态。硬凑成一个家族只会让名字失真。真正要守的是**同一个概念不出现两个叫法**。
+
+审计找出两处**同名不同义**，都属于危险的一类（比同义不同名更容易写出安静的 bug），记录在此，改名需要破坏性变更所以留待 1.0 之前统一处理：
+
+| 名字 | 出现处 | 实际含义 |
+|---|---|---|
+| `size` | `LiquidGlassOptions.size` | 面板尺寸，**CSS 像素**，`[w, h]` |
+| `size` | `ParticleSystemOptions.size` | 精灵尺寸，**世界单位**，`[min, max]` |
+| `colors` | `GradientBackdropOptions.colors` | **4** 个颜色，按位置混合 |
+| `colors` | `ParticleSystemOptions.colors` | **恰好 3** 个颜色，按生命周期混合 |
+
+`ParticleSystemOptions.colors` 那个三元组是硬约束（着色器按 `life` 在三色间插值），不是惯例；写成四个不会报错，只会静默丢掉一个。
+
+### 距离场字体 atlas
+
+`evaluateMSDF` 写在 `@ui-lib/shaders` 里，一直正确、也一直没人用——**仓库里没有 atlas 给它采样**。这张 atlas 现在由脚本生成：
+
+```bash
+pnpm build:font-atlas                              # 默认 112 字形
+pnpm build:font-atlas -- --chars "水彩卡片IRIS" --size 64
+```
+
+全过程本地完成，无字体解析器、无图像库、无网络：Playwright 用 Canvas2D 栅格化字形，8SSEDT 变换在页面里跑，PNG 由浏览器编码。产物是 `apps/docs/public/fonts/iris-sdf.{png,json}`，JSON 是 BMFont 兼容格式（多一个 `distanceField.distanceRange`）。
+
+**它是 SDF，不是 MSDF，这个区别要说明白而不是含糊过去。** 真正的多通道距离场会给每个通道分配不同的边，让字的**尖角**在中值滤波后仍保持锐利；这里把同一个距离写进三个通道，那就是单通道场。着色器不用改也照样工作——三个相等通道的 `max(min(r,g), min(max(r,g), b))` 就是那个通道——但字形尖角会略圆。把不是它名字所声称的数据发出去，正是这个仓库反复重新发现的失败模式，所以文件叫 `-sdf`，JSON 里也写 `sdf`。
+
+#### `pxRange` 只能推导，不能猜
+
+`createTextMaterial` 的 `pxRange` 是文字这条链上**唯一一个错了也不报错**的数字：小了边缘锯齿，大了字发糊。
+
+atlas 存的是 `0.5 - d / (2·range)`（`d` 为纹素距离），所以 `sigDist` 每个纹素变化 `1 / (2·range)`。每屏幕像素的纹素数是 `fwidth(uv) · scaleW`。而 `evaluateMSDF` 把 `fwidth(uv)` 乘以 `pxRange`，两者恰好相等当且仅当：
+
+```
+pxRange = scaleW / (2 · distanceRange)      # 随包 atlas 为 696 / 8 = 87
+```
+
+直接传 `distanceRange`（4）是最直觉的错法，会让字软大约四倍。这条推导有断言钉住（`packages/shaders/test/textMaterial.test.ts`）。
+
+#### `CrystalText`
+
+```tsx
+const slot = useRef<HTMLDivElement>(null);
+
+<CrystalText text="水彩" anchor={slot} size={0.85} color="#2a0f45" />
+<div ref={slot} />
+```
+
+`size` 是**世界单位的高度**，不是像素。`createTextGeometry` 按 atlas 像素排版，组件的包围盒会把两者换算过来——早期的版本直接乘上去，把字符串铺到 370 世界单位宽，而相机整个视野只有约 4。
+
+**它活在世界里，所以它前面的 DOM 玻璃会磨砂并折射它。** 这是库在正常工作，不是缺陷，也正是它读起来像「玻璃下的墨迹」而不是贴上去的覆盖层的原因。要让它被某块玻璃折，就把它放在那块玻璃后面。
+
+**它不在文档里**，所以选中、翻译、读屏都拿不到它。旁边留一份真 HTML 的文字，或者让它纯粹作装饰并给槽位加 `aria-hidden`。
+
+##### 找到它为什么一开始什么都不画，花了三轮
+
+三个缺陷叠在一起，**其中两个完全静默**：
+
+| 缺陷 | 为什么没被发现 |
+|---|---|
+| **背面剔除**：`createTextGeometry` 的四边形绕序（左上→右上→右下）从 +Z 看是顺时针，在 three 默认 `FrontSide` 下是背面 | 网格存在、在场景里、尺度正确，**就是不被绘制**，没有任何报错 |
+| **覆盖率乘了两次**：着色器把颜色乘了 alpha，three 的 `srcAlpha` 混合又乘一次 | alpha 接近 1 时看不出来，只在 SDF 软边上把字抽干 |
+| **距离场从未饱和**：range 4 纹素 > 48px 下 CJK 笔画半宽 | 笔画内部 `sigDist` 只到约 −0.12，`smoothstep` 输出接近零 |
+
+修法：`side: DoubleSide`（不改索引顺序，因为 `sampleTextPoints` 依赖 `i` 与 `i+2` 是对角）、`colorNode` / `opacityNode` 拆开、atlas 改为 64px + range 2（最亮纹素 207 → 饱和 255）。
+
+##### 三条测量教训
+
+- **WebGPU 画布上用 `drawImage` 读回是空图。** 最小复现第一次报「红 0、绿 0」，读起来像绘制路径坏了。**截图走合成器，才是可靠路径。**
+- **从一个正在失败的页面上取到的测量，不是关于被测对象的证据。** 有一次 `follow 回调次数 = 0`，实情是导出被收回而页面仍在引用，模块加载失败，什么都没跑。在正常页面上重测是 400+ 次。
+- **"看起来淡" 不一定是渲染错了。** 最后定位到的是：文字被它前面的水彩卡片玻璃**正确地磨砂**了。把槽位挪到没有玻璃的地方，不透明测试立刻渲染成实心深色矩形。
 
 ## React 用法
 

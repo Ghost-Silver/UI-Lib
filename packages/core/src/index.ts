@@ -13,6 +13,25 @@ export {
 	hasDom,
 	onReducedMotionChange,
 } from "./device.js";
+export type {
+	GlassLookName,
+	IrisGlassLookName,
+	IrisTone,
+	IrisToneRoles,
+	Tone,
+	ToneRoles,
+} from "./iris.js";
+export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone, TONE_LABELS, TONES } from "./iris.js";
+export type { KubelkaMunkPigment, ProcessPigmentName } from "./kubelkaMunk.js";
+export {
+	mixPigments,
+	mixToCss,
+	PROCESS_PIGMENTS,
+	parseHex,
+	pigmentFromColour,
+	pigmentFromHex,
+	reflectanceFromKS,
+} from "./kubelkaMunk.js";
 export type { Disposable, Teardown } from "./lifecycle.js";
 export { Disposer, nextFrame } from "./lifecycle.js";
 export type { EasingName, SpringOptions } from "./math.js";
@@ -32,15 +51,25 @@ export {
 	wrap,
 } from "./math.js";
 export { mergeDefined } from "./mergeDefined.js";
+export type { MotionPresetName, MotionSpec, SpringDriver } from "./motion.js";
+export {
+	createSpring,
+	driveSpring,
+	MOTION_PRESETS,
+	settleTime,
+	specToSpring,
+	springToSpec,
+} from "./motion.js";
 export type { PointerState, PointerTrackerOptions } from "./pointer.js";
 export { PointerTracker } from "./pointer.js";
 export type {
+	PlatformBudget,
 	QualityManagerOptions,
 	QualityPreset,
 	QualitySettings,
 	QualityTier,
 } from "./quality.js";
-export { QUALITY_PRESETS, QualityManager, scoreTier } from "./quality.js";
+export { QUALITY_PRESETS, QualityManager, resolveBudget, scoreTier } from "./quality.js";
 export type {
 	ResourceHandle,
 	ResourceKind,
@@ -49,3 +78,7 @@ export type {
 export { getResourceSnapshot, ResourceRegistry, resourceRegistry } from "./resource.js";
 export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
 export { disposeScheduler, FrameScheduler, getScheduler, TASK_PRIORITY } from "./scheduler.js";
+export type { WashOptions, WashResult, WashState } from "./wash.js";
+export { createWash, describeWash, paperNoise } from "./wash.js";
+export type { WashCanvasOptions } from "./washCanvas.js";
+export { washToCanvas } from "./washCanvas.js";

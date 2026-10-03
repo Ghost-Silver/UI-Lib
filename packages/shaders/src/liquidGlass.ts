@@ -270,7 +270,10 @@ export function createLiquidGlassMaterial(
 	const backdropNodes: { value: Texture }[] = [];
 	const sampleBackdrop = (uvNode: Node<"vec2">) => {
 		if (useViewport) return viewportSharedTexture(uvNode);
-		const node = texture(backdropTexture as Texture, uvNode);
+		// `screenUV` runs top-down; `backdropRT` is stored bottom-up. Flipping
+		// here rather than at `baseUv` keeps the refraction offset in the same
+		// space it was authored in, so the lens still bends the same way.
+		const node = texture(backdropTexture as Texture, vec2(uvNode.x, oneMinus(uvNode.y)));
 		backdropNodes.push(node as unknown as { value: Texture });
 		return node;
 	};

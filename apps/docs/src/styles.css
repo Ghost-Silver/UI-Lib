@@ -1,12 +1,52 @@
+/*
+ * Maple Mono, if the machine has it.
+ *
+ * `local()` rather than a bundled webfont: the file is a CJK-capable
+ * monospace and shipping it would add megabytes to a playground. On a machine
+ * that has it — this one — the soft terminals and the ligatures are the whole
+ * point of asking for it; everywhere else the stack falls through to the
+ * system sans and nothing breaks. It also carries CJK, so mixed Chinese and
+ * Latin set in one family line up instead of shifting between two.
+ */
+@font-face {
+	font-family: "Maple Mono Local";
+	src:
+		local("Maple Mono NF CN Light"), local("MapleMono-NF-CN-Light"), local("Maple Mono NF CN"),
+		local("Maple Mono");
+	font-weight: 300 400;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Maple Mono Local";
+	src: local("Maple Mono NF CN Medium"), local("MapleMono-NF-CN-Medium");
+	font-weight: 500 600;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Maple Mono Local";
+	src: local("Maple Mono NF CN Bold"), local("MapleMono-NF-CN-Bold");
+	font-weight: 700 900;
+	font-display: swap;
+}
+
 :root {
 	--ink: #f5f7fb;
 	--muted: rgba(245, 247, 251, 0.62);
 	--faint: rgba(245, 247, 251, 0.4);
 	--hairline: rgba(255, 255, 255, 0.14);
 	--radius: 28px;
-	font-family:
+	--font-sans:
 		ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter,
 		"Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+	/* Maple Mono first for body and UI text, the system sans behind it. A
+	   display heading stays on the sans: a monospace at 60px reads as a
+	   terminal, not as a headline. */
+	--font-mix:
+		"Maple Mono Local", ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC",
+		"Hiragino Sans GB", sans-serif;
+	font-family: var(--font-mix);
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
 	color-scheme: dark;
@@ -2024,4 +2064,1324 @@ input[type="range"]::-moz-range-thumb {
 	font-size: 12px;
 	letter-spacing: 0.08em;
 	color: rgba(244, 239, 230, 0.5);
+}
+
+/* ---- IRIS components showcase ---- */
+
+/* The ground is a soft multi-stop gradient rather than a fill.
+ *
+ * This is not decoration. A glass shader samples what is behind it, so over a
+ * flat colour a pane has nothing to bend and reads as a slightly darker
+ * rectangle — a bug report, not a style. The stops are wide and low-contrast
+ * so the gradient itself is not what you notice. */
+.iris-stage {
+	background:
+		radial-gradient(58% 46% at 14% 8%, #f3ecff 0%, transparent 62%),
+		radial-gradient(46% 40% at 88% 18%, #fff0f7 0%, transparent 66%),
+		radial-gradient(70% 54% at 62% 96%, #eef3ff 0%, transparent 70%),
+		radial-gradient(40% 34% at 30% 78%, #ffeaf4 0%, transparent 72%),
+		linear-gradient(168deg, #fdfbff 0%, #fff8fc 48%, #f8f6ff 100%);
+}
+
+.iris {
+	position: relative;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+	padding: clamp(22px, 4vw, 60px);
+	color: #33224f;
+	background: radial-gradient(120% 90% at 78% 8%, rgba(255, 255, 255, 0.72), transparent 62%);
+}
+
+.iris__top {
+	position: relative;
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 24px;
+}
+
+.iris__kicker {
+	margin: 0;
+	font-size: 11px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: rgba(91, 58, 166, 0.72);
+}
+
+.iris__kicker span {
+	margin-left: 10px;
+	color: rgba(91, 58, 166, 0.4);
+}
+
+.iris__links {
+	position: relative;
+	display: flex;
+	gap: 18px;
+	font-size: 13px;
+}
+
+.iris__links a {
+	color: rgba(51, 34, 79, 0.66);
+	text-decoration: none;
+}
+
+.iris__links a:hover {
+	color: #5b3aa6;
+}
+
+.iris__main {
+	position: relative;
+	flex: 1;
+	display: grid;
+	grid-template-columns: minmax(0, 1.05fr) minmax(280px, 400px);
+	gap: clamp(28px, 4vw, 64px);
+	align-content: start;
+	padding-bottom: 5vh;
+}
+
+.iris__title {
+	margin: 0;
+	max-width: 14em;
+	font-size: clamp(30px, 3.6vw, 50px);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	color: #33224f;
+}
+
+.iris__accent {
+	background: linear-gradient(100deg, #5b3aa6 0%, #8b5cf6 34%, #c02b6e 100%);
+	background-size: 100% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.iris__lede {
+	max-width: 26em;
+	margin: 18px 0 0;
+	font-size: 16px;
+	line-height: 1.75;
+	color: rgba(51, 34, 79, 0.78);
+}
+
+.iris__badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 22px;
+}
+
+.iris__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 28px;
+}
+
+.iris__panels {
+	display: grid;
+	gap: 20px;
+	align-content: start;
+}
+
+.iris__panel {
+	padding: 24px 26px 26px;
+}
+
+.iris__panel h2 {
+	margin: 10px 0 10px;
+	font-size: 24px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+.iris__panel p,
+.iris__card p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.7;
+	color: rgba(51, 34, 79, 0.76);
+}
+
+.iris__card {
+	padding: 24px 26px 26px;
+}
+
+.iris__card h3 {
+	margin: 10px 0 10px;
+	font-size: 21px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	color: #6d1436;
+}
+
+.iris__tones {
+	grid-column: 1 / -1;
+	list-style: none;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin: 12px 0 0;
+	padding: 0;
+}
+
+.iris__tones li {
+	display: grid;
+	gap: 8px;
+	justify-items: start;
+	font-size: 13px;
+	line-height: 1.6;
+	color: rgba(51, 34, 79, 0.7);
+}
+
+@media (max-width: 860px) {
+	.iris__main {
+		grid-template-columns: 1fr;
+	}
+	.iris__tones {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* The crystal text's layout box: an ordinary empty div on the card. */
+/* The box the mote cloud hangs on. It is the card's upper area, so the glass
+   bends the particles rather than the text. */
+.iris__particle-slot {
+	width: 100%;
+	height: 96px;
+	margin-bottom: 6px;
+	pointer-events: none;
+}
+
+/* ---- IRIS component kit: one component, in a fixed box ---- */
+
+.kit-stage {
+	background: #fffafd;
+}
+
+.kit {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: 100vh;
+	padding: 40px;
+	/* The fixture is a host page too, and a host that hands a component a
+	   near-white inherited colour is not a fair test of that component. The
+	   components set their own colour now; this keeps the fixture honest
+	   rather than accidentally passing for the wrong reason. */
+	color: #33224f;
+}
+
+.kit__box {
+	display: grid;
+	place-items: center;
+	width: 260px;
+	height: 180px;
+}
+
+.kit__subject {
+	width: 200px;
+	padding: 18px;
+	font-size: 15px;
+	text-align: center;
+}
+
+.kit__subject p {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.6;
+	opacity: 0.78;
+}
+
+/* A panel and a card are not lozenges: one line of text in a 200px box makes
+   a 60px-tall pill, and the radius then reads as a capsule. Give them the
+   proportions they are designed for. */
+.kit__subject--pane {
+	width: 240px;
+	padding: 20px 22px 22px;
+	text-align: left;
+}
+
+.kit__subject--pane h3 {
+	margin: 0 0 8px;
+	font-size: 18px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.kit__bling {
+	position: relative;
+	width: 200px;
+	height: 140px;
+}
+
+/* A place on the page with no glass in front of it, so the SDF text resolves
+   the way it actually is rather than through a pane. */
+.iris__crystal-band {
+	grid-column: 1 / -1;
+	display: grid;
+	place-items: center;
+	min-height: 260px;
+	margin: 40px 0 8px;
+}
+
+.iris__crystal-band-slot {
+	width: 560px;
+	height: 96px;
+	pointer-events: none;
+}
+
+/* Open-ground cloud: a wide, shallow band under the type. */
+.iris__petal-slot {
+	width: 520px;
+	height: 200px;
+	margin: 0 auto;
+	pointer-events: none;
+}
+
+.kit__row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+/* Three soft cards, spanning both columns.
+ *
+ * They were inside the right column at first, which stacked three 200px cards
+ * under two panels and left the whole left half of the page empty below the
+ * buttons. A card grid is a band across the page, not a column of the layout. */
+.iris__cards {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+	gap: 18px;
+	margin: 10px 0 2px;
+}
+
+.iris__cards .iris__card {
+	position: relative;
+	padding: 20px 22px 22px;
+	overflow: hidden;
+}
+
+.kit__switches {
+	display: grid;
+	gap: 16px;
+	justify-items: center;
+}
+
+.kit__switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #4d3c38;
+}
+
+.kit__tabs {
+	display: grid;
+	gap: 20px;
+	justify-items: center;
+}
+
+/* A tab row is wider than a badge, and the fixed 260px box was folding CJK
+   labels in half. The box exists to make captures comparable, not to constrain
+   the component under test. */
+.kit__box[data-ui-lib-wide] {
+	width: 420px;
+	height: 380px;
+}
+
+.kit__sliders {
+	display: grid;
+	gap: 26px;
+	width: 320px;
+}
+
+/* The wordmark: plain text in a liquid-glass pane. */
+.iris__wordmark {
+	padding: 14px 42px 18px;
+	border-radius: 42px;
+}
+
+.iris__wordmark-text {
+	font-family: var(--font-mix);
+	font-size: clamp(40px, 5.2vw, 76px);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.05;
+	color: #3b1d6e;
+}
+
+/* The rail the buttons sit on. Inset so the buttons overhang it slightly —
+   a control that sits strictly inside its backing reads as a row in a table. */
+.iris__button-rail {
+	display: inline-flex;
+	padding: 10px 14px;
+	margin: 6px 0 2px;
+	border-radius: 34px;
+}
+
+.iris__button-rail .iris__buttons {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.kit__modal {
+	display: grid;
+	place-items: center;
+}
+
+/* ==========================================================================
+ * Wet paper — the material study
+ *
+ * Three properties, and none of them is a gradient. Read the comments before
+ * changing a number here: each one is load-bearing and the naive version of
+ * each looks plausible while being wrong.
+ * ======================================================================== */
+
+.paper-stage {
+	background: #fdfaf6;
+	color: #4a3a33;
+	font-family: var(--font-mix, system-ui);
+}
+
+.paper {
+	max-width: 1180px;
+	margin: 0 auto;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 8px;
+	padding: clamp(24px, 3vw, 44px) clamp(20px, 4vw, 56px);
+}
+
+.paper__head {
+	max-width: 46em;
+	margin-bottom: 18px;
+}
+
+.paper__kicker {
+	margin: 0 0 10px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: #a8827a;
+}
+
+.paper__title {
+	margin: 0 0 10px;
+	font-size: clamp(24px, 2.6vw, 34px);
+	font-weight: 700;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+}
+
+.paper__lede {
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.85;
+	color: #7a6157;
+}
+
+.paper__row {
+	margin: 14px 0;
+}
+
+.paper__label {
+	margin: 0 0 18px;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	color: #8a6f64;
+}
+
+.paper__pair {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 28px;
+	align-items: flex-end;
+}
+
+.paper__specimen {
+	margin: 0;
+	display: grid;
+	gap: 10px;
+	justify-items: center;
+}
+
+.paper__specimen figcaption {
+	font-size: 12px;
+	letter-spacing: 0.04em;
+	color: #9c8177;
+}
+
+/* --- the wash ------------------------------------------------------------
+ *
+ * `--wash` is the pigment, `--weight` how much water carried it.
+ *
+ * The edge is what makes this watercolour rather than a blur, and it is built
+ * from three layers stacked in one element:
+ *
+ *   1. an inner pool — the single largest area of pigment, sitting off-centre
+ *   2. a rim — a ring of the SAME pigment, darker, because pigment is carried
+ *      outward as the water leaves. Every naive version of a wet mark gets this
+ *      backwards and puts the dark at the centre.
+ *   3. fibre — the paper's tooth, which has to interrupt both of the above or
+ *      the result reads as printed rather than absorbed.
+ */
+
+.wash {
+	position: relative;
+	display: block;
+	isolation: isolate;
+	/*
+	 * The shape is the first thing that gives it away.
+	 *
+	 * A perfect circle reads as a circle no matter how good the pigment is —
+	 * water does not spread evenly, and a real mark has a lumpy perimeter with
+	 * no two radii alike. The eight-value border-radius syntax is the only way
+	 * to say that in CSS: four horizontal radii and four vertical ones, all
+	 * different. `--lobes` lets a specimen shift its own silhouette so four of
+	 * them on one page are not the same blob repeated.
+	 */
+	--lobes: 0;
+	border-radius:
+		calc(48% + var(--lobes) * 1%) calc(52% - var(--lobes) * 1%) calc(45% + var(--lobes) * 2%)
+		calc(55% - var(--lobes) * 2%) / calc(54% - var(--lobes) * 2%) calc(46% + var(--lobes) * 1%)
+		calc(57% - var(--lobes) * 1%) calc(43% + var(--lobes) * 2%);
+	/* A slight rotation stops the eye locking onto the ellipse axes. */
+	transform: rotate(calc(var(--lobes) * -7deg));
+}
+
+/* The control. A plain radial gradient, which is what most "watercolour" CSS
+   actually is. It is here to be compared against, not to be used. */
+.wash--flat {
+	background:
+		radial-gradient(
+			closest-side,
+			color-mix(in oklab, var(--wash) 78%, white) 0%,
+			transparent 72%
+		),
+		color-mix(in oklab, var(--wash) 34%, white);
+	/* The dark centre the gradient produces. */
+	box-shadow: inset 0 0 30px 10px color-mix(in oklab, var(--wash) 55%, white);
+	opacity: 0.9;
+}
+
+/* Wet: pigment pooled, boundary soft, the rim just beginning to form. */
+.wash--wet {
+	background:
+		/* 2 — the rim, already forming. Wet pigment is on its way outward but has
+		   not arrived: the ring is present and softer than the dried one, which
+		   is the visible difference between the two states. */
+		radial-gradient(
+			92% 88% at 50% 50%,
+			transparent 68%,
+			color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 52%), white) 90%,
+			transparent 99%
+		),
+		/* 1 — the pool, off-centre so it is not a bullseye. */
+		radial-gradient(
+			72% 66% at 42% 40%,
+			color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 46%), white) 0%,
+			color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 30%), white) 56%,
+			transparent 80%
+		);
+	/* 3 — fibre: the paper's tooth breaking up the pigment. Two offset grain
+	   layers at low alpha; a single one is too regular and reads as noise. */
+	-webkit-mask-image:
+		radial-gradient(78% 74% at 46% 44%, #000 62%, transparent 88%),
+		repeating-conic-gradient(from 12deg at 30% 34%, rgb(0 0 0 / 0.86) 0deg 2deg, #000 2deg 5deg);
+	mask-image:
+		radial-gradient(78% 74% at 46% 44%, #000 62%, transparent 88%),
+		repeating-conic-gradient(from 12deg at 30% 34%, rgb(0 0 0 / 0.86) 0deg 2deg, #000 2deg 5deg);
+	filter: blur(7px);
+	opacity: calc(0.62 + var(--weight, 0.7) * 0.3);
+}
+
+/* Dried: the pool has gone and the pigment stayed where the water left it.
+   The edge is SHARP now — that is the whole difference between the two. */
+.wash--dry {
+	/*
+	 * How the edge deposit is built, and the four things that did not work.
+	 *
+	 * The property being imitated is that dried pigment is heavier in some arcs
+	 * of the rim than others — heavy where the water pooled and stopped,
+	 * almost absent where it ran off. That is an angular quantity, so the
+	 * obvious tool is a conic gradient.
+	 *
+	 *  1. Three concentric rings: spaced apart they read as a crescent, like a
+	 *     bitten moon; collapsed together they vanish. A ring can only be
+	 *     uniform or off-centre.
+	 *  2. A conic painted straight in: a pinwheel, because a conic sweeps
+	 *     outward along every ray and the rays are visible.
+	 *  3. A conic under an opaque radial: the middle is hidden and the rays
+	 *     still show either side of it.
+	 *  4. A conic masked to a band: a jelly gem. The mask did its job; the
+	 *     rays were still there inside the band.
+	 *
+	 * All four failed for one reason, and it is the thing to remember: **a
+	 * conic stop is a colour for a whole ray**, so any stop that is opaque
+	 * paints a stripe from the centre to the edge. The rim needs the strength
+	 * to vary around the circle while each individual ray stays one flat
+	 * colour — which means the stops have to be a *sequence of equal-alpha
+	 * bands*, not a gradient running in and out. There is no way to say that
+	 * with a single conic.
+	 *
+	 * So the deposit is drawn as what it physically is: a separate thin ring
+	 * with an angular alpha of its own, masked to the rim, sitting over the
+	 * body. The ring is the pigment that was carried outward; the body is what
+	 * stayed. Two elements, two jobs, and neither has to fake the other.
+	 */
+	background: radial-gradient(
+		72% 66% at 49% 47%,
+		color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 30%), white) 0%,
+		color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 25%), white) 76%,
+		transparent 95%
+	);
+	filter: blur(1.5px) saturate(1.08);
+	opacity: calc(0.74 + var(--weight, 0.7) * 0.22);
+}
+
+/*
+ * The deposit ring, a child element rather than a background layer.
+ *
+ * `--a` through `--e` are the five arcs and their strengths; the ring itself is
+ * a border with an angular mask, so each arc is a flat colour and no ray is
+ * ever painted. Strengths are deliberately unequal: an even sequence reads as
+ * a mechanical ring, which is the failure this whole comment exists to avoid.
+ */
+.wash__deposit {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	/*
+	 * `mask` with a conic that alternates opaque and clear: where it is opaque
+	 * the ring shows. This is the inverse of the mistake above — the conic here
+	 * controls *visibility* around the circle, and because the ring is already
+	 * a solid colour there are no rays to see.
+	 */
+	background: color-mix(in oklab, var(--wash) calc(var(--weight, 0.7) * 88%), #2a1d33);
+	-webkit-mask-image:
+		radial-gradient(
+			closest-side,
+			transparent 72%,
+			rgb(0 0 0 / 1) 86%,
+			rgb(0 0 0 / 1) 97%,
+			transparent 100%
+		),
+		conic-gradient(
+			from -30deg,
+			rgb(0 0 0 / 0.05) 0deg 34deg,
+			rgb(0 0 0 / 0.92) 62deg,
+			rgb(0 0 0 / 0.22) 104deg,
+			rgb(0 0 0 / 0.06) 140deg,
+			rgb(0 0 0 / 1) 182deg,
+			rgb(0 0 0 / 0.3) 224deg,
+			rgb(0 0 0 / 0.1) 260deg,
+			rgb(0 0 0 / 0.78) 302deg,
+			rgb(0 0 0 / 0.05) 344deg
+		);
+	mask-image:
+		radial-gradient(
+			closest-side,
+			transparent 72%,
+			rgb(0 0 0 / 1) 86%,
+			rgb(0 0 0 / 1) 97%,
+			transparent 100%
+		),
+		conic-gradient(
+			from -30deg,
+			rgb(0 0 0 / 0.05) 0deg 34deg,
+			rgb(0 0 0 / 0.92) 62deg,
+			rgb(0 0 0 / 0.22) 104deg,
+			rgb(0 0 0 / 0.06) 140deg,
+			rgb(0 0 0 / 1) 182deg,
+			rgb(0 0 0 / 0.3) 224deg,
+			rgb(0 0 0 / 0.1) 260deg,
+			rgb(0 0 0 / 0.78) 302deg,
+			rgb(0 0 0 / 0.05) 344deg
+		);
+	/* The two masks intersect by default, which is what puts the angular
+	   variation only in the rim band. */
+	mask-composite: intersect;
+	-webkit-mask-composite: source-in;
+	filter: blur(1.8px);
+	pointer-events: none;
+}
+
+/* --- the paper itself ----------------------------------------------------
+ *
+ * The ground is not a flat fill. Paper has a direction — fibre runs one way
+ * through a sheet — and a surface with a direction is the difference between
+ * "a coloured background" and "something the paint sits on".
+ */
+
+.paper__row::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.paper__panels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	align-items: center;
+}
+
+.paper__film {
+	padding: 16px 40px;
+	border-radius: 30px;
+}
+
+.paper__film-text {
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	color: #55407e;
+}
+
+.paper__pane {
+	padding: 22px 26px;
+	max-width: 380px;
+	border-radius: 26px;
+}
+
+.paper__pane-title {
+	margin: 0 0 8px;
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.paper__pane-body {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.7;
+	color: #6d564d;
+}
+
+/* --- pigment in motion ---------------------------------------------------
+ *
+ * A wash that has been laid is not finished. While the paper is wet the water
+ * keeps carrying pigment: outward from where it was dropped, along the fibre,
+ * and at the boundary the water stops first — which is the mechanism behind the
+ * deposit ring, happening in real time.
+ *
+ * Two animations, and they are the same physics at two scales:
+ *
+ *  - **drifting** is the slow wander while wet. Small, uneven, and it never
+ *    returns to where it started — a closed loop would read as a pulsing
+ *    gradient rather than as flow.
+ *  - **settling** runs once, from the state a fresh wash is in to the dried
+ *    one, and it is where the rim forms.
+ *
+ * Both are off under reduced motion, and the specimen still shows its final
+ * state, so nothing is lost by not watching it.
+ */
+
+@keyframes wash-drift {
+	0% {
+		transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+	}
+	37% {
+		transform: translate3d(1.4%, -1.1%, 0) scale(1.018) rotate(0.5deg);
+	}
+	68% {
+		transform: translate3d(-0.9%, 0.8%, 0) scale(0.994) rotate(-0.4deg);
+	}
+	100% {
+		transform: translate3d(0.5%, -0.4%, 0) scale(1.006) rotate(0.2deg);
+	}
+}
+
+/* The mark spreads, then the water leaves and the rim tightens. */
+@keyframes wash-spread {
+	from {
+		transform: scale(0.82);
+		opacity: 0.72;
+		filter: blur(9px);
+	}
+	62% {
+		transform: scale(1.06);
+		opacity: 1;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+		filter: blur(0);
+	}
+}
+
+/* The deposit goes on last and only where the water came to rest. */
+@keyframes deposit-settle {
+	from {
+		opacity: 0;
+		filter: blur(9px);
+	}
+	to {
+		opacity: 1;
+		filter: blur(2.5px);
+	}
+}
+
+.wash--living {
+	animation: wash-drift 14s var(--moe-ease-gentle) infinite alternate;
+}
+
+/* A fresh mark. The class is removed to settle it, so the animation runs once
+   in each direction rather than being restarted. */
+.wash--spreading {
+	animation: wash-spread 1600ms var(--moe-ease-gentle) both;
+}
+
+.wash--spreading .wash__deposit {
+	animation: deposit-settle 1100ms var(--moe-ease-gentle) 700ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wash--living,
+	.wash--spreading,
+	.wash--spreading .wash__deposit {
+		animation: none;
+	}
+}
+
+/* The trigger. A specimen you can lay again. */
+.paper__relay {
+	appearance: none;
+	border: none;
+	padding: 7px 16px;
+	border-radius: 999px;
+	background: rgb(255 255 255 / 0.7);
+	box-shadow: 0 2px 6px -2px rgb(122 97 87 / 0.3);
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: #6d564d;
+	cursor: pointer;
+	transition: transform 200ms var(--moe-ease-jelly);
+}
+
+.paper__relay:hover {
+	transform: translateY(-1px);
+}
+
+.paper__relay:active {
+	transform: scale(1.04, 0.94);
+}
+
+/*
+ * Paper fibre. Two repeating gradients at different angles and very low alpha:
+ * one alone is a visible pattern, two at different pitches read as tooth.
+ * This sits under everything and is the reason the washes look absorbed.
+ */
+/*
+ * Paper fibre.
+ *
+ * Three attempts, and the first two are worth naming because they are what
+ * everyone reaches for:
+ *
+ *  1. One `repeating-linear-gradient`. A visible pattern — the eye locks onto
+ *     the pitch immediately and reads stripes, not paper.
+ *  2. Two, at different angles and pitches. Better; still periodic, so at any
+ *     zoom the repetition is findable. Paper is not periodic.
+ *
+ * A sheet is a mat of fibres laid in every direction, with length variation
+ * and a surface that is slightly uneven in depth. None of that can be written
+ * as a repeating function, so this is `feTurbulence` — real noise, generated by
+ * the compositor — layered twice:
+ *
+ *  - a **low-frequency** pass for the uneven surface, which is what pigment
+ *    settles into and what makes a wash look absorbed rather than printed
+ *  - a **high-frequency** pass for the tooth, fine enough to read as texture
+ *    at any size and too fine to resolve as pattern
+ *
+ * The SVG is inline as a data URI because it is 240 bytes and a request for it
+ * would cost more than the bytes.
+ */
+.paper::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	/*
+	 * Two things had to be fixed after the first pass and both came from
+	 * looking at a zoom rather than at the whole page:
+	 *
+	 *  - **The tiles had visible seams.** A fixed-size SVG repeats, and at
+	 *    180px the repeating unit was findable as a grid of squares. The size is
+	 *    now a non-round number and the two layers use different ones, so their
+	 *    periods never line up and neither reads as a grid.
+	 *  - **The coarse pass was making stains.** `baseFrequency 0.012` produced
+	 *    patches the size of a coin, which read as water marks rather than as
+	 *    the sheet being slightly uneven. Raised, so the variation is gentle
+	 *    across the whole page instead of pooling in places.
+	 *
+	 * The opacity came down with it; the previous value darkened the warm white
+	 * into grey, and this ground has to stay warm or every wash on it turns
+	 * muddy.
+	 */
+	/*
+	 * 0.34 was still too strong, and it took a full-page view to see it: the
+	 * zoom that settled the tiling also hid the fact that at 0.34 the noise
+	 * reads as a grey haze over the whole sheet, worst around dark text. A
+	 * texture judged only at 300 per cent will always be too loud — the
+	 * question is what it does behind a paragraph.
+	 */
+	opacity: 0.17;
+	background-image:
+		/* Unevenness. Low contrast, wide — the sheet, not a stain. */
+		url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='523' height='487'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.028 0.034' numOctaves='4' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='523' height='487' filter='url(%23f)'/%3E%3C/svg%3E"),
+		/* Tooth. */
+		url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='331' height='347'%3E%3Cfilter id='t'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86 0.72' numOctaves='2' seed='19'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='331' height='347' filter='url(%23t)'/%3E%3C/svg%3E");
+	background-size:
+		523px 487px,
+		331px 347px;
+	mix-blend-mode: multiply;
+}
+
+.paper__note {
+	margin: 0;
+	max-width: 30em;
+	font-size: 14px;
+	line-height: 1.85;
+	color: #7a6157;
+}
+
+.paper__note strong {
+	font-weight: 700;
+	color: #4a3a33;
+}
+
+/* The stacking test. The washes are DOM, the pane is canvas; whether the one
+   can disturb the other is the whole question. */
+.paper__stack {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: 300px;
+}
+
+.paper__stack-under {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
+.paper__stack-wash {
+	width: 150px;
+	height: 150px;
+}
+
+.paper__stack-pane {
+	position: relative;
+	z-index: 1;
+	width: 320px;
+	padding: 26px 28px;
+	border-radius: 28px;
+}
+
+.kit__inputs {
+	display: grid;
+	gap: 20px;
+	width: 320px;
+}
+
+.kit__box[data-ui-lib-wide] .kit__inputs {
+	width: 300px;
+}
+
+.kit__choices {
+	display: grid;
+	gap: 14px;
+	width: 260px;
+	align-content: center;
+}
+
+.kit__loading {
+	display: grid;
+	gap: 18px;
+	width: 360px;
+	align-content: center;
+}
+
+.kit__loading-row {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.kit__overlay {
+	display: grid;
+	gap: 20px;
+	place-items: center;
+	width: 340px;
+}
+
+/* The fixture pins the stack so a capture does not depend on the viewport. */
+.kit__toaster {
+	position: static;
+	justify-items: stretch;
+}
+
+.kit__identity {
+	display: grid;
+	gap: 22px;
+	width: 340px;
+	justify-items: center;
+}
+
+.kit__identity-row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.kit__identity-tags {
+	gap: 8px;
+}
+
+.kit__accordion {
+	width: 380px;
+	align-content: center;
+}
+
+.kit__accordion p {
+	margin: 0;
+}
+
+.kit__table {
+	width: 460px;
+	align-content: center;
+}
+
+.kit__drawer {
+	display: grid;
+	gap: 22px;
+	width: 320px;
+	place-items: center;
+}
+
+.kit__drawer-lines {
+	display: grid;
+	gap: 12px;
+	width: 100%;
+	font-size: 13px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__drawer-lines p {
+	margin: 0;
+}
+
+.kit__material {
+	display: grid;
+	gap: 14px;
+	width: 340px;
+	align-content: center;
+}
+
+.kit__material-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px;
+}
+
+.kit__material-title {
+	margin: 0 0 4px;
+	font-size: 15px;
+	font-weight: 700;
+	color: var(--moe-cocoa);
+}
+
+.kit__material-body {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--moe-cocoa-soft);
+}
+
+/* A page rather than a fixture: real density, real hierarchy. */
+.studio-stage {
+	position: relative;
+	width: 100%;
+	min-height: 100%;
+	background: oklch(0.985 0.006 40);
+}
+
+.studio {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	gap: 22px;
+	width: min(100%, 1080px);
+	margin: 0 auto;
+	padding: 28px 24px 44px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.studio__bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 14px 20px;
+	border-radius: var(--moe-radius-lg);
+}
+
+.studio__brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.studio__title {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+}
+
+.studio__sub {
+	margin: 1px 0 0;
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--moe-cocoa-soft);
+}
+
+.studio__head-right {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.studio__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 22px;
+}
+
+.studio__summary {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.studio__stat {
+	display: grid;
+	gap: 2px;
+	justify-items: start;
+	padding: 16px 18px;
+}
+
+.studio__stat-value {
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+
+.studio__stat-label {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+.studio__panel {
+	display: grid;
+	gap: 18px;
+	align-content: start;
+	padding: 22px;
+	border-radius: var(--moe-radius-lg);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+}
+
+.studio__panel--wide {
+	grid-column: 1 / -1;
+}
+
+.studio__panel-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa);
+}
+
+.studio__foot {
+	display: grid;
+	gap: 16px;
+	justify-items: center;
+}
+
+.studio__tones {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.studio__panel p {
+	margin: 0;
+}
+
+@media (max-width: 760px) {
+	.studio__grid,
+	.studio__summary {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.kit__washcanvas {
+	display: flex;
+	gap: 40px;
+	align-items: flex-start;
+}
+
+.kit__washcanvas-label {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__washcanvas-error {
+	color: #c00;
+	font-size: 12px;
+}
+
+.kit__segments {
+	display: grid;
+	gap: 22px;
+	width: 360px;
+	align-content: center;
+}
+
+.kit__status {
+	display: grid;
+	gap: 14px;
+	width: 380px;
+	align-content: center;
+}
+
+.kit__status-empty {
+	border: 1.5px dashed var(--moe-stroke);
+	border-radius: var(--moe-radius-md);
+}
+
+.kit__navigation {
+	display: grid;
+	gap: 22px;
+	width: 420px;
+	justify-items: center;
+}
+
+.kit__navigation-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__menu {
+	display: grid;
+	gap: 16px;
+	justify-items: center;
+	align-content: center;
+	width: 320px;
+}
+
+.kit__menu-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__textarea {
+	display: grid;
+	gap: 20px;
+	width: 340px;
+	align-content: center;
+}
+
+.kit__list {
+	display: grid;
+	gap: 18px;
+	width: 340px;
+	align-content: center;
+}
+
+.kit__list-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__combobox {
+	display: grid;
+	gap: 20px;
+	width: 340px;
+	align-content: center;
+}
+
+.kit__combobox-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__toolbar {
+	display: grid;
+	gap: 24px;
+	justify-items: center;
+	align-content: center;
+	width: 360px;
+}
+
+.kit__toolbar-row {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+}
+
+.kit__toolbar-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__chipstepper {
+	display: grid;
+	gap: 26px;
+	width: 400px;
+	align-content: center;
+}
+
+.kit__chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
 }
