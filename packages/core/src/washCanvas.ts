@@ -29,6 +29,45 @@ import { createWash, type WashOptions } from "./wash.js";
  * The paper fibre does **not** work through `createImageBitmap`: an SVG blob
  * fails to decode. It works through an `<img>` with a data URI, which means the
  * grain arrives asynchronously and everything else has to be drawn first.
+ *
+ * ## What is known to be wrong, measured
+ *
+ * This is close and it is not the same mark, and the gap is recorded here rather
+ * than in a commit message nobody will read again.
+ *
+ * A radial profile of alpha, from the centre outward in ten-per-cent bands:
+ *
+ *     centre 22.5   middle 18.0   rim 45.2
+ *
+ * The rim is two and a half times the middle, so it reads as a **ring**. The
+ * stylesheet's is the opposite — its concentration is in the disc and the
+ * deposit is a rim *added* to it. Three things were tried against this and none
+ * of them moved it:
+ *
+ * - Lowering the ring's `globalAlpha` from 0.55 to 0.2 changed the rim and not
+ *   the relationship, which says the ring was never the dominant term.
+ * - Setting the body's `globalAlpha` to the generator's opacity changed nothing
+ *   at all, which means something downstream is deciding the body's alpha —
+ *   most likely the `destination-in` used to mask the ring, since that composite
+ *   keeps only the intersection and discards the rest of **the whole canvas**.
+ *   Composing the ring in place therefore multiplies the body by the conic.
+ * - Moving the ring to its own scratch canvas and compositing it once **made it
+ *   visibly worse** — the body all but disappeared — so that attempt is known to
+ *   be wrong as written, not merely unproven. It was reverted.
+ *
+ * **And `<conicGradient>` does not exist in SVG**, which was the promising way
+ * out and is not one: measured in a `<img>`, a `radialGradient` draws and a
+ * `conicGradient` comes out fully transparent. `feTurbulence` and
+ * `feGaussianBlur` both work, so an SVG route would still need the conic built
+ * by hand.
+ *
+ * The silhouette is also not the same: the stylesheet gives the mark eight
+ * different border radii plus a rotation from one seed-derived number, where
+ * this draws an ellipse. A `Path2D` reconstruction of those eight radii was
+ * written and verified in isolation (78.6 per cent coverage, correct bounding
+ * box, asymmetric left and right edges) and then **reverted**, because clipping
+ * the existing pipeline to it produced a worse mark than the ellipse — which is
+ * a statement about this pipeline, not about the shape.
  */
 
 export interface WashCanvasOptions extends Omit<WashOptions, "size"> {

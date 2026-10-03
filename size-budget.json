@@ -5,7 +5,7 @@
 	"packages": {
 		"core": {
 			"maxJsBytes": 38000,
-			"maxDtsBytes": 42000
+			"maxDtsBytes": 43500
 		},
 		"shaders": {
 			"maxJsBytes": 34500,
