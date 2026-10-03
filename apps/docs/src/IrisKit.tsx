@@ -7,6 +7,7 @@ import {
 	SoftInput,
 	SoftLightPanel,
 	SoftModal,
+	SoftSelect,
 	SoftSlider,
 	SoftSwitch,
 	SoftTabs,
@@ -41,6 +42,7 @@ const COMPONENTS = [
 	"slider",
 	"modal",
 	"input",
+	"select",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -141,6 +143,27 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** The listbox, open, so the capture shows the popover rather than the trigger. */
+function SelectKit() {
+	const [material, setMaterial] = useState("paper");
+	return (
+		<div className="kit__inputs">
+			<SoftSelect
+				label="材质"
+				value={material}
+				onChange={setMaterial}
+				options={[
+					{ value: "paper", label: "水彩纸", note: "会吸水，边缘会沉积" },
+					{ value: "glass", label: "液态玻璃", note: "折射背后的东西" },
+					{ value: "clay", label: "粘土", note: "三层阴影" },
+					{ value: "none", label: "无", note: "这个选项不可选", disabled: true },
+				]}
+			/>
+			<SoftSelect label="不可用" placeholder="已锁定" disabled options={[]} />
+		</div>
 	);
 }
 
@@ -282,6 +305,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "select":
+			return <SelectKit />;
 		case "input":
 			return <InputKit />;
 		case "slider":

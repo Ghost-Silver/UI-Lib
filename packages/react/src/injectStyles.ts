@@ -1741,6 +1741,188 @@ const CSS = `
 	}
 }
 
+
+/* --- soft select ---------------------------------------------------------
+ *
+ * The trigger is the input's shell with a chevron; the list is a popover in the
+ * top layer, positioned by CSS anchor positioning rather than by measuring the
+ * trigger and writing coordinates back. Anchor positioning is a browser feature
+ * now, and the alternative — a ResizeObserver plus scroll and resize listeners
+ * plus a flip calculation — is three hundred lines that get the flip wrong on
+ * the first try.
+ *
+ * The list deliberately does NOT animate in as a whole. A popover that fades in
+ * as a block reads as a modal; what a dropdown looks like is the rows arriving,
+ * so the stagger is on the options.
+ */
+
+.ui-lib-soft-select {
+	display: grid;
+	gap: 6px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	anchor-name: --ui-lib-select;
+}
+
+.ui-lib-soft-select__label {
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-select__trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	width: 100%;
+	height: 46px;
+	padding: 0 18px;
+	border-radius: 16px;
+	border: 1.5px solid transparent;
+	background: oklch(0.975 0.006 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+	font: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--moe-cocoa);
+	text-align: left;
+	cursor: pointer;
+	transition:
+		border-color 180ms ease-out,
+		background 180ms ease-out;
+}
+
+.ui-lib-soft-select[data-ui-lib-open] .ui-lib-soft-select__trigger {
+	border-color: var(--moe-taro-500);
+	background: oklch(0.985 0.008 300);
+}
+
+.ui-lib-soft-select__trigger:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 3px;
+}
+
+.ui-lib-soft-select[data-ui-lib-disabled] .ui-lib-soft-select__trigger {
+	cursor: not-allowed;
+	opacity: 0.55;
+}
+
+.ui-lib-soft-select__value[data-ui-lib-placeholder] {
+	color: oklch(0.7 0.02 40);
+	font-weight: 500;
+}
+
+/* Drawn rather than set as a character: a text glyph's weight and angle depend
+   on the font, and this one has to match the border it sits next to. */
+.ui-lib-soft-select__chevron {
+	flex: none;
+	width: 9px;
+	height: 9px;
+	border-right: 2px solid currentColor;
+	border-bottom: 2px solid currentColor;
+	transform: rotate(45deg) translate(-2px, -2px);
+	opacity: 0.5;
+	transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-lib-soft-select[data-ui-lib-open] .ui-lib-soft-select__chevron {
+	transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.ui-lib-soft-select__list {
+	position: fixed;
+	position-anchor: --ui-lib-select;
+	top: anchor(bottom);
+	left: anchor(left);
+	right: anchor(right);
+	margin: 8px 0 0;
+	/* position-try is the flip: when the list would overflow the bottom of the
+	   viewport it is placed above the trigger instead, and the platform does the
+	   measuring. */
+	position-try-fallbacks: flip-block;
+	max-height: 280px;
+	overflow-y: auto;
+	padding: 6px;
+	border-radius: 18px;
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	box-shadow: var(--moe-floating);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-select__list:not(:popover-open) {
+	display: none;
+}
+
+@keyframes ui-lib-select-row {
+	from {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.ui-lib-soft-select__option {
+	display: grid;
+	gap: 1px;
+	padding: 9px 14px;
+	border-radius: 12px;
+	cursor: pointer;
+	animation: ui-lib-select-row 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.ui-lib-soft-select__option-label {
+	font-size: 14.5px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.ui-lib-soft-select__option-note {
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.45;
+	color: var(--moe-cocoa-soft);
+}
+
+/* Two ways to be highlighted, and they look different on purpose: active is
+   where the keyboard is and moves while the list is open; selected is what has
+   been chosen and stays. Merging them would mean a list that forgets what it
+   currently holds the moment the user presses an arrow key. */
+.ui-lib-soft-select__option[data-ui-lib-active] {
+	background: oklch(0.95 0.02 300);
+}
+
+.ui-lib-soft-select__option[aria-selected="true"] {
+	background: oklch(0.93 0.035 300);
+}
+
+.ui-lib-soft-select__option[aria-selected="true"][data-ui-lib-active] {
+	background: oklch(0.91 0.045 300);
+}
+
+.ui-lib-soft-select__option[data-ui-lib-option-disabled] {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-select__option {
+		animation: none;
+	}
+
+	.ui-lib-soft-select__chevron {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
