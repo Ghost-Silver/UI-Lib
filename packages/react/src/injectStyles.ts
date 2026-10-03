@@ -4595,6 +4595,282 @@ const CSS = `
 	}
 }
 
+
+/* --- chip ----------------------------------------------------------------
+ *
+ * A control that looks like a label, which is the shape a filter always has. It
+ * is a button, so it takes focus and it presses; it is small, so it sits in a row
+ * with others of its kind.
+ *
+ * The wrap exists because a removable chip is two controls, and two buttons in a
+ * flex row need one box that arranges them. Making the whole chip pressable *and*
+ * removable would give the reader no way to tell which of the two things pressing
+ * it will do.
+ */
+
+.ui-lib-soft-chip-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	padding: 3px 6px 3px 3px;
+	border-radius: var(--moe-radius-full);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	transition:
+		border-color 180ms ease-out,
+		background 180ms ease-out;
+}
+
+/* A chip with nothing to remove has no trailing control to make room for. */
+.ui-lib-soft-chip-wrap:not(:has(.ui-lib-soft-chip__remove)) {
+	padding-right: 3px;
+}
+
+.ui-lib-soft-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 26px;
+	padding: 0 11px;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: inherit;
+	cursor: pointer;
+	transition:
+		background 160ms ease-out,
+		color 160ms ease-out;
+}
+
+.ui-lib-soft-chip-wrap:not(:has(.ui-lib-soft-chip__remove)) .ui-lib-soft-chip {
+	padding: 0 13px;
+}
+
+.ui-lib-soft-chip:hover {
+	background: oklch(0.95 0.02 310);
+}
+
+.ui-lib-soft-chip:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 1px;
+}
+
+/* Selected. The whole chip carries the pigment rather than a corner of it. */
+.ui-lib-soft-chip-wrap[data-ui-lib-variant="solid"]:has(.ui-lib-soft-chip[data-ui-lib-selected]) {
+	background: var(--moe-taro-500);
+	border-color: var(--moe-taro-500);
+}
+
+.ui-lib-soft-chip-wrap[data-ui-lib-variant="outline"]:has(.ui-lib-soft-chip[data-ui-lib-selected]) {
+	border-color: var(--moe-taro-500);
+	background: oklch(0.96 0.02 310);
+}
+
+.ui-lib-soft-chip__leading {
+	display: inline-flex;
+	align-items: center;
+	line-height: 0;
+}
+
+.ui-lib-soft-chip__label {
+	white-space: nowrap;
+}
+
+.ui-lib-soft-chip__remove {
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	color: inherit;
+	opacity: 0.65;
+	cursor: pointer;
+	transition:
+		opacity 160ms ease-out,
+		background 160ms ease-out,
+		transform 220ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-chip__remove:hover {
+	opacity: 1;
+	background: rgb(77 60 56 / 0.1);
+	transform: rotate(90deg);
+}
+
+.ui-lib-soft-chip__remove:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 1px;
+}
+
+/* --- stepper -------------------------------------------------------------
+ *
+ * A numbered row with a line between the numbers. The line belongs to the step
+ * after the one it starts from, so the first step has none — which is why the
+ * first one is marked in the markup rather than the last.
+ *
+ * The current step is the only one that is not a control, and it looks like the
+ * current page in pagination: filled, and with no hover.
+ */
+
+.ui-lib-soft-stepper__list {
+	display: flex;
+	align-items: flex-start;
+	gap: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-stepper[data-ui-lib-orientation="vertical"] .ui-lib-soft-stepper__list {
+	flex-direction: column;
+}
+
+.ui-lib-soft-stepper__item {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+}
+
+.ui-lib-soft-stepper[data-ui-lib-orientation="vertical"] .ui-lib-soft-stepper__item {
+	flex: none;
+	width: 100%;
+}
+
+/* The connector, drawn from the item to the one before it. */
+.ui-lib-soft-stepper[data-ui-lib-orientation="horizontal"]
+	.ui-lib-soft-stepper__item:not([data-ui-lib-first])::before {
+	content: "";
+	position: absolute;
+	top: 15px;
+	right: calc(50% + 22px);
+	left: calc(-50% + 22px);
+	height: 1.5px;
+	background: var(--moe-stroke);
+}
+
+.ui-lib-soft-stepper[data-ui-lib-orientation="vertical"]
+	.ui-lib-soft-stepper__item:not([data-ui-lib-first])::before {
+	content: "";
+	position: absolute;
+	top: -14px;
+	left: 15px;
+	width: 1.5px;
+	height: 14px;
+	background: var(--moe-stroke);
+}
+
+.ui-lib-soft-stepper__control {
+	display: grid;
+	justify-items: center;
+	gap: 7px;
+	width: 100%;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-md);
+	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: center;
+}
+
+.ui-lib-soft-stepper[data-ui-lib-orientation="vertical"] .ui-lib-soft-stepper__control {
+	grid-template-columns: auto 1fr;
+	justify-items: start;
+	align-items: center;
+	gap: 11px;
+	text-align: left;
+}
+
+/* A step that can be taken. The current one and the unreachable ones are not
+   controls and do not pretend to be. */
+.ui-lib-soft-stepper__control:is(button) {
+	cursor: pointer;
+}
+
+.ui-lib-soft-stepper__control:is(button) .ui-lib-soft-stepper__mark {
+	transition:
+		background 180ms ease-out,
+		border-color 180ms ease-out,
+		color 180ms ease-out;
+}
+
+.ui-lib-soft-stepper__control:is(button):hover .ui-lib-soft-stepper__mark {
+	border-color: var(--moe-taro-500);
+	color: var(--moe-taro-600);
+}
+
+.ui-lib-soft-stepper__control:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+.ui-lib-soft-stepper__mark {
+	display: grid;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	border-radius: var(--moe-radius-full);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	font-size: 13px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-stepper__item[data-ui-lib-current] .ui-lib-soft-stepper__mark {
+	background: var(--moe-taro-500);
+	border-color: var(--moe-taro-500);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-stepper__item[data-ui-lib-disabled] {
+	opacity: 0.45;
+}
+
+.ui-lib-soft-stepper__text {
+	display: grid;
+	gap: 1px;
+	min-width: 0;
+}
+
+.ui-lib-soft-stepper__label {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.ui-lib-soft-stepper__note {
+	font-size: 11.5px;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--moe-cocoa-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-chip,
+	.ui-lib-soft-chip__remove,
+	.ui-lib-soft-stepper__mark,
+	.ui-lib-soft-chip-wrap {
+		transition: none;
+	}
+
+	.ui-lib-soft-chip__remove:hover {
+		transform: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

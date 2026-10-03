@@ -18,6 +18,7 @@ import {
 	SoftBreadcrumb,
 	SoftCard,
 	SoftCheckbox,
+	SoftChip,
 	SoftCombobox,
 	SoftDivider,
 	SoftDrawer,
@@ -36,6 +37,7 @@ import {
 	SoftSkeleton,
 	SoftSlider,
 	SoftSpinner,
+	SoftStepper,
 	SoftSwitch,
 	SoftTable,
 	SoftTabs,
@@ -93,6 +95,7 @@ const COMPONENTS = [
 	"list",
 	"combobox",
 	"toolbar",
+	"chip-stepper",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -194,6 +197,53 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Filter chips and a process indicator. */
+function ChipStepperKit() {
+	const [tones, setTones] = useState<string[]>(["iris"]);
+	const [step, setStep] = useState("review");
+	const chip = (id: string, text: string) => (
+		<SoftChip
+			selected={tones.includes(id)}
+			onClick={() =>
+				setTones((was) => (was.includes(id) ? was.filter((t) => t !== id) : [...was, id]))
+			}
+		>
+			{text}
+		</SoftChip>
+	);
+	return (
+		<div className="kit__chipstepper">
+			<div className="kit__chip-row">
+				{chip("iris", "紫")}
+				{chip("blossom", "粉")}
+				{chip("mist", "蓝")}
+				<SoftChip onRemove={() => undefined}>群青</SoftChip>
+				<SoftChip disabled>不可用</SoftChip>
+			</div>
+			<SoftStepper
+				label="发布"
+				current={step}
+				onChange={setStep}
+				steps={[
+					{ id: "draft", label: "草稿", note: "3 天前" },
+					{ id: "review", label: "送审", note: "进行中" },
+					{ id: "publish", label: "发布" },
+				]}
+			/>
+			<SoftStepper
+				label="竖排"
+				orientation="vertical"
+				current="review"
+				steps={[
+					{ id: "a", label: "第一步", note: "完成了" },
+					{ id: "review", label: "第二步", note: "进行中" },
+					{ id: "c", label: "第三步" },
+				]}
+			/>
+		</div>
 	);
 }
 
@@ -958,6 +1008,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "chip-stepper":
+			return <ChipStepperKit />;
 		case "toolbar":
 			return <ToolbarKit />;
 		case "combobox":

@@ -76,6 +76,8 @@ export type { SoftAccordionItem, SoftAccordionProps } from "./SoftAccordion.js";
 export { SoftAccordion } from "./SoftAccordion.js";
 export type { SoftCardProps } from "./SoftCard.js";
 export { SoftCard } from "./SoftCard.js";
+export type { SoftChipProps, SoftStep, SoftStepperProps } from "./SoftChipStepper.js";
+export { SoftChip, SoftStepper } from "./SoftChipStepper.js";
 export type { SoftCheckboxProps, SoftRadioProps } from "./SoftChoice.js";
 export { SoftCheckbox, SoftRadio, SoftRadioGroup } from "./SoftChoice.js";
 export type { SoftComboboxOption, SoftComboboxProps } from "./SoftCombobox.js";
