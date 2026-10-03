@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 
 export interface SoftModalProps {
 	open: boolean;
@@ -11,6 +13,21 @@ export interface SoftModalProps {
 	onConfirm?: () => void;
 	/** Text for the dismiss button. */
 	cancelLabel?: string;
+	/**
+	 * What the panel is made of.
+	 *
+	 * Offered on the two components that are **content containers** — this and
+	 * the drawer — and deliberately not on the ones that are **control groups**.
+	 * A material is a claim that a surface is a thing rather than chrome: a card,
+	 * a table, a list. A segmented control, a pagination row and a stepper are
+	 * rows of controls, and giving them pigment is decoration rather than
+	 * expression — it would also put the loudest texture in the interface behind
+	 * the thing the user is trying to operate.
+	 */
+	material?: SoftMaterial;
+	/** Which family the pigment comes from. */
+	tone?: IrisTone;
+
 	/**
 	 * Suppress the exit animation and the entry burst. Honours
 	 * `prefers-reduced-motion` regardless of what is passed.
@@ -52,9 +69,12 @@ export const SoftModal = forwardRef<HTMLDialogElement, SoftModalProps>(function 
 		onConfirm,
 		cancelLabel = "关闭",
 		celebrate = true,
+		material,
+		tone,
 	},
 	ref,
 ) {
+	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const titleId = useId();
 	// `prefers-reduced-motion` in state, so the sparks are not rendered at all
@@ -141,7 +161,15 @@ export const SoftModal = forwardRef<HTMLDialogElement, SoftModalProps>(function 
 			    opens with Enter, noise for anyone who clicked. The panel takes
 			    the focus and outlines nothing; Tab reaches the buttons from
 			    there, which is the order a keyboard user wants anyway. */}
-				<div className="ui-lib-soft-modal__panel" tabIndex={-1}>
+				<div
+					className={
+						surface.className
+							? `ui-lib-soft-modal__panel ${surface.className}`
+							: "ui-lib-soft-modal__panel"
+					}
+					style={surface.className ? surface.style : undefined}
+					tabIndex={-1}
+				>
 					{sparks &&
 						SPARKS.map((corner) => (
 							<span

@@ -92,3 +92,40 @@ describe("paperNoise", () => {
 		expect(paperNoise(1).image.match(/feTurbulence/g)?.length).toBe(2);
 	});
 });
+
+describe("the ground", () => {
+	it("fills the surface with the mark's own pigment", () => {
+		const wash = createWash({ hue: "#b79cf5", weight: 0.9, seed: 11 });
+		const body = String(wash.style["--wash-body"]);
+		const ground = String(wash.style["--wash-ground"]);
+
+		// The same two colours, in the same order.
+		const colours = (value: string) => value.match(/rgba?\([^)]+\)/g) ?? [];
+		expect(colours(ground).length).toBeGreaterThanOrEqual(2);
+		for (const colour of new Set(colours(ground))) {
+			expect(colours(body), `${colour} is not in the mark's body`).toContain(colour);
+		}
+	});
+
+	it("does not fade out before its own edge", () => {
+		const wash = createWash({ hue: "#b79cf5", weight: 0.9, seed: 11 });
+		const body = String(wash.style["--wash-body"]);
+		const ground = String(wash.style["--wash-ground"]);
+
+		// A mark ends transparent before the box does — that is what makes it a
+		// stroke. A ground must not, or a wide surface gets a dark border around a
+		// lighter middle, which is what a table looked like.
+		expect(body, "the mark should fade out").toContain("transparent");
+		expect(ground, "the ground should not fade out").not.toContain("transparent");
+
+		// And it should reach past the edge rather than stopping at it.
+		const extent = Number(ground.match(/radial-gradient\(([\d.]+)%/)?.[1] ?? 0);
+		expect(extent).toBeGreaterThanOrEqual(100);
+	});
+
+	it("is reproduced from the same seed, like every other value", () => {
+		const first = createWash({ hue: "#b79cf5", weight: 0.9, seed: 5 }).style["--wash-ground"];
+		const second = createWash({ hue: "#b79cf5", weight: 0.9, seed: 5 }).style["--wash-ground"];
+		expect(first).toBe(second);
+	});
+});

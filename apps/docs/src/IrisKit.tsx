@@ -660,6 +660,8 @@ function DrawerKit() {
 				onClose={() => setOpen(false)}
 				title="材质"
 				note="四种基底的表现"
+				material="tint"
+				tone="mist"
 				footer={
 					<>
 						<PinkPaperButton tone="blossom" onClick={() => setOpen(false)}>
@@ -905,6 +907,8 @@ function ModalKit() {
 				打开
 			</PinkPaperButton>
 			<SoftModal
+				material="wash"
+				tone="iris"
 				open={open}
 				onClose={() => setOpen(false)}
 				title="全部完成"

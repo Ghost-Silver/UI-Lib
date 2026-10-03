@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useRef } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 
 export interface SoftDrawerProps {
 	open: boolean;
@@ -15,6 +17,21 @@ export interface SoftDrawerProps {
 	children?: React.ReactNode;
 	/** Actions pinned to the bottom. */
 	footer?: React.ReactNode;
+	/**
+	 * What the panel is made of.
+	 *
+	 * Offered on the two components that are **content containers** — this and
+	 * the drawer — and deliberately not on the ones that are **control groups**.
+	 * A material is a claim that a surface is a thing rather than chrome: a card,
+	 * a table, a list. A segmented control, a pagination row and a stepper are
+	 * rows of controls, and giving them pigment is decoration rather than
+	 * expression — it would also put the loudest texture in the interface behind
+	 * the thing the user is trying to operate.
+	 */
+	material?: SoftMaterial;
+	/** Which family the pigment comes from. */
+	tone?: IrisTone;
+
 	className?: string;
 }
 
@@ -44,9 +61,22 @@ export interface SoftDrawerProps {
  * ```
  */
 export const SoftDrawer = forwardRef<HTMLDialogElement, SoftDrawerProps>(function SoftDrawer(
-	{ open, onClose, title, note, side = "right", width = "340px", children, footer, className },
+	{
+		open,
+		onClose,
+		title,
+		note,
+		side = "right",
+		width = "340px",
+		children,
+		footer,
+		material,
+		tone,
+		className,
+	},
 	ref,
 ) {
+	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const dialog = useRef<HTMLDialogElement | null>(null);
 	const headingId = `${useId()}-title`;
 
@@ -93,7 +123,14 @@ export const SoftDrawer = forwardRef<HTMLDialogElement, SoftDrawerProps>(functio
 			className={className ? `ui-lib-soft-drawer ${className}` : "ui-lib-soft-drawer"}
 			onClick={onBackdrop}
 		>
-			<div className="ui-lib-soft-drawer__panel">
+			<div
+				className={
+					surface.className
+						? `ui-lib-soft-drawer__panel ${surface.className}`
+						: "ui-lib-soft-drawer__panel"
+				}
+				style={surface.className ? surface.style : undefined}
+			>
 				<header className="ui-lib-soft-drawer__head">
 					<div className="ui-lib-soft-drawer__titles">
 						<h2 className="ui-lib-soft-drawer__title" id={headingId}>
