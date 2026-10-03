@@ -1,4 +1,4 @@
-import { IRIS } from "@ui-lib/core";
+import { createWash, IRIS } from "@ui-lib/core";
 import { GlassPanel, GlassStage, LiquidGlass } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
 import { useEffect, useState } from "react";
@@ -24,6 +24,9 @@ import { useEffect, useState } from "react";
  * rather than lighting problems, and a shader that could fake them would cost
  * far more than the compositor charges for a blur.
  */
+
+/** Three seeds, so the stacking test shows three different marks. */
+const STACK_SEEDS = [7, 8, 9];
 
 const PAPER: BackdropSpec = {
 	type: "gradient",
@@ -159,6 +162,44 @@ export function WetPaperPage() {
 							湿的时候水还在搬颜料：从落笔处往外走，沿着纤维走，走到边界停住。
 							<strong>边缘那圈深色不是画上去的，是水流到最后留下的。</strong>
 						</p>
+					</div>
+				</section>
+
+				<section className="paper__row">
+					<h2 className="paper__label">叠戴：水彩在玻璃下面</h2>
+					<div className="paper__stack">
+						{/* The question this section exists to answer: does a real
+						    refracting pane bend DOM that is BEHIND it? The wash here
+						    is DOM, the pane is canvas — the two live in different
+						    layers, and whether one can disturb the other is not
+						    obvious from either of them alone. */}
+						<div className="paper__stack-under">
+							{STACK_SEEDS.map((seed) => {
+								// Generated, not hand-written. Three seeds, three
+								// different marks, no CSS authored for any of them —
+								// which is the point of the generator.
+								const wash = createWash({
+									hue: IRIS[seed % 2 === 0 ? "iris" : "blossom"][500],
+									weight: 0.85,
+									seed,
+									state: "dry",
+									size: 150,
+								});
+								return (
+									<span
+										key={seed}
+										className={wash.className}
+										style={wash.style as React.CSSProperties}
+									>
+										<span className="ui-lib-wash__deposit" aria-hidden="true" />
+									</span>
+								);
+							})}
+						</div>
+						<GlassPanel className="paper__stack-pane">
+							<p className="paper__pane-title">玻璃下的水彩</p>
+							<p className="paper__pane-body">如果折射能扰动底下的沉积环，那才叫灵动。</p>
+						</GlassPanel>
 					</div>
 				</section>
 

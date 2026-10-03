@@ -54,3 +54,46 @@ describe("the injected stylesheet", () => {
 		}
 	});
 });
+
+/**
+ * The wash generator and this stylesheet have to agree.
+ *
+ * They are written in different packages — the numbers in `core`, the rules
+ * here — and the failure when they disagree is silent. A class name with no
+ * rule renders nothing at all, which is what happened: three generated washes
+ * were in the DOM, correctly styled with twelve custom properties, and the
+ * page showed nothing because nothing consumed them.
+ */
+describe("the generated washes", () => {
+	it("has a rule for every class the generator emits", async () => {
+		const { createWash } = await import("@ui-lib/core");
+		for (const state of ["wet", "drying", "dry"] as const) {
+			const wash = createWash({ hue: "#b79cf5", seed: 3, state });
+			for (const name of wash.className.split(" ")) {
+				expect(source, `${name} has no rule`).toContain(`.${name}`);
+			}
+		}
+		expect(source).toContain(".ui-lib-wash__deposit");
+	});
+
+	it("reads only variables the generator produces", async () => {
+		const { createWash } = await import("@ui-lib/core");
+		const produced = new Set(Object.keys(createWash({ hue: "#b79cf5" }).style));
+		// The paper's own colour belongs to the caller, not to a single wash.
+		const optional = new Set(["--wash-paper"]);
+		const used = [...source.matchAll(/var\((--wash-[a-z-]+)/g)].map((m) => m[1]!);
+		const orphans = [...new Set(used)].filter((v) => !produced.has(v) && !optional.has(v));
+		expect(orphans, `CSS reads ${orphans.join(", ")} which nothing produces`).toEqual([]);
+	});
+
+	it("honours reduced motion for every animated rule", () => {
+		const selectors = [...source.matchAll(/^(\.[a-z0-9_.\- ]+?)\s*\{[^}]*animation:/gms)].map(
+			(m) => m[1]!.trim(),
+		);
+		expect(selectors.length).toBeGreaterThan(0);
+		const reduced = source.slice(source.indexOf("prefers-reduced-motion"));
+		for (const selector of new Set(selectors)) {
+			expect(reduced, `${selector} is not covered`).toContain(selector);
+		}
+	});
+});

@@ -2967,3 +2967,34 @@ input[type="range"]::-moz-range-thumb {
 	font-weight: 700;
 	color: #4a3a33;
 }
+
+/* The stacking test. The washes are DOM, the pane is canvas; whether the one
+   can disturb the other is the whole question. */
+.paper__stack {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: 300px;
+}
+
+.paper__stack-under {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
+.paper__stack-wash {
+	width: 150px;
+	height: 150px;
+}
+
+.paper__stack-pane {
+	position: relative;
+	z-index: 1;
+	width: 320px;
+	padding: 26px 28px;
+	border-radius: 28px;
+}
