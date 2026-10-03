@@ -3120,3 +3120,137 @@ input[type="range"]::-moz-range-thumb {
 	line-height: 1.6;
 	color: var(--moe-cocoa-soft);
 }
+
+/* A page rather than a fixture: real density, real hierarchy. */
+.studio-stage {
+	position: relative;
+	width: 100%;
+	min-height: 100%;
+	background: oklch(0.985 0.006 40);
+}
+
+.studio {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	gap: 22px;
+	width: min(100%, 1080px);
+	margin: 0 auto;
+	padding: 28px 24px 44px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.studio__bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 14px 20px;
+	border-radius: var(--moe-radius-lg);
+}
+
+.studio__brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.studio__title {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+}
+
+.studio__sub {
+	margin: 1px 0 0;
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--moe-cocoa-soft);
+}
+
+.studio__head-right {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.studio__grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 22px;
+}
+
+.studio__summary {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.studio__stat {
+	display: grid;
+	gap: 2px;
+	justify-items: start;
+	padding: 16px 18px;
+}
+
+.studio__stat-value {
+	font-size: 26px;
+	font-weight: 700;
+	line-height: 1.2;
+	font-variant-numeric: tabular-nums;
+}
+
+.studio__stat-label {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+.studio__panel {
+	display: grid;
+	gap: 18px;
+	align-content: start;
+	padding: 22px;
+	border-radius: var(--moe-radius-lg);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+}
+
+.studio__panel--wide {
+	grid-column: 1 / -1;
+}
+
+.studio__panel-title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa);
+}
+
+.studio__foot {
+	display: grid;
+	gap: 16px;
+	justify-items: center;
+}
+
+.studio__tones {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.studio__panel p {
+	margin: 0;
+}
+
+@media (max-width: 760px) {
+	.studio__grid,
+	.studio__summary {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

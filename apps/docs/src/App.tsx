@@ -30,6 +30,7 @@ import { IrisShowcasePage } from "./IrisShowcase.js";
 import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
+import { StudioPage } from "./Studio.js";
 import { WakePage } from "./Wake.js";
 import { WetPaperPage } from "./WetPaper.js";
 
@@ -612,6 +613,7 @@ export default function App() {
 		if (demo === "aurora-flow") return <AuroraFlowPage />;
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
+		if (demo === "studio") return <StudioPage />;
 		if (demo === "iris") return <IrisShowcasePage />;
 		if (demo === "paper") return <WetPaperPage />;
 		if (demo === "iris-kit") {
