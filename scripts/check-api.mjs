@@ -214,7 +214,7 @@ async function main() {
 			if (ALIASED_TYPES.has(name)) continue;
 			for (const word of PROJECT_WORDS) {
 				if (name.includes(word)) {
-					problems.push(pkg + ": exported type " + name + " carries the project name " + word);
+					problems.push(`${pkg}: exported type ${name} carries the project name ${word}`);
 				}
 			}
 		}

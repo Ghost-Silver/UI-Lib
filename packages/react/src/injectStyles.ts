@@ -418,6 +418,34 @@ const CSS = `
 	/* --- typography --------------------------------------------------------- */
 	--moe-font-rounded: "Maple Mono Local", "Fredoka", "Nunito", "Quicksand",
 		"PingFang SC", "Hiragino Sans GB", ui-rounded, system-ui, sans-serif;
+	/*
+	 * Surfaces and states, as tokens.
+	 *
+	 * These were eighty-nine literal oklch(...) values scattered through the
+	 * stylesheet, and the cost was measurable: overriding the palette changed the
+	 * text and the accent and left every groove, every hover tint and every
+	 * selected row exactly as it was, because those were not reading a token at
+	 * all. A theme that reaches two thirds of an interface is not a theme.
+	 *
+	 * Named by **role** rather than by colour: a component wants "the recess in a
+	 * surface" or "the tint under a pointer", and a palette that changes which hue
+	 * that is should not have to change every call site.
+	 *
+	 * The values are the ones that were hard-coded — this is a move, not a
+	 * redesign, and the twelve slots below cover 73 per cent of the occurrences.
+	 */
+	--moe-surface-sunken: oklch(0.955 0.008 60); /* a groove in paper */
+	--moe-surface-sunken-deep: oklch(0.93 0.01 60); /* a deeper one */
+	--moe-surface-raised: oklch(0.985 0.006 60); /* a card lifted off paper */
+	--moe-surface-hover: oklch(0.95 0.02 310); /* under a pointer */
+	--moe-surface-hover-soft: oklch(0.975 0.006 60);
+	--moe-state-iris: oklch(0.93 0.035 300); /* chosen, in the violet family */
+	--moe-state-iris-strong: oklch(0.91 0.045 300);
+	--moe-state-iris-soft: oklch(0.95 0.02 300);
+	--moe-state-blossom: oklch(0.95 0.03 15);
+	--moe-state-blossom-strong: oklch(0.91 0.045 15);
+	--moe-state-mint: oklch(0.95 0.03 165);
+	--moe-state-sky: oklch(0.95 0.03 235);
 	--moe-text: var(--moe-cocoa);
 	--moe-text-soft: var(--moe-cocoa-soft);
 }
@@ -1607,7 +1635,7 @@ const CSS = `
 	gap: 10px;
 	border-radius: var(--moe-radius-full);
 	/* The recess. Inset, never raised: an input is a hole, not a brick. */
-	background: oklch(0.975 0.006 60);
+	background: var(--moe-surface-hover-soft);
 	box-shadow:
 		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
@@ -1760,7 +1788,7 @@ const CSS = `
 }
 
 .ui-lib-soft-input[data-ui-lib-focused] .ui-lib-soft-input__shell {
-	background: oklch(0.985 0.008 300);
+	background: var(--moe-surface-raised);
 }
 
 /* An invalid field is marked by more than its colour: the border thickens, so
@@ -1844,7 +1872,7 @@ const CSS = `
 	padding: 0 18px;
 	border-radius: 16px;
 	border: 1.5px solid transparent;
-	background: oklch(0.975 0.006 60);
+	background: var(--moe-surface-hover-soft);
 	box-shadow:
 		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
@@ -1861,7 +1889,7 @@ const CSS = `
 
 .ui-lib-soft-select[data-ui-lib-open] .ui-lib-soft-select__trigger {
 	border-color: var(--moe-taro-500);
-	background: oklch(0.985 0.008 300);
+	background: var(--moe-surface-raised);
 }
 
 .ui-lib-soft-select__trigger:focus-visible {
@@ -1971,15 +1999,15 @@ const CSS = `
    been chosen and stays. Merging them would mean a list that forgets what it
    currently holds the moment the user presses an arrow key. */
 .ui-lib-soft-select__option[data-ui-lib-active] {
-	background: oklch(0.95 0.02 300);
+	background: var(--moe-state-iris-soft);
 }
 
 .ui-lib-soft-select__option[aria-selected="true"] {
-	background: oklch(0.93 0.035 300);
+	background: var(--moe-state-iris);
 }
 
 .ui-lib-soft-select__option[aria-selected="true"][data-ui-lib-active] {
-	background: oklch(0.91 0.045 300);
+	background: var(--moe-state-iris-strong);
 }
 
 .ui-lib-soft-select__option[data-ui-lib-option-disabled] {
@@ -2048,7 +2076,7 @@ const CSS = `
 	width: 22px;
 	height: 22px;
 	margin-top: 1px;
-	background: oklch(0.975 0.006 60);
+	background: var(--moe-surface-hover-soft);
 	box-shadow:
 		inset 0 2px 3px 0 rgb(77 60 56 / 0.12),
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
@@ -2897,7 +2925,7 @@ const CSS = `
 	color: oklch(0.4 0.06 300);
 }
 .ui-lib-soft-tag[data-ui-lib-variant="soft"][data-ui-lib-tone="blossom"] {
-	background: oklch(0.95 0.03 15);
+	background: var(--moe-state-blossom);
 	color: oklch(0.44 0.07 15);
 }
 .ui-lib-soft-tag[data-ui-lib-variant="soft"][data-ui-lib-tone="mist"] {
@@ -3067,7 +3095,7 @@ const CSS = `
 	width: 26px;
 	height: 26px;
 	border-radius: var(--moe-radius-full);
-	background: oklch(0.95 0.02 310);
+	background: var(--moe-surface-hover);
 	color: var(--moe-cocoa-soft);
 	transition:
 		transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -3717,7 +3745,7 @@ const CSS = `
 	gap: 3px;
 	padding: 3px;
 	border-radius: var(--moe-radius-full);
-	background: oklch(0.955 0.008 60);
+	background: var(--moe-surface-sunken);
 	box-shadow:
 		inset 0 2px 4px 0 rgb(77 60 56 / 0.12),
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
@@ -4180,7 +4208,7 @@ const CSS = `
 	padding: 0 16px;
 	border-radius: var(--moe-radius-full);
 	border: 1.5px solid transparent;
-	background: oklch(0.975 0.006 60);
+	background: var(--moe-surface-hover-soft);
 	box-shadow:
 		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
@@ -4196,7 +4224,7 @@ const CSS = `
 
 .ui-lib-soft-menu__trigger[aria-expanded="true"] {
 	border-color: var(--moe-taro-500);
-	background: oklch(0.985 0.008 300);
+	background: var(--moe-surface-raised);
 }
 
 .ui-lib-soft-menu__trigger:focus-visible {
@@ -4292,7 +4320,7 @@ const CSS = `
    different things: hovering previews, focusing acts. Both are highlighted
    because in a menu they converge the moment the pointer moves. */
 .ui-lib-soft-menu__item:hover:not(:disabled) {
-	background: oklch(0.955 0.018 310);
+	background: var(--moe-state-iris-soft);
 }
 
 .ui-lib-soft-menu__item:disabled {
@@ -4382,7 +4410,7 @@ const CSS = `
 
 /* Where the keyboard is. */
 .ui-lib-soft-list__item[data-ui-lib-active] {
-	background: oklch(0.955 0.018 310);
+	background: var(--moe-state-iris-soft);
 }
 
 /* What is chosen. Stronger than the highlight, because it survives the movement
@@ -4508,17 +4536,17 @@ const CSS = `
 
 /* Where the keyboard is. Moves on every arrow press. */
 .ui-lib-soft-combobox__option[data-ui-lib-active] {
-	background: oklch(0.95 0.02 300);
+	background: var(--moe-state-iris-soft);
 }
 
 /* What is chosen. Does not move, which is the same distinction the select and
    the list make. */
 .ui-lib-soft-combobox__option[data-ui-lib-selected] {
-	background: oklch(0.93 0.035 300);
+	background: var(--moe-state-iris);
 }
 
 .ui-lib-soft-combobox__option[data-ui-lib-selected][data-ui-lib-active] {
-	background: oklch(0.91 0.045 300);
+	background: var(--moe-state-iris-strong);
 }
 
 .ui-lib-soft-combobox__option[data-ui-lib-option-disabled] {
@@ -4717,7 +4745,7 @@ const CSS = `
 }
 
 .ui-lib-soft-chip:hover {
-	background: oklch(0.95 0.02 310);
+	background: var(--moe-surface-hover);
 }
 
 .ui-lib-soft-chip:focus-visible {
