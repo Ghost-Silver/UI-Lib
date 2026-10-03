@@ -7,6 +7,7 @@ import {
 	PinkPaperButton,
 	SoftAccordion,
 	SoftAvatar,
+	SoftCard,
 	SoftCheckbox,
 	SoftDivider,
 	SoftDrawer,
@@ -65,6 +66,7 @@ const COMPONENTS = [
 	"accordion",
 	"table",
 	"drawer",
+	"material",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -166,6 +168,33 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** The three materials, so the difference between them is visible at once. */
+function MaterialKit() {
+	const notes: { id: "plain" | "tint" | "wash"; title: string; body: string }[] = [
+		{ id: "plain", title: "纸", body: "默认。大部分界面应该是纸。" },
+		{ id: "tint", title: "淡染", body: "同一颜料低浓度，用来分组。" },
+		{ id: "wash", title: "水彩", body: "颜料铺底，边缘由颜料承担。" },
+	];
+	return (
+		<div className="kit__material">
+			{notes.map((n) => (
+				<SoftCard key={n.id} material={n.id} tone="iris" seedName={n.id}>
+					<h3 className="kit__material-title">{n.title}</h3>
+					<p className="kit__material-body">{n.body}</p>
+				</SoftCard>
+			))}
+			<div className="kit__material-row">
+				<SoftCard material="wash" tone="blossom" seedName="blossom">
+					<p className="kit__material-body">粉</p>
+				</SoftCard>
+				<SoftCard material="wash" tone="mist" seedName="mist">
+					<p className="kit__material-body">蓝</p>
+				</SoftCard>
+			</div>
+		</div>
 	);
 }
 
@@ -535,6 +564,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "material":
+			return <MaterialKit />;
 		case "drawer":
 			return <DrawerKit />;
 		case "table":

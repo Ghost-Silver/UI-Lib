@@ -3093,3 +3093,30 @@ input[type="range"]::-moz-range-thumb {
 .kit__drawer-lines p {
 	margin: 0;
 }
+
+.kit__material {
+	display: grid;
+	gap: 14px;
+	width: 340px;
+	align-content: center;
+}
+
+.kit__material-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px;
+}
+
+.kit__material-title {
+	margin: 0 0 4px;
+	font-size: 15px;
+	font-weight: 700;
+	color: var(--moe-cocoa);
+}
+
+.kit__material-body {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--moe-cocoa-soft);
+}

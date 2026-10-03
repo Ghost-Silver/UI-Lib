@@ -3447,6 +3447,99 @@ const CSS = `
 	}
 }
 
+
+/* --- material ------------------------------------------------------------
+ *
+ * A surface made of pigment, as opposed to a pigment mark.
+ *
+ * createWash produces a *mark*: a sized, rotated, blurred element with a
+ * deposit ring and a lobed silhouette. That is right for an avatar, where the
+ * object is the mark. It is wrong for a card, where the pigment has to fill
+ * whatever box the card already has. The generated variables are the same; what
+ * differs is which of them the stylesheet reads.
+ *
+ * A ground reads the body and the grain and ignores the silhouette, the deposit
+ * mask and the rotation. Those four are what make a stroke look like a stroke,
+ * and a surface is not a stroke.
+ */
+
+.ui-lib-material--ground {
+	position: relative;
+	isolation: isolate;
+	/*
+	 * Paper, before pigment.
+	 *
+	 * A material surface is a sheet with pigment on it, and the first version
+	 * forgot the sheet: measured, the card's own background was fully
+	 * transparent, so the pigment was painted over whatever happened to be
+	 * behind the card. That is why the material looked like a stain floating in
+	 * the layout rather than like a card that is made of something — and it is
+	 * also why the text lost contrast, because the ground its contrast was
+	 * measured against was not there.
+	 *
+	 * The card colour is opaque, so the pigment sits on a known ground and any
+	 * contrast calculation has something to refer to.
+	 */
+	background-color: var(--moe-card);
+}
+
+/* The pigment, as a fill rather than as a shape. The generated body is already
+   a radial gradient, so it can be used directly — but at full strength it is
+   the colour of a *mark*, which is far too much for a surface that has content
+   on top of it. The ground dials it back by re-declaring the opacity rather
+   than by mixing a lighter colour, so the hue stays the pigment's. */
+.ui-lib-material--ground::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	/*
+	 * The pigment is stretched, not placed.
+	 *
+	 * --wash-body is a radial gradient sized for a square specimen — an
+	 * ellipse with a soft edge, which is what a stroke looks like. Used as a
+	 * fill it shows its own edge: the first version of this painted a large
+	 * faint circle in the middle of every card and left the corners bare, which
+	 * reads as a stain rather than as a ground.
+	 *
+	 * background-size: 100% 100% scales that ellipse to the box, so a wide
+	 * card gets a wide wash and a tall one gets a tall one. The generator's
+	 * shape is preserved and its proportions are not, which is the right trade
+	 * for a surface: a stroke has its own aspect ratio, a surface is whatever it
+	 * is laid on.
+	 */
+	background-image: var(--wash-body, none);
+	background-size: 100% 100%;
+	background-repeat: no-repeat;
+	opacity: calc(var(--wash-opacity, 0.17) * 0.38);
+	pointer-events: none;
+}
+
+/*
+ * The deposit ring, as a rim light.
+ *
+ * A surface cannot have the angular deposit mask — that is what paints the
+ * "water ran to this edge more than that one" mark, and on a card it would read
+ * as a stain. But the *reason* the deposit exists is that a wash is darker at
+ * its boundary, and the surface equivalent of that is a border that carries the
+ * pigment rather than the neutral stroke. No mask, no direction, just the
+ * darker edge.
+ */
+.ui-lib-material--ground[data-ui-lib-material="wash"] {
+	border-color: var(--wash-rim, currentColor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* Nothing here animates; the grain is a still image and the pigment is a
+	   fill. The block exists so the omission is a decision rather than an
+	   oversight. */
+	.ui-lib-material--ground::before,
+	.ui-lib-material--ground::after {
+		animation: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
