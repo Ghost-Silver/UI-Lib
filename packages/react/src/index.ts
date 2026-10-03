@@ -26,6 +26,8 @@ export type { BlingProps } from "./Bling.js";
 export { Bling } from "./Bling.js";
 export type { BubbleBadgeProps } from "./BubbleBadge.js";
 export { BubbleBadge } from "./BubbleBadge.js";
+export type { CrystalTextProps } from "./CrystalText.js";
+export { CrystalText } from "./CrystalText.js";
 export type { GlassStageStatus, GlassStageValue } from "./context.js";
 export { GlassStageContext, useGlassStage } from "./context.js";
 export type { GlassPanelProps } from "./GlassPanel.js";

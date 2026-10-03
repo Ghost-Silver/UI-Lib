@@ -3,6 +3,7 @@ import { IRIS, IRIS_TONES } from "@ui-lib/core";
 import {
 	Bling,
 	BubbleBadge,
+	CrystalText,
 	GlassStage,
 	PinkPaperButton,
 	Reveal,
@@ -10,7 +11,7 @@ import {
 	WatercolorCard,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * The IRIS surface: five components on one stage.
@@ -58,6 +59,8 @@ export function IrisShowcasePage() {
 				preset: { particleBudget: 5_000, maxPanels: 6 },
 			}
 		: undefined;
+
+	const crystalSlot = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		document.title = "IRIS · UI-Lib";
@@ -118,6 +121,8 @@ export function IrisShowcasePage() {
 						</SoftLightPanel>
 
 						<WatercolorCard tone="blossom" className="iris__card">
+							<CrystalText text="水彩" anchor={crystalSlot} size={0.85} color="#2a0f45" />
+							<div ref={crystalSlot} className="iris__crystal-slot" aria-hidden="true" />
 							<p className="iris__kicker">水彩卡片</p>
 							<h3>颜料是自己摊开的。</h3>
 							<p>底色是分层的水彩晕染，上面盖的是真玻璃，会折它背后的东西。</p>

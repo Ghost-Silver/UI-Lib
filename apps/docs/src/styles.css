@@ -2195,8 +2195,10 @@ input[type="range"]::-moz-range-thumb {
 	}
 }
 
+/* The crystal text's layout box: an ordinary empty div on the card. */
 .iris__crystal-slot {
-	width: 128px;
-	height: 56px;
+	width: 132px;
+	height: 60px;
+	margin-bottom: 2px;
 	pointer-events: none;
 }

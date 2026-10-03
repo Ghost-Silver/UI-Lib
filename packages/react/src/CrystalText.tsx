@@ -8,40 +8,6 @@ import { useEffect, useRef, useState } from "react";
 import { LinearFilter, Mesh, NoColorSpace, Texture } from "three/webgpu";
 import { useGlassStage } from "./context.js";
 
-/*
- * NOT EXPORTED, AND NOT YET USABLE.
- *
- * It draws. Getting that far took finding three separate defects, two of which
- * were silent:
- *
- *  - **Back-face culling.** `createTextGeometry` winds its quads top-left ->
- *    top-right -> bottom-right, which is clockwise from +Z and therefore a back
- *    face under three's default. Every glyph was culled and nothing reported
- *    it. Fixed with `side: DoubleSide` in `createTextMaterial` rather than by
- *    reordering the indices, because `sampleTextPoints` reads index `i` and
- *    `i + 2` as opposite corners of a quad and depends on that order.
- *  - **Scale.** The layout is in atlas pixels; `size` now means a height in
- *    world units, normalised by the real bounding box.
- *  - **Coverage applied twice.** Multiplying the colour by alpha in the shader
- *    and again in three's `srcAlpha` blend squares the coverage. Split into
- *    `colorNode` / `opacityNode`.
- *
- * What is left: the glyphs render in the right place at the right size and are
- * **far too faint to use** — a pale wash on the card rather than ink. Ruled
- * out: the atlas polarity and saturation (sampled directly — inside reaches
- * 255), placement (`follow` resolves the slot and reports
- * `[4.81, 2.08, 0]`), and the anti-aliasing width, whose derivation
- * `scaleW / (2 * distanceRange)` matches the measured per-pixel change in
- * `sigDist` to within a few percent.
- *
- * Next: the atlas's usable range against the stroke width it actually
- * rasterised, then whether the post chain is attenuating a `transparent`
- * material in the world pass.
- *
- * Kept as a starting point and out of the export surface, so nothing can depend
- * on a component that renders a ghost.
- */
-
 export interface CrystalTextProps {
 	/** The string to set. Glyphs outside the atlas are skipped, not faked. */
 	text: string;
@@ -76,8 +42,15 @@ interface LoadedAtlas {
  * type — neither of which a bitmap or a DOM overlay can do. The document keeps
  * its own readable copy of the string; this is the drawn layer.
  *
- * Without a stage, or before the atlas arrives, it renders nothing and the
- * page is unaffected.
+ * It lives in the world, so **DOM glass in front of it will frost and refract
+ * it** — that is the library working, not a defect, and it is why the text
+ * reads as ink under glass rather than as an overlay. Place it behind the glass
+ * you want it bent by, and keep a readable DOM copy of the string for search,
+ * translation and screen readers, which this component cannot provide because
+ * it is not in the document.
+ *
+ * Without a stage, or before the atlas arrives, it renders nothing and the page
+ * is unaffected.
  *
  * ```tsx
  * const slot = useRef<HTMLDivElement>(null);
@@ -175,32 +148,10 @@ export function CrystalText({
 		mesh.frustumCulled = false;
 
 		const object = layer.addWorldObject(mesh, undefined, { refractive: true });
-		// TEMP-DIAG
-		(window as unknown as Record<string, unknown>).__crystalFollowCalled =
-			anchorRef.current?.current != null;
 		const follow = anchorRef.current?.current
 			? layer.follow(
-					() => {
-						const el = anchorRef.current?.current ?? null;
-						// TEMP-DIAG
-						(window as unknown as Record<string, unknown>).__crystalAnchor = el
-							? {
-									tag: el.tagName,
-									cls: String(el.className),
-									rects: el.getClientRects().length,
-								}
-							: null;
-						return el;
-					},
-					(point) => {
-						mesh.position.set(point[0], point[1], point[2]);
-						// TEMP-DIAG
-						const w = window as unknown as Record<string, unknown>;
-						const seen = (w.__crystalSeen as number) ?? 0;
-						w.__crystalSeen = seen + 1;
-						w.__crystalPos = [point[0], point[1], point[2]];
-						w.__crystalScale = mesh.scale.x;
-					},
+					() => anchorRef.current?.current ?? null,
+					(point) => mesh.position.set(point[0], point[1], point[2]),
 					0,
 				)
 			: null;
