@@ -94,6 +94,8 @@ export type { SoftSliderProps } from "./SoftSlider.js";
 export { SoftSlider } from "./SoftSlider.js";
 export type { SoftSwitchProps } from "./SoftSwitch.js";
 export { SoftSwitch } from "./SoftSwitch.js";
+export type { SoftTableColumn, SoftTableProps } from "./SoftTable.js";
+export { SoftTable } from "./SoftTable.js";
 export type { SoftTabsProps } from "./SoftTabs.js";
 export { SoftTabs } from "./SoftTabs.js";
 export { useFrame } from "./useFrame.js";

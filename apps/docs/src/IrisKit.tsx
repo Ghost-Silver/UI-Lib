@@ -19,6 +19,7 @@ import {
 	SoftSlider,
 	SoftSpinner,
 	SoftSwitch,
+	SoftTable,
 	SoftTabs,
 	SoftTag,
 	SoftToast,
@@ -60,6 +61,7 @@ const COMPONENTS = [
 	"overlay",
 	"identity",
 	"accordion",
+	"table",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -161,6 +163,37 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** A table with a sorted column, so the capture shows the sort state too. */
+function TableKit() {
+	const rows = [
+		{ id: "paper", name: "水彩纸", kind: "基底", count: 128 },
+		{ id: "glass", name: "液态玻璃", kind: "台面", count: 46 },
+		{ id: "clay", name: "粘土", kind: "按钮", count: 312 },
+		{ id: "wash", name: "水彩印", kind: "头像", count: 7 },
+	];
+	return (
+		<div className="kit__table">
+			<SoftTable
+				caption="四种材质的用量"
+				rowKey={(r) => r.id}
+				defaultSort={{ key: "count", direction: "descending" }}
+				columns={[
+					{ key: "name", header: "名字", sortable: true },
+					{ key: "kind", header: "用途" },
+					{
+						key: "count",
+						header: "用量",
+						numeric: true,
+						sortable: true,
+						compare: (a, b) => a.count - b.count,
+					},
+				]}
+				rows={rows}
+			/>
+		</div>
 	);
 }
 
@@ -460,6 +493,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "table":
+			return <TableKit />;
 		case "accordion":
 			return <AccordionKit />;
 		case "identity":

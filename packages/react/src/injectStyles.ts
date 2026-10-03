@@ -3042,6 +3042,159 @@ const CSS = `
 	}
 }
 
+
+/* --- table ---------------------------------------------------------------
+ *
+ * Rows are separated by a wash rather than a rule. A hairline between every row
+ * is a grid; a soft gradient that fades at both ends reads as a paper fold, and
+ * it survives the rounded corners of the container without a special case at
+ * the first and last row.
+ *
+ * The header is a recess, like every other groove in this library — the input's
+ * shell, the switch's track, the choice box. A table's header is the one part
+ * that never scrolls away from meaning, so it gets the same inset treatment as
+ * the controls rather than a filled band.
+ */
+
+.ui-lib-soft-table {
+	position: relative;
+	overflow: hidden;
+	border-radius: var(--moe-radius-lg);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-table__table {
+	width: 100%;
+	border-collapse: collapse;
+	/* separate with no spacing would break the row borders below; collapse
+	   keeps the inset header shadow working inside the rounded frame. */
+}
+
+.ui-lib-soft-table__caption {
+	padding: 15px 18px 12px;
+	text-align: left;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-table__th {
+	padding: 11px 16px;
+	text-align: left;
+	font-size: 12.5px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	color: var(--moe-cocoa-soft);
+	background: oklch(0.965 0.008 60);
+	box-shadow: inset 0 -1px 0 0 var(--moe-stroke);
+	white-space: nowrap;
+}
+
+.ui-lib-soft-table__th[data-ui-lib-numeric],
+.ui-lib-soft-table__td[data-ui-lib-numeric] {
+	text-align: right;
+}
+
+/* Numbers line up on their digits only if the digits are the same width. */
+.ui-lib-soft-table__td[data-ui-lib-numeric] {
+	font-variant-numeric: tabular-nums;
+}
+
+/* The whole header cell is the target, not just the text in it. */
+.ui-lib-soft-table__sort {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: -3px -6px;
+	padding: 3px 6px;
+	border: none;
+	border-radius: var(--moe-radius-xs);
+	background: none;
+	font: inherit;
+	font-weight: 700;
+	letter-spacing: inherit;
+	color: inherit;
+	cursor: pointer;
+	transition: background 160ms ease-out;
+}
+
+.ui-lib-soft-table__sort:hover {
+	background: oklch(0.93 0.015 60);
+}
+
+.ui-lib-soft-table__sort:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+/* The arrow is drawn, and it is only present when the column is sorted. An
+   always-present arrow in a muted colour reads as an affordance; an arrow that
+   appears when it means something reads as state. */
+.ui-lib-soft-table__arrow {
+	width: 0;
+	height: 0;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	border-bottom: 5px solid var(--moe-taro-500);
+	opacity: 0;
+	transition:
+		opacity 180ms ease-out,
+		transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-lib-soft-table__th[aria-sort] .ui-lib-soft-table__arrow {
+	opacity: 1;
+}
+
+.ui-lib-soft-table__th[aria-sort="descending"] .ui-lib-soft-table__arrow {
+	transform: rotate(180deg);
+}
+
+.ui-lib-soft-table__row {
+	background: transparent;
+	transition: background 160ms ease-out;
+}
+
+.ui-lib-soft-table__row:hover {
+	background: oklch(0.975 0.012 310);
+}
+
+.ui-lib-soft-table__td {
+	padding: 12px 16px;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.55;
+	color: var(--moe-cocoa);
+	box-shadow: inset 0 -1px 0 0 oklch(0.94 0.006 60);
+}
+
+/* The last row does not need one: the container's own border does that job, and
+   two lines a pixel apart is the tell of a table that was styled by rule rather
+   than by looking at it. */
+.ui-lib-soft-table__row:last-child .ui-lib-soft-table__td {
+	box-shadow: none;
+}
+
+.ui-lib-soft-table__empty {
+	padding: 30px 16px;
+	text-align: center;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-table__arrow,
+	.ui-lib-soft-table__row,
+	.ui-lib-soft-table__sort {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

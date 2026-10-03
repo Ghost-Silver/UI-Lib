@@ -3069,3 +3069,8 @@ input[type="range"]::-moz-range-thumb {
 .kit__accordion p {
 	margin: 0;
 }
+
+.kit__table {
+	width: 460px;
+	align-content: center;
+}
