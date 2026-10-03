@@ -3564,7 +3564,22 @@ const CSS = `
  * generator emits two noise passes at sizes that cannot share a period, and a
  * multi-layer background is how they stay independent.
  */
-.ui-lib-material--ground {
+/*
+ * Two classes deep, and the double class is load-bearing rather than tidy.
+ *
+ * .ui-lib-material--ground is a single-class selector, and so is every
+ * component's own .ui-lib-soft-* rule. Both set background, so which one wins
+ * is decided by **where the rules happen to sit in this file** — measured, the
+ * table's rule is written before this one and the list's after it, so the table
+ * took the material and the list silently did not.
+ *
+ * That is the third time in this library that a component's background
+ * shorthand has quietly reset a material's background-image, and the first two
+ * were fixed by moving code. Specificity fixes the class of error instead of the
+ * instance: a material wins wherever it is written, and nobody has to know the
+ * order of a 4000-line stylesheet to reason about a component.
+ */
+.ui-lib-material--ground.ui-lib-material--ground {
 	position: relative;
 	isolation: isolate;
 	/* Paper, before pigment. A material surface is a sheet with pigment on it, and

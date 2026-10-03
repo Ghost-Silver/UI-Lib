@@ -248,7 +248,7 @@ function ChipStepperKit() {
 }
 
 /** Two toolbars: a horizontal one and a vertical one. */
-function ToolbarKit() {
+function ToolbarKit({ tone }: { tone: IrisTone }) {
 	const [tool, setTool] = useState("brush");
 	const [grid, setGrid] = useState(true);
 	const [snap, setSnap] = useState(false);
@@ -267,6 +267,8 @@ function ToolbarKit() {
 		<div className="kit__toolbar">
 			<SoftToolbar
 				label="画布"
+				material="tint"
+				tone={tone}
 				items={[
 					{
 						id: "brush",
@@ -374,7 +376,7 @@ function ComboboxKit() {
 }
 
 /** A selection list, and a multi-select one beside it. */
-function ListKit() {
+function ListKit({ tone }: { tone: IrisTone }) {
 	const [one, setOne] = useState<string[]>(["paper"]);
 	const [many, setMany] = useState<string[]>(["iris"]);
 	const items = [
@@ -385,12 +387,19 @@ function ListKit() {
 	];
 	return (
 		<div className="kit__list">
-			<SoftList label="基底（单选）" items={items} selected={one} onChange={setOne} />
+			<SoftList
+				label="基底（单选）"
+				material="tint"
+				tone={tone}
+				items={items}
+				selected={one}
+				onChange={setOne}
+			/>
 			<SoftList
 				label="色调（多选）"
 				size="sm"
 				items={[
-					{ id: "iris", label: "紫", trailing: <SoftTag tone="iris">主</SoftTag> },
+					{ id: "iris", label: "紫", trailing: <SoftTag tone={tone}>主</SoftTag> },
 					{ id: "blossom", label: "粉" },
 					{ id: "mist", label: "蓝" },
 				]}
@@ -406,12 +415,14 @@ function ListKit() {
 }
 
 /** The multi-line field, with the count and an error. */
-function TextareaKit() {
+function TextareaKit({ tone }: { tone: IrisTone }) {
 	const [note, setNote] = useState("颜料会往边缘走，\n会沉进纤维。");
 	return (
 		<div className="kit__textarea">
 			<SoftTextarea
 				label="说明"
+				material="tint"
+				tone={tone}
 				value={note}
 				onChange={(e) => setNote(e.target.value)}
 				hint="写多少都可以，它会自己长高。"
@@ -682,7 +693,7 @@ function DrawerKit() {
 }
 
 /** A table with a sorted column, so the capture shows the sort state too. */
-function TableKit() {
+function TableKit({ tone }: { tone: IrisTone }) {
 	const rows = [
 		{ id: "paper", name: "水彩纸", kind: "基底", count: 128 },
 		{ id: "glass", name: "液态玻璃", kind: "台面", count: 46 },
@@ -694,7 +705,7 @@ function TableKit() {
 			<SoftTable
 				caption="四种材质的用量"
 				material="wash"
-				tone="iris"
+				tone={tone}
 				rowKey={(r) => r.id}
 				defaultSort={{ key: "count", direction: "descending" }}
 				columns={[
@@ -715,7 +726,7 @@ function TableKit() {
 }
 
 /** Sections, one of them open so the capture shows both states. */
-function AccordionKit() {
+function AccordionKit({ tone }: { tone: IrisTone }) {
 	return (
 		<div className="kit__accordion">
 			<SoftAccordion
@@ -726,7 +737,7 @@ function AccordionKit() {
 						note: "边缘沉积与干湿两态",
 						defaultOpen: true,
 						material: "wash",
-						tone: "iris",
+						tone,
 						content: (
 							<p>
 								真实的颜料会往边缘走，会沉进纤维。干和湿两种状态下边界完全不同——渐变一个都做不到，这也是水彩和「模糊色块」的全部区别。
@@ -746,13 +757,13 @@ function AccordionKit() {
 }
 
 /** Portraits and labels. */
-function IdentityKit() {
+function IdentityKit({ tone }: { tone: IrisTone }) {
 	return (
 		<div className="kit__identity">
 			<div className="kit__identity-row">
 				<SoftAvatar name="陈奕帆" size={52} />
-				<SoftAvatar name="苏璃珞" size={52} tone="blossom" />
-				<SoftAvatar name="Iris" size={52} tone="mist" />
+				<SoftAvatar name="苏璃珞" size={52} tone={tone} />
+				<SoftAvatar name="Iris" size={52} tone={tone} />
 				<SoftAvatar name="未命名" size={52} ring />
 			</div>
 			<div className="kit__identity-row">
@@ -762,9 +773,9 @@ function IdentityKit() {
 			</div>
 			<div className="kit__identity-row kit__identity-tags">
 				<SoftTag>水彩</SoftTag>
-				<SoftTag tone="blossom">主色</SoftTag>
-				<SoftTag tone="mist">冷色</SoftTag>
-				<SoftTag variant="solid" tone="blossom">
+				<SoftTag tone={tone}>主色</SoftTag>
+				<SoftTag tone={tone}>冷色</SoftTag>
+				<SoftTag variant="solid" tone={tone}>
 					实心
 				</SoftTag>
 				<SoftTag variant="outline">描边</SoftTag>
@@ -775,7 +786,7 @@ function IdentityKit() {
 }
 
 /** A tooltip open, and the three tones of toast. */
-function OverlayKit() {
+function OverlayKit({ tone }: { tone: IrisTone }) {
 	const [toasts] = useState<SoftToastData[]>([
 		{ id: "a", title: "已经保存了", body: "这一笔留住了。", tone: "success", duration: 0 },
 		{ id: "b", title: "网络抖了一下", body: "正在重试。", tone: "warn", duration: 0 },
@@ -784,7 +795,7 @@ function OverlayKit() {
 	return (
 		<div className="kit__overlay">
 			<SoftTooltip content="这会丢掉未保存的改动">
-				<PinkPaperButton tone="blossom">悬停或 Tab 到这里</PinkPaperButton>
+				<PinkPaperButton tone={tone}>悬停或 Tab 到这里</PinkPaperButton>
 			</SoftTooltip>
 			<div className="ui-lib-soft-toaster kit__toaster">
 				{toasts.map((t) => (
@@ -1017,13 +1028,13 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 		case "chip-stepper":
 			return <ChipStepperKit />;
 		case "toolbar":
-			return <ToolbarKit />;
+			return <ToolbarKit tone={tone} />;
 		case "combobox":
 			return <ComboboxKit />;
 		case "list":
-			return <ListKit />;
+			return <ListKit tone={tone} />;
 		case "textarea":
-			return <TextareaKit />;
+			return <TextareaKit tone={tone} />;
 		case "menu":
 			return <MenuKit />;
 		case "navigation":
@@ -1039,13 +1050,13 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 		case "drawer":
 			return <DrawerKit />;
 		case "table":
-			return <TableKit />;
+			return <TableKit tone={tone} />;
 		case "accordion":
-			return <AccordionKit />;
+			return <AccordionKit tone={tone} />;
 		case "identity":
-			return <IdentityKit />;
+			return <IdentityKit tone={tone} />;
 		case "overlay":
-			return <OverlayKit />;
+			return <OverlayKit tone={tone} />;
 		case "loading":
 			return <LoadingKit />;
 		case "choice":

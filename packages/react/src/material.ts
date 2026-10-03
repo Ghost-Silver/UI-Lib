@@ -46,11 +46,25 @@ const TONE_HUE: Record<IrisTone, string> = {
 	mist: "#9ad9ff",
 };
 
-/** How strong each material is. `plain` has none. */
+/**
+ * How strong each material is. `plain` has none.
+ *
+ * These are the generator's `weight` — how far the deposit has run — and they
+ * are **higher than the same material would use for a mark**. A ground is a
+ * surface with content on top of it, so it has to be legible through its own
+ * content rather than looked at directly, and it is composited at a fraction of
+ * the mark's strength on top of that.
+ *
+ * The numbers are measured rather than chosen. At the mark's own strengths
+ * (`tint` 0.42, `wash` 0.85) the two grounds came out at 0.063 and 0.088 effective
+ * opacity against the paper — and the three palettes were **0.39 apart**, which
+ * the component gate reported as "tones are not distinguishable" on a list that
+ * was, in fact, tinted. The surfaces looked identical because they nearly were.
+ */
 const MATERIAL_WEIGHT: Record<SoftMaterial, number> = {
 	plain: 0,
-	tint: 0.42,
-	wash: 0.85,
+	tint: 0.62,
+	wash: 1,
 };
 
 /**
