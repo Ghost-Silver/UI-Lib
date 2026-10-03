@@ -118,6 +118,12 @@ jobs:
       - name: Pixel gate — canvas is drawing, glass is on its element
         run: pnpm check:pixels
 
+      - name: Component gate — prove the probe can fail
+        run: pnpm check:components:self-test
+
+      - name: Component gate — every component visible, every palette wired
+        run: pnpm check:components
+
       # A browser that wedges leaves no console output. The HTML report and
       # any retained traces are the only evidence, so always collect them.
       - name: Upload Playwright report

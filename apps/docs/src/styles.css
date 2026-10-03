@@ -2202,3 +2202,41 @@ input[type="range"]::-moz-range-thumb {
 	margin-bottom: 2px;
 	pointer-events: none;
 }
+
+/* ---- IRIS component kit: one component, in a fixed box ---- */
+
+.kit-stage {
+	background: #fffafd;
+}
+
+.kit {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: 100vh;
+	padding: 40px;
+}
+
+.kit__box {
+	display: grid;
+	place-items: center;
+	width: 260px;
+	height: 180px;
+}
+
+.kit__subject {
+	width: 200px;
+	padding: 18px;
+	font-size: 15px;
+	text-align: center;
+}
+
+.kit__subject p {
+	margin: 0;
+}
+
+.kit__bling {
+	position: relative;
+	width: 200px;
+	height: 140px;
+}

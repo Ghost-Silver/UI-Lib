@@ -1,3 +1,4 @@
+import { IRIS_TONES, type IrisTone } from "@ui-lib/core";
 import { PLAYGROUND_FIELD, PLAYGROUND_FIELD_CAMERA } from "@ui-lib/particles";
 import { GlassPanel, GlassStage, Magnetic, ParticleField, useGlassStage } from "@ui-lib/react";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
@@ -24,6 +25,7 @@ import { AuroraFlowPage } from "./AuroraFlow.js";
 import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
+import { IrisKitPage, isKitComponent } from "./IrisKit.js";
 import { IrisShowcasePage } from "./IrisShowcase.js";
 import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
@@ -610,6 +612,14 @@ export default function App() {
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
 		if (demo === "iris") return <IrisShowcasePage />;
+		if (demo === "iris-kit") {
+			const component = query.get("component") ?? "";
+			const tone = query.get("tone") ?? "iris";
+			if (isKitComponent(component) && (IRIS_TONES as readonly string[]).includes(tone)) {
+				return <IrisKitPage component={component} tone={tone as IrisTone} />;
+			}
+			return <IrisKitPage component="bubble-badge" tone="iris" />;
+		}
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;

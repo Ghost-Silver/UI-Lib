@@ -86,9 +86,16 @@ const CSS = `
 
 .ui-lib-soft-light-panel {
 	border-radius: 32px;
-	/* Faint by design, but not absent: the canvas glass alone leaves nothing
-	   to see where the ground behind it is already white. */
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(239, 234, 255, 0.42));
+	/* Faint by design, but not absent: the canvas glass alone leaves nothing to
+	   see where the ground behind it is already white.
+	   The iris fill was rgba(239, 234, 255, 0.42), which against a wash built
+	   from the same rung measured as **completely invisible** — the component
+	   baseline scored it 0.0000 ink. A panel has to be distinguishable from a
+	   ground of its own tone, so the fill is a step deeper than the wash and
+	   carries a hairline edge for the silhouette. */
+	border: 1px solid rgba(255, 255, 255, 0.85);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(214, 202, 250, 0.6));
+	box-shadow: 0 10px 26px -20px rgba(51, 34, 79, 0.5);
 }
 
 .ui-lib-watercolor-card {
@@ -118,6 +125,62 @@ const CSS = `
 		radial-gradient(58% 52% at 50% 46%, #b79cf5 0%, transparent 72%),
 		radial-gradient(48% 44% at 50% 52%, #ffc2dc 0%, transparent 74%),
 		linear-gradient(160deg, #efeaff 0%, #ffffff 100%);
+}
+
+/* Per-tone visible appearance.
+ *
+ * tone used to reach only the glass tint, which on a pale ground is not
+ * enough to tell the palettes apart: the component baseline measured 0.00
+ * between iris, blossom and mist on the watercolour card, and 0.01 on the
+ * glints. These belong here rather than in a page's stylesheet — a page's
+ * sheet lands earlier in the head than this injected one, so at equal
+ * specificity the base rule here would win and the tone would silently do
+ * nothing.
+ */
+
+/* --- per-tone visible appearance -------------------------------------------
+ *
+ * tone reached the glass tint and nothing else, so on a pale ground the three
+ * palettes were indistinguishable: the component baseline measured 0.00
+ * between iris, blossom and mist on the watercolour card, and 0.01 on the
+ * glints. The tint of a translucent pane is not a place to put a brand colour.
+ * These are the rules that make the prop mean something.
+ */
+
+.ui-lib-watercolor-card--blossom::before {
+	background:
+		radial-gradient(60% 55% at 18% 12%, #fff0f7 0%, transparent 70%),
+		radial-gradient(50% 45% at 84% 22%, #ffe4ef 0%, transparent 72%),
+		radial-gradient(70% 60% at 72% 88%, #fff7fb 0%, transparent 74%),
+		radial-gradient(40% 40% at 32% 74%, #ffb3d1 0%, transparent 76%),
+		linear-gradient(160deg, #fff0f7 0%, #ffffff 100%);
+}
+
+.ui-lib-watercolor-card--mist::before {
+	background:
+		radial-gradient(60% 55% at 18% 12%, #eef5fd 0%, transparent 70%),
+		radial-gradient(50% 45% at 84% 22%, #e3eefb 0%, transparent 72%),
+		radial-gradient(70% 60% at 72% 88%, #f6faff 0%, transparent 74%),
+		radial-gradient(40% 40% at 32% 74%, #a8c6e8 0%, transparent 76%),
+		linear-gradient(160deg, #eef5fd 0%, #ffffff 100%);
+}
+
+.ui-lib-soft-light-panel--blossom {
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 206, 228, 0.62));
+}
+
+.ui-lib-soft-light-panel--mist {
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(190, 216, 244, 0.66));
+}
+
+.ui-lib-bling--blossom .ui-lib-bling__gem {
+	background: radial-gradient(circle at 34% 30%, #ffffff 0%, #ffc2dc 46%, #c02b6e 100%);
+	box-shadow: 0 0 10px 1px rgba(255, 127, 178, 0.5);
+}
+
+.ui-lib-bling--mist .ui-lib-bling__gem {
+	background: radial-gradient(circle at 34% 30%, #ffffff 0%, #c3d8f0 46%, #4a6da8 100%);
+	box-shadow: 0 0 10px 1px rgba(143, 176, 221, 0.5);
 }
 
 .ui-lib-paper-button {
