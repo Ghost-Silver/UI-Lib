@@ -38,6 +38,7 @@ import {
 	SoftTable,
 	SoftTabs,
 	SoftTag,
+	SoftTextarea,
 	SoftToast,
 	SoftTooltip,
 	WatercolorCard,
@@ -85,6 +86,7 @@ const COMPONENTS = [
 	"status",
 	"navigation",
 	"menu",
+	"textarea",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -186,6 +188,30 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** The multi-line field, with the count and an error. */
+function TextareaKit() {
+	const [note, setNote] = useState("颜料会往边缘走，\n会沉进纤维。");
+	return (
+		<div className="kit__textarea">
+			<SoftTextarea
+				label="说明"
+				value={note}
+				onChange={(e) => setNote(e.target.value)}
+				hint="写多少都可以，它会自己长高。"
+				maxLength={200}
+				showCount
+			/>
+			<SoftTextarea
+				label="太长了"
+				defaultValue={"太长了".repeat(60)}
+				error="已经超出限制。"
+				rows={2}
+			/>
+			<SoftTextarea label="不可用" defaultValue="已锁定" disabled rows={2} />
+		</div>
 	);
 }
 
@@ -768,6 +794,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "textarea":
+			return <TextareaKit />;
 		case "menu":
 			return <MenuKit />;
 		case "navigation":

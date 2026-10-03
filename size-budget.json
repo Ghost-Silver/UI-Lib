@@ -28,8 +28,8 @@
 			"maxDtsBytes": 26500
 		},
 		"react": {
-			"maxJsBytes": 264000,
-			"maxDtsBytes": 97000
+			"maxJsBytes": 268000,
+			"maxDtsBytes": 102000
 		}
 	}
 }

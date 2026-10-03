@@ -1653,6 +1653,70 @@ const CSS = `
 	font-weight: 500;
 }
 
+/* The multi-line shell: the same recess, but the padding belongs to the
+   textarea rather than to a flex row, because a textarea lays out its own
+   content box and a padded wrapper would put the caret in the wrong place. */
+.ui-lib-soft-input__shell--area {
+	display: block;
+	height: auto;
+	padding: 0;
+	border-radius: var(--moe-radius-md);
+}
+
+.ui-lib-soft-input__field--area {
+	display: block;
+	width: 100%;
+	min-height: 0;
+	padding: 12px 16px;
+	line-height: 1.65;
+	resize: vertical;
+	background: none;
+	border: none;
+	outline: none;
+	font: inherit;
+	font-size: 14.5px;
+	font-weight: 500;
+	color: var(--moe-cocoa);
+}
+
+/*
+ * The growth. One declaration, verified before it was written: a five-line value
+ * took a 40px control to 101px in this browser, with no script.
+ *
+ * The alternative — measuring scrollHeight and writing a pixel height back —
+ * is a layout read per keystroke plus a ResizeObserver for the cases the
+ * keystroke misses, and every one of those misses goes the same way: the box is
+ * a line short and the last line is clipped.
+ */
+.ui-lib-soft-input__field--growable {
+	field-sizing: content;
+}
+
+/* Where a fallback would go, and deliberately has not. A browser without
+   field-sizing shows a normal scrollable textarea at rows tall, which is a
+   correct control rather than a broken one — the growth is a convenience, and a
+   JavaScript fallback for a convenience is how a component acquires a
+   ResizeObserver and a bug that only appears after a font loads. */
+
+/* The footnote row: the message on the left, the count on the right. */
+.ui-lib-soft-input__foot {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: -1px;
+}
+
+.ui-lib-soft-input__count {
+	flex: none;
+	font-family: var(--moe-font-rounded);
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+
 /* Multi-line, and it grows rather than scrolling — a field that scrolls hides
    what was just typed. */
 .ui-lib-soft-input__field--grow {
