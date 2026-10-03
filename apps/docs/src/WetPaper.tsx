@@ -1,7 +1,7 @@
 import { IRIS } from "@ui-lib/core";
 import { GlassPanel, GlassStage, LiquidGlass } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Wet paper — material study.
@@ -57,6 +57,11 @@ const WASHES: Wash[] = [
 ];
 
 export function WetPaperPage() {
+	// Bumping this remounts the specimen, which is how a CSS animation is
+	// replayed: the element has to be new, or the browser keeps the finished
+	// state and nothing happens on the second click.
+	const [lay, setLay] = useState(0);
+
 	useEffect(() => {
 		document.title = "水彩纸 · Iris";
 	}, []);
@@ -106,7 +111,7 @@ export function WetPaperPage() {
 						{WASHES.map((wash) => (
 							<figure key={wash.name} className="paper__specimen">
 								<span
-									className={wash.dry ? "wash wash--dry" : "wash wash--wet"}
+									className={`${wash.dry ? "wash wash--dry" : "wash wash--wet"}${wash.dry ? "" : " wash--living"}`}
 									style={{
 										width: wash.size,
 										height: wash.size,
@@ -120,6 +125,40 @@ export function WetPaperPage() {
 								<figcaption>{wash.name}</figcaption>
 							</figure>
 						))}
+					</div>
+				</section>
+
+				<section className="paper__row">
+					<h2 className="paper__label">颜料会在水里走</h2>
+					<div className="paper__pair">
+						<figure className="paper__specimen">
+							<span
+								key={lay}
+								className="wash wash--wet wash--spreading"
+								style={{
+									width: 190,
+									height: 190,
+									["--wash" as string]: IRIS.iris[500],
+									["--weight" as string]: "0.85",
+									["--lobes" as string]: "3",
+								}}
+							>
+								<span className="wash__deposit" />
+							</span>
+							<figcaption>
+								<button
+									type="button"
+									className="paper__relay"
+									onClick={() => setLay((n) => n + 1)}
+								>
+									再画一笔
+								</button>
+							</figcaption>
+						</figure>
+						<p className="paper__note">
+							湿的时候水还在搬颜料：从落笔处往外走，沿着纤维走，走到边界停住。
+							<strong>边缘那圈深色不是画上去的，是水流到最后留下的。</strong>
+						</p>
 					</div>
 				</section>
 
