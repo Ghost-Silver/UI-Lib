@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useId, useMemo, useRef, useState } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 
 export interface SoftListItem {
 	id: string;
@@ -28,6 +30,9 @@ export interface SoftListProps {
 	empty?: React.ReactNode;
 	/** `sm` is denser, for a panel. `md` is the default. */
 	size?: "sm" | "md";
+	/** What the list is made of. */
+	material?: SoftMaterial;
+	tone?: IrisTone;
 	className?: string;
 }
 
@@ -88,10 +93,13 @@ export const SoftList = forwardRef<HTMLDivElement, SoftListProps>(function SoftL
 		ariaLabelledBy,
 		empty,
 		size = "md",
+		material,
+		tone,
 		className,
 	},
 	ref,
 ) {
+	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const generated = useId();
 	const listId = `${generated}-list`;
 	const optionId = useCallback((id: string) => `${generated}-opt-${id}`, [generated]);
@@ -204,7 +212,14 @@ export const SoftList = forwardRef<HTMLDivElement, SoftListProps>(function SoftL
 			// One tab stop for the whole control, and the highlight follows.
 			tabIndex={0}
 			aria-activedescendant={active >= 0 ? optionId(items[active]?.id ?? "") : undefined}
-			className={className ? `ui-lib-soft-list ${className}` : "ui-lib-soft-list"}
+			className={
+				surface.className
+					? `ui-lib-soft-list ${surface.className} ${className ?? ""}`.trim()
+					: className
+						? `ui-lib-soft-list ${className}`
+						: "ui-lib-soft-list"
+			}
+			style={surface.className ? (surface.style as React.CSSProperties) : undefined}
 			data-ui-lib-size={size}
 			onKeyDown={onKeyDown}
 			/*

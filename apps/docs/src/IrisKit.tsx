@@ -691,6 +691,8 @@ function TableKit() {
 		<div className="kit__table">
 			<SoftTable
 				caption="四种材质的用量"
+				material="wash"
+				tone="iris"
 				rowKey={(r) => r.id}
 				defaultSort={{ key: "count", direction: "descending" }}
 				columns={[

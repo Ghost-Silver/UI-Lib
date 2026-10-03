@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useRef } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 
 export interface SoftToolbarItem {
 	id: string;
@@ -22,6 +24,9 @@ export interface SoftToolbarProps {
 	orientation?: "horizontal" | "vertical";
 	/** `sm` is 30px tall, `md` is 36. */
 	size?: "sm" | "md";
+	/** What the toolbar is made of. */
+	material?: SoftMaterial;
+	tone?: IrisTone;
 	className?: string;
 }
 
@@ -58,9 +63,10 @@ export interface SoftToolbarProps {
  * ```
  */
 export const SoftToolbar = forwardRef<HTMLDivElement, SoftToolbarProps>(function SoftToolbar(
-	{ items, label, orientation = "horizontal", size = "md", className },
+	{ items, label, orientation = "horizontal", size = "md", material, tone, className },
 	ref,
 ) {
+	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const buttons = useRef<(HTMLButtonElement | null)[]>([]);
 
 	/** Enabled positions, in order, for the arrow keys to walk. */
@@ -128,7 +134,14 @@ export const SoftToolbar = forwardRef<HTMLDivElement, SoftToolbarProps>(function
 			role="toolbar"
 			aria-label={label}
 			aria-orientation={orientation}
-			className={className ? `ui-lib-soft-toolbar ${className}` : "ui-lib-soft-toolbar"}
+			className={
+				surface.className
+					? `ui-lib-soft-toolbar ${surface.className} ${className ?? ""}`.trim()
+					: className
+						? `ui-lib-soft-toolbar ${className}`
+						: "ui-lib-soft-toolbar"
+			}
+			style={surface.className ? surface.style : undefined}
 			data-ui-lib-orientation={orientation}
 			data-ui-lib-size={size}
 			onKeyDown={onKeyDown}

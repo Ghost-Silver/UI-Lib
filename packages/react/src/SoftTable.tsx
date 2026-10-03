@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { useId, useMemo, useState } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 
 export interface SoftTableColumn<T> {
 	/** Stable identity, used for the sort key and the header ids. */
@@ -40,6 +42,14 @@ export interface SoftTableProps<T> {
 	) => void;
 	/** Shown in place of the body when there are no rows. */
 	empty?: React.ReactNode;
+	/**
+	 * What the table is made of. A table that is a *thing* — a summary, a report —
+	 * can carry pigment; the default is paper, which is right for one of many
+	 * tables on a page.
+	 */
+	material?: SoftMaterial;
+	/** Which family the pigment comes from. */
+	tone?: IrisTone;
 	className?: string;
 }
 
@@ -91,8 +101,13 @@ export function SoftTable<T>({
 	defaultSort,
 	onSortChange,
 	empty,
+	material,
+	tone,
 	className,
 }: SoftTableProps<T>) {
+	// Called unconditionally, and only asked for a surface when one was requested —
+	// a hook cannot be skipped, but it can be told there is nothing to make.
+	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const generated = useId();
 	const [sort, setSort] = useState<Sort>(defaultSort);
 
@@ -120,7 +135,16 @@ export function SoftTable<T>({
 	};
 
 	return (
-		<div className={className ? `ui-lib-soft-table ${className}` : "ui-lib-soft-table"}>
+		<div
+			className={
+				surface.className
+					? `ui-lib-soft-table ${surface.className} ${className ?? ""}`.trim()
+					: className
+						? `ui-lib-soft-table ${className}`
+						: "ui-lib-soft-table"
+			}
+			style={surface.className ? surface.style : undefined}
+		>
 			<table className="ui-lib-soft-table__table">
 				{/*
 				 * `<caption>` rather than `aria-label`, unless the caller asks for

@@ -3543,58 +3543,103 @@ const CSS = `
  * and a surface is not a stroke.
  */
 
+/*
+ * A surface made of pigment — and the layering is the interesting part.
+ *
+ * The first version drew the pigment on a ::before with z-index: -1, which
+ * works on a card and fails on everything else. A negative index puts the
+ * pseudo-element behind its parent's background, and most of this library's
+ * containers set background: var(--moe-card) — measured, the pigment was
+ * invisible on every one of them. z-index: 0 works only if the content is
+ * raised, which would mean editing the children of every component that wants a
+ * material.
+ *
+ * So the pigment goes where a background belongs: in background-image. It
+ * composes with background-color instead of competing with it, it cannot be
+ * behind anything, and nothing inside the component has to know. Verified: both
+ * properties coexist and the text stays on top.
+ *
+ * The grain is the second layer of the same declaration, at its own size and
+ * offset, which is exactly what the generated values are shaped for — the
+ * generator emits two noise passes at sizes that cannot share a period, and a
+ * multi-layer background is how they stay independent.
+ */
 .ui-lib-material--ground {
 	position: relative;
 	isolation: isolate;
-	/*
-	 * Paper, before pigment.
-	 *
-	 * A material surface is a sheet with pigment on it, and the first version
-	 * forgot the sheet: measured, the card's own background was fully
-	 * transparent, so the pigment was painted over whatever happened to be
-	 * behind the card. That is why the material looked like a stain floating in
-	 * the layout rather than like a card that is made of something — and it is
-	 * also why the text lost contrast, because the ground its contrast was
-	 * measured against was not there.
-	 *
-	 * The card colour is opaque, so the pigment sits on a known ground and any
-	 * contrast calculation has something to refer to.
-	 */
+	/* Paper, before pigment. A material surface is a sheet with pigment on it, and
+	   the pigment is painted over whatever is behind the card without this. */
 	background-color: var(--moe-card);
+	background-image: var(--wash-body, none), var(--wash-grain, none);
+	/*
+	 * ## Known: the grain still tiles visibly on a wide surface
+	 *
+	 * On a 460px table there is a faint vertical seam where the 240px tile
+	 * repeats, and a darker patch at the corners. It is not the blend mode — that
+	 * was removed and the seam remained. It is that a 240px noise tile repeated
+	 * across 460px has a visible period at exactly the width where the eye is
+	 * looking for one, and the coarse pass is what shows.
+	 *
+	 * Three things were tried and none removed it: multiply on the grain (made
+	 * the seam worse and darkened the corners), inheriting the generator's own
+	 * 483px tile (turned the whole surface into clouds), and a 240px tile (what is
+	 * here now — better, not gone).
+	 *
+	 * **What has not been tried** is generating the grain at the surface's own
+	 * size rather than tiling a specimen tile, which is what the answer probably
+	 * is: a feTurbulence at a frequency chosen for 460px rather than one
+	 * stretched from 190px. That is a change to createWash rather than to this
+	 * rule, so it is left here with the measurements rather than guessed at.
+	 *
+	 * The grain is scaled **down** for a surface, and the reason is measured.
+	 *
+	 * The generator sizes its tiles for a 190px specimen, and one of its two
+	 * passes is coarse — a base frequency of 0.028, which is a blob every 35px.
+	 * At specimen size that reads as unevenness. Tiled across a 460px table it
+	 * reads as mould: the first version inherited --wash-grain-size here and the
+	 * result was visible cloud-shaped patches over the whole table, which is the
+	 * coarse pass at its own scale rather than a paper texture.
+	 *
+	 * Halving the tile doubles the apparent frequency, so the coarse pass becomes
+	 * the fine unevenness it was meant to be and the fine pass stays fine. The
+	 * generated --wash-grain-offset is kept, because that is what stops two
+	 * surfaces on one page from sitting on the same patch of paper.
+	 */
+	background-size: 100% 100%, 240px 256px;
+	background-position: 0 0, var(--wash-grain-offset, 0 0);
+	background-repeat: no-repeat, repeat;
+	/*
+	 * The strengths, set by contrast rather than by eye.
+	 *
+	 * At 0.62 the layering was correct and the text still lost its contrast,
+	 * because a wash dark enough to see is dark enough to close the gap between
+	 * the text and the paper. These are the same numbers the pseudo-element
+	 * version settled on, kept because the reasoning did not change.
+	 */
+	/*
+	 * No background-blend-mode here, and that is a decision rather than an
+	 * omission.
+	 *
+	 * multiply on the grain made it a tooth on the fixture and made it wrong on
+	 * a real container: a component may already carry its own background-image
+	 * layers, and the blend list applies positionally across all of them. Measured
+	 * on the table, the computed value was normal, multiply, normal over three
+	 * size layers — this rule's two plus the component's one — so the blend landed
+	 * on the wrong layer and produced a dark band down the left edge and dark
+	 * corners.
+	 *
+	 * The grain's own alpha already says how strong it is. A blend mode is a
+	 * second opinion about the same number, and it is an opinion that cannot be
+	 * given safely from a class that does not know how many layers it is joining.
+	 */
 }
 
-/* The pigment, as a fill rather than as a shape. The generated body is already
-   a radial gradient, so it can be used directly — but at full strength it is
-   the colour of a *mark*, which is far too much for a surface that has content
-   on top of it. The ground dials it back by re-declaring the opacity rather
-   than by mixing a lighter colour, so the hue stays the pigment's. */
-.ui-lib-material--ground::before {
-	content: "";
-	position: absolute;
-	inset: 0;
-	z-index: -1;
-	border-radius: inherit;
-	/*
-	 * The pigment is stretched, not placed.
-	 *
-	 * --wash-body is a radial gradient sized for a square specimen — an
-	 * ellipse with a soft edge, which is what a stroke looks like. Used as a
-	 * fill it shows its own edge: the first version of this painted a large
-	 * faint circle in the middle of every card and left the corners bare, which
-	 * reads as a stain rather than as a ground.
-	 *
-	 * background-size: 100% 100% scales that ellipse to the box, so a wide
-	 * card gets a wide wash and a tall one gets a tall one. The generator's
-	 * shape is preserved and its proportions are not, which is the right trade
-	 * for a surface: a stroke has its own aspect ratio, a surface is whatever it
-	 * is laid on.
-	 */
-	background-image: var(--wash-body, none);
-	background-size: 100% 100%;
-	background-repeat: no-repeat;
-	opacity: calc(var(--wash-opacity, 0.17) * 0.38);
-	pointer-events: none;
-}
+/*
+ * And the content has to be above nothing — which is the point of doing it this
+ * way. The pigment is a background, the text is content, and content is above
+ * backgrounds by definition. The pseudo-element version needed this rule; this
+ * one does not, and the rule is not here to be tidy about it.
+ */
 
 /*
  * The deposit ring, as a rim light.
