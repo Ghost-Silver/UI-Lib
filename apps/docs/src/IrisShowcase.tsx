@@ -7,6 +7,7 @@ import {
 	GlassStage,
 	PinkPaperButton,
 	Reveal,
+	SoftCard,
 	SoftLightPanel,
 	WatercolorCard,
 } from "@ui-lib/react";
@@ -60,7 +61,6 @@ export function IrisShowcasePage() {
 			}
 		: undefined;
 
-	const crystalSlot = useRef<HTMLDivElement>(null);
 	const crystalBand = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -122,11 +122,11 @@ export function IrisShowcasePage() {
 						</SoftLightPanel>
 
 						<WatercolorCard tone="blossom" className="iris__card">
-							{/* Behind the card's glass: the wash bends and veils it, so it
-							    reads as ink under watercolour. The crisp instance is
-							    further down the page, where no glass is in front of it. */}
-							<CrystalText text="水彩" anchor={crystalSlot} size={1.5} color="#1c0730" />
-							<div ref={crystalSlot} className="iris__crystal-slot" aria-hidden="true" />
+							{/* Behind the card's glass: slow motes, so the pane has something
+							    to bend. Type here was the first attempt and it read as a
+							    stain — a wash with nothing moving in it gives refraction
+							    nothing to say, and the glass only made the glyphs muddy.
+							    The crisp type lives further down, with no pane in front. */}
 							<p className="iris__kicker">水彩卡片</p>
 							<h3>颜料是自己摊开的。</h3>
 							<p>底色是分层的水彩晕染，上面盖的是真玻璃，会折它背后的东西。</p>
@@ -140,9 +140,14 @@ export function IrisShowcasePage() {
 					{/* No glass in front of this one, so it resolves the way the distance
 					    field actually is: solid and sharp. The two instances together
 					    are the honest picture — one bent by a pane, one not. */}
+					{/* Open ground, no pane in front of it. The motes behind the card
+				    are bent by its glass, which is the point of putting them
+				    there, but a pane that hides them entirely teaches nothing.
+				    This one is the same palette with nothing in the way. */}
+
 					<section className="iris__crystal-band">
 						<CrystalText
-							text="紫鸢尾"
+							text="Iris UI"
 							anchor={crystalBand}
 							size={2.6}
 							color="#3b1d6e"
@@ -150,6 +155,30 @@ export function IrisShowcasePage() {
 							rotation={[0, 0, -0.02]}
 						/>
 						<div ref={crystalBand} className="iris__crystal-band-slot" aria-hidden="true" />
+					</section>
+
+					<section className="iris__cards">
+						<SoftCard interactive glossy className="iris__card">
+							<h3>点一下试试</h3>
+							<p>
+								悬停时它浮起 4px 并倾斜 1.5°，按下时收紧到 98.5%。全部由弹簧曲线驱动，
+								没有动画库——一次过冲用贝塞尔就能表达，只有按压那两下起伏需要关键帧。
+							</p>
+						</SoftCard>
+						<SoftCard interactive className="iris__card">
+							<h3>同心圆角</h3>
+							<p>
+								内层圆角等于外层减去内边距。两个只是"看起来圆"的圆角并不是同心：
+								取值相同时，拐角处缝隙会收窄、边上会鼓出来，读起来像一个瘤。
+							</p>
+						</SoftCard>
+						<SoftCard interactive className="iris__card">
+							<h3>粘土三层阴影</h3>
+							<p>
+								环境落影说明物体被托起，顶部内高光说明光从上面来并发生了漫反射，
+								底部内暗影说明下沿在向内收。少任何一层，它就变成一张贴纸。
+							</p>
+						</SoftCard>
 					</section>
 
 					<ul className="iris__tones">

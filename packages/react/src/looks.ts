@@ -1,4 +1,4 @@
-import { IRIS_GLASS_LOOKS } from "@ui-lib/core";
+import { IRIS, IRIS_GLASS_LOOKS } from "@ui-lib/core";
 import { type ParticleSystemOptions, WAKE_FIELD } from "@ui-lib/particles";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
 
@@ -130,13 +130,97 @@ export function resolveLensLook(
 	return { ...LENS_LOOKS[look], ...definedPatch(patch) };
 }
 
-export type FieldLookName = "mote" | "spark" | "quiet" | "cursor" | "aurora" | "wake";
-
 /**
  * Particle clouds that belong with a lens. Counts stay high enough to read as
  * a field; intensity is what the grade is allowed to turn down.
  */
+/**
+ * Particle clouds in the IRIS palette.
+ *
+ * They live here rather than in `core` beside `IRIS_GLASS_LOOKS` because a
+ * field look has to be checked against `ParticleSystemOptions` with contextual
+ * typing, and that type belongs to `@ui-lib/particles`. `core` has no
+ * dependencies at all by design, and a spread loses the context that keeps a
+ * tuple a tuple — `life: [9, 18]` widens to `number[]` and stops matching.
+ *
+ * These exist because the world layer is most convincing where a pane is in
+ * front of it, and a glass card has nothing to bend over a flat wash. A slow
+ * halo gives the refraction something to move.
+ */
+export type IrisFieldLookName = "halo" | "petal";
+
+const IRIS_FIELD_LOOKS = {
+	/** Slow motes for a pane to bend. Sparse on purpose: anything fast enough
+	    to notice is fast enough to fight the text on the same panel. */
+	halo: {
+		// 260 was the first count and it was invisible: a quarter of the motes
+		// landed outside the card and the rest were too small to read as
+		// anything but sensor noise. Count, size and radius all went up
+		// together — one of the three alone changes nothing.
+		count: 900,
+		emitter: { shape: "sphere", radius: 1.05, speed: 0.05, spread: 0.95 },
+		// `attractor` near zero on purpose. With `anchor`, the attractor and the
+		// emitter are the same point, so a strong pull collects the entire cloud
+		// onto it — nine hundred motes rendered as one dot. The swirl is what
+		// makes a cloud; the attractor only decides where it sits.
+		forces: {
+			turbulence: 0.42,
+			vortex: 0.5,
+			drag: 0.16,
+			attractor: 0.06,
+			attractorRadius: 1.6,
+		},
+		// Deep rungs, not the pale ones. The first pass used `blossom[300]` and
+		// `iris[500]` on a pale pink card, which is a pastel on a pastel: the
+		// motes were there and could not be seen. Contrast on a light ground
+		// comes from the colour being deeper, not from adding glow — additive
+		// blending on white only makes more white.
+		colors: [IRIS.iris[700], IRIS.blossom[500], IRIS.mist[700]] as [string, string, string],
+		size: [0.03, 0.1] as [number, number],
+		intensity: 1.3,
+		opacity: 0.82,
+		life: [9, 18] as [number, number],
+	},
+	/** The same field with more life in it, for open ground. */
+	petal: {
+		// A wide, slow emitter spreads a few hundred motes so thin that the
+		// field reads as sensor noise. Concentration is what makes a cloud:
+		// a smaller sphere, more of them, and each one large enough to see.
+		count: 1_600,
+		emitter: { shape: "sphere", radius: 0.55, speed: 0.06, spread: 0.8 },
+		forces: {
+			turbulence: 0.5,
+			vortex: 0.46,
+			drag: 0.14,
+			attractor: 0.05,
+			attractorRadius: 1.8,
+		},
+		colors: [IRIS.blossom[500], IRIS.iris[700], IRIS.mist[700]] as [string, string, string],
+		size: [0.03, 0.085] as [number, number],
+		intensity: 1.5,
+		opacity: 0.9,
+		life: [8, 16] as [number, number],
+	},
+} satisfies Record<string, ParticleSystemOptions>;
+
+export type FieldLookName =
+	| "mote"
+	| "spark"
+	| "quiet"
+	| "cursor"
+	| "aurora"
+	| "wake"
+	| IrisFieldLookName;
+
+/**
+ * Fields are checked against `ParticleSystemOptions` directly rather than
+ * through `as const`, unlike the glass and lens registries. `as const` makes
+ * every array a readonly tuple, and `colors` is a tuple the shader depends on
+ * being exactly three, so the readonly form stops satisfying the type and the
+ * whole registry fails to compile.
+ */
 export const FIELD_LOOKS: Record<FieldLookName, ParticleSystemOptions> = {
+	...IRIS_FIELD_LOOKS,
 	mote: {
 		count: 1_400,
 		emitter: { shape: "sphere", radius: 0.7, speed: 0.1, spread: 0.85 },

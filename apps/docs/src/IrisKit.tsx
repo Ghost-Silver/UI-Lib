@@ -128,7 +128,21 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 		case "bubble-badge":
 			return <BubbleBadge tone={tone}>徽标</BubbleBadge>;
 		case "paper-button":
-			return <PinkPaperButton tone={tone}>开始</PinkPaperButton>;
+			// All three variants and all three sizes, because the differences
+			// between them are the whole point and a single button shows none.
+			return (
+				<div className="kit__row">
+					<PinkPaperButton tone={tone} variant="clay" size="lg">
+						粘土
+					</PinkPaperButton>
+					<PinkPaperButton tone={tone} variant="gummy" size="md">
+						软糖
+					</PinkPaperButton>
+					<PinkPaperButton tone={tone} variant="flat" size="sm">
+						扁平
+					</PinkPaperButton>
+				</div>
+			);
 		case "soft-light-panel":
 			return (
 				<SoftLightPanel tone={tone} className="kit__subject kit__subject--pane">
