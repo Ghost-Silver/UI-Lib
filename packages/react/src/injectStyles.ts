@@ -721,6 +721,96 @@ const CSS = `
 	pointer-events: none;
 }
 
+
+/* --- soft switch ---------------------------------------------------------
+ *
+ * Track 56 x 32, knob 26. The track is a sunken groove — an inset shadow, not
+ * a drop shadow — because the knob sits *in* it, and a raised groove with a
+ * bead on top reads as two unrelated objects.
+ *
+ * The knob is the only element with a clay treatment: raised, with its own top
+ * highlight, so it looks like something you can push with a thumb.
+ */
+
+.ui-lib-soft-switch {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	width: 56px;
+	height: 32px;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.91 0.006 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.16),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.7);
+	cursor: pointer;
+	touch-action: none;
+	transition: background var(--moe-dur-base) var(--moe-ease-gentle);
+	-webkit-tap-highlight-color: transparent;
+}
+
+.ui-lib-soft-switch[data-ui-lib-on] {
+	background: var(--moe-mint-500);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(60 156 116 / 0.28),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.7);
+}
+
+.ui-lib-soft-switch:focus-visible {
+	outline: 3px solid var(--moe-taro-500);
+	outline-offset: 3px;
+}
+
+.ui-lib-soft-switch[data-ui-lib-soft-disabled],
+.ui-lib-soft-switch:disabled {
+	cursor: not-allowed;
+	filter: saturate(0.3);
+	opacity: 0.6;
+}
+
+.ui-lib-soft-switch__knob {
+	position: absolute;
+	left: 3px;
+	top: 3px;
+	display: grid;
+	place-items: center;
+	height: 24px;
+	border-radius: var(--moe-radius-full);
+	background: var(--moe-card);
+	box-shadow:
+		0 2px 5px -1px rgb(77 60 56 / 0.22),
+		inset 0 2px 3px 0 rgb(255 255 255 / 0.95),
+		inset 0 -2px 3px 0 rgb(77 60 56 / 0.08);
+	will-change: transform;
+}
+
+.ui-lib-soft-switch__face {
+	font-family: var(--moe-font-rounded);
+	font-size: 9px;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: 0.04em;
+	color: var(--moe-cocoa-soft);
+	user-select: none;
+}
+
+/* The open face was mint-700, which on a white knob measured about 2:1 — the
+   eyes were there and could not be read. A face is a glyph, so it needs glyph
+   contrast, not decorative contrast. */
+.ui-lib-soft-switch[data-ui-lib-on] .ui-lib-soft-switch__face {
+	color: oklch(0.44 0.11 165);
+}
+
+/* The stretch is the whole point, so it is the one thing reduced motion keeps
+   down to a no-op rather than merely shortening. */
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-switch__knob {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

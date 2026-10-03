@@ -38,12 +38,21 @@ import { fileURLToPath } from "node:url";
 import { inflateSync } from "node:zlib";
 import { chromium } from "@playwright/test";
 
+/**
+ * Components, and whether a palette actually reaches them.
+ *
+ * `tone` is not universal: a switch has two states and no palette, so comparing
+ * its three tones measures nothing and always fails. Declaring that here rather
+ * than commenting it in the list keeps the visibility assertion — which every
+ * component does owe — while skipping only the claim that does not apply.
+ */
 const COMPONENTS = [
-	"bubble-badge",
-	"paper-button",
-	"soft-light-panel",
-	"watercolor-card",
-	"bling",
+	{ name: "bubble-badge", toned: true },
+	{ name: "paper-button", toned: true },
+	{ name: "soft-light-panel", toned: true },
+	{ name: "watercolor-card", toned: true },
+	{ name: "bling", toned: true },
+	{ name: "switch", toned: false },
 ];
 const TONES = ["iris", "blossom", "mist"];
 
@@ -321,8 +330,8 @@ async function main() {
 		return results;
 	}
 
-	async function checkComponent(component) {
-		const row = { component, ok: true, notes: [], ink: {}, effectDelta: {} };
+	async function checkComponent({ name: component, toned }) {
+		const row = { component, toned, ok: true, notes: [], ink: {}, effectDelta: {} };
 		for (const tone of TONES) {
 			const shots = {};
 			for (const route of ["gpu", "fallback"]) {
@@ -394,7 +403,7 @@ async function main() {
 				differenceOverSubject(row.shots[a], row.shots[b]),
 			);
 		}
-		if (row.minToneDelta < 4) {
+		if (toned && row.minToneDelta < 4) {
 			row.ok = false;
 			row.notes.push(
 				`tones are not distinguishable (weakest pair ${row.minToneDelta.toFixed(2)})`,

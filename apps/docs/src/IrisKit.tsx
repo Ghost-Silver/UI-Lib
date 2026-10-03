@@ -5,10 +5,11 @@ import {
 	GlassStage,
 	PinkPaperButton,
 	SoftLightPanel,
+	SoftSwitch,
 	WatercolorCard,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * One component at a time, in a known box.
@@ -31,6 +32,7 @@ const COMPONENTS = [
 	"soft-light-panel",
 	"watercolor-card",
 	"bling",
+	"switch",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -123,6 +125,31 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 	);
 }
 
+/** Every state the switch has, so one capture shows all of them. */
+function SwitchKit() {
+	const [a, setA] = useState(true);
+	const [b, setB] = useState(false);
+	return (
+		// `label` does not associate with a `<button role="switch">` — only with a
+		// form control — so the visible text is tied to the control by
+		// `aria-label` instead of by wrapping. Biome caught the wrapped version.
+		<div className="kit__switches">
+			<span className="kit__switch">
+				<SoftSwitch checked={a} onChange={setA} label="开启" />
+				<span>开启</span>
+			</span>
+			<span className="kit__switch">
+				<SoftSwitch checked={b} onChange={setB} label="关闭" />
+				<span>关闭</span>
+			</span>
+			<span className="kit__switch">
+				<SoftSwitch checked softDisabled label="禁用" />
+				<span>禁用</span>
+			</span>
+		</div>
+	);
+}
+
 function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTone }) {
 	switch (component) {
 		case "bubble-badge":
@@ -157,6 +184,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 					<p>颜料是自己摊开的，上面盖着真玻璃。</p>
 				</WatercolorCard>
 			);
+		case "switch":
+			return <SwitchKit />;
 		case "bling":
 			return (
 				<div className="kit__subject kit__bling">
