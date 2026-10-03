@@ -118,6 +118,46 @@ export function inspect(source) {
 	return problems;
 }
 
+/**
+ * Duplicate names inside one import statement.
+ *
+ * `import { SoftTable, SoftTable } from "./x.js"` is a syntax error that `tsc`
+ * reports as "Duplicate identifier" — which is a real error message and costs
+ * only a minute, so this is not a safety net for something dangerous.
+ *
+ * It is here because it has happened twice, both times from a scripted edit that
+ * matched more text than intended, and both times the path from "the edit
+ * looked right" to "the build said duplicate identifier" ran through several
+ * steps. The point is to move the report to the moment of the edit, not to
+ * catch something the compiler would miss.
+ *
+ * Only within a single statement: two modules importing the same name is legal
+ * and common, and flagging that would make the check something to work around.
+ */
+export function duplicateImports(source) {
+	/** @type {string[]} */
+	const problems = [];
+	const pattern = /import\s*\{([^}]*)\}\s*from/g;
+	for (const match of source.matchAll(pattern)) {
+		const names = match[1]
+			.split(",")
+			.map(
+				(entry) =>
+					entry
+						.trim()
+						.split(/\s+as\s+/)
+						.pop() ?? "",
+			)
+			.filter(Boolean);
+		const seen = new Set();
+		for (const name of names) {
+			if (seen.has(name)) problems.push(name);
+			seen.add(name);
+		}
+	}
+	return problems;
+}
+
 async function main() {
 	/*
 	 * The auto-fix, and its first version destroyed a file.
@@ -184,9 +224,19 @@ async function main() {
 		const cleanOk = inspect(clean).length === 0;
 		const caughtStray = inspect(stray).length > 0;
 		const caughtInterpolation = inspect(interpolated).length > 0;
-		if (!(cleanOk && caughtStray && caughtInterpolation)) {
+		const goodImports =
+			duplicateImports('import { a, b } from "./x.js";\nimport { a } from "./y.js";').length ===
+			0;
+		const caughtDuplicate = duplicateImports('import { a, b, a } from "./x.js";').length > 0;
+		if (!(cleanOk && caughtStray && caughtInterpolation && goodImports && caughtDuplicate)) {
 			console.error("\ncheck-templates --self-test: the probe is blind");
-			console.error({ cleanOk, caughtStray, caughtInterpolation, onClean: inspect(clean) });
+			console.error({
+				cleanOk,
+				caughtStray,
+				caughtInterpolation,
+				goodImports,
+				caughtDuplicate,
+			});
 			return 1;
 		}
 		console.log("\ncheck-templates --self-test: probe is live\n");
@@ -194,6 +244,31 @@ async function main() {
 	}
 
 	let failures = 0;
+
+	// Every source file, because a duplicate import can appear in any of them and
+	// the stylesheet check below only covers one.
+	/** @type {string[]} */
+	const sources = [];
+	const { readdir } = await import("node:fs/promises");
+	const { join } = await import("node:path");
+	const walk = async (dir) => {
+		for (const entry of await readdir(dir, { withFileTypes: true })) {
+			if (["node_modules", "dist", ".git", "coverage"].includes(entry.name)) continue;
+			const full = join(dir, entry.name);
+			if (entry.isDirectory()) await walk(full);
+			else if (/\.tsx?$/.test(entry.name)) sources.push(full);
+		}
+	};
+	await walk(ROOT);
+
+	for (const file of sources) {
+		const source = readFileSync(file, "utf8");
+		for (const name of duplicateImports(source)) {
+			console.error(`  ${relative(ROOT, file)}: ${name} is imported twice in one statement`);
+			failures += 1;
+		}
+	}
+
 	for (const file of STYLESHEET_FILES) {
 		const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 		const literals = stylesheetLiterals(source);

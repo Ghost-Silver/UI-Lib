@@ -3074,3 +3074,22 @@ input[type="range"]::-moz-range-thumb {
 	width: 460px;
 	align-content: center;
 }
+
+.kit__drawer {
+	display: grid;
+	gap: 22px;
+	width: 320px;
+	place-items: center;
+}
+
+.kit__drawer-lines {
+	display: grid;
+	gap: 12px;
+	width: 100%;
+	font-size: 13px;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__drawer-lines p {
+	margin: 0;
+}

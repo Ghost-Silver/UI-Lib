@@ -8,6 +8,8 @@ import {
 	SoftAccordion,
 	SoftAvatar,
 	SoftCheckbox,
+	SoftDivider,
+	SoftDrawer,
 	SoftInput,
 	SoftLightPanel,
 	SoftModal,
@@ -62,6 +64,7 @@ const COMPONENTS = [
 	"identity",
 	"accordion",
 	"table",
+	"drawer",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -163,6 +166,45 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** The drawer, opened on arrival so one capture shows it. */
+function DrawerKit() {
+	const [open, setOpen] = useState(true);
+	return (
+		<div className="kit__drawer">
+			<PinkPaperButton tone="iris" onClick={() => setOpen(true)}>
+				打开抽屉
+			</PinkPaperButton>
+			<div className="kit__drawer-lines">
+				<p>分隔线下面还有东西。</p>
+				<SoftDivider />
+				<p>上面这条是无标签的。</p>
+				<SoftDivider label="或" />
+				<p>这条有标签。</p>
+			</div>
+			<SoftDrawer
+				open={open}
+				onClose={() => setOpen(false)}
+				title="材质"
+				note="四种基底的表现"
+				footer={
+					<>
+						<PinkPaperButton tone="blossom" onClick={() => setOpen(false)}>
+							取消
+						</PinkPaperButton>
+						<PinkPaperButton tone="iris" onClick={() => setOpen(false)}>
+							保存
+						</PinkPaperButton>
+					</>
+				}
+			>
+				<p>水彩纸会吸水，边缘会沉积；液态玻璃会折射背后的东西；粘土用三层阴影堆出厚度。</p>
+				<SoftDivider label="换一种说法" />
+				<p>它们其实是同一种材料的三种用法。</p>
+			</SoftDrawer>
+		</div>
 	);
 }
 
@@ -493,6 +535,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "drawer":
+			return <DrawerKit />;
 		case "table":
 			return <TableKit />;
 		case "accordion":

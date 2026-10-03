@@ -3195,6 +3195,258 @@ const CSS = `
 	}
 }
 
+
+/* --- drawer --------------------------------------------------------------
+ *
+ * A drawer is a modal that happens to be against an edge, so it is built on the
+ * same dialog and none of the interaction is written here. What is written here
+ * is geometry, and it is written the way it is for one reason:
+ *
+ * A dialog opens into the centre, and that position belongs to the top layer's
+ * layout. Transitioning the dialog fights the platform and the platform wins in
+ * ways that differ between engines. So the dialog is made a full-height,
+ * zero-inset container and the panel inside it carries the width and does the
+ * moving. One element animates, and it is not the one the platform is managing.
+ */
+
+.ui-lib-soft-drawer {
+	/* The dialog box itself: full height, pinned, no default centring, no
+	   padding, and transparent to the pointer so a click lands on the backdrop
+	   rather than on an invisible box. */
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	max-width: 100%;
+	height: 100%;
+	max-height: 100%;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: transparent;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.ui-lib-soft-drawer::backdrop {
+	background: rgb(60 44 40 / 0.28);
+	backdrop-filter: blur(3px);
+}
+
+/* The panel takes the pointer events back. Only the panel is interactive; the
+   rest of the dialog is a backdrop by construction. */
+.ui-lib-soft-drawer__panel {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: min(92vw, var(--drawer-width, 340px));
+	display: flex;
+	flex-direction: column;
+	pointer-events: auto;
+	background: var(--moe-card);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	box-shadow: -18px 0 44px -22px rgb(77 60 56 / 0.45);
+}
+
+.ui-lib-soft-drawer[data-ui-lib-side="right"] .ui-lib-soft-drawer__panel {
+	right: 0;
+	border-radius: var(--moe-radius-lg) 0 0 var(--moe-radius-lg);
+	animation: ui-lib-moe-drawer-right 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.ui-lib-soft-drawer[data-ui-lib-side="left"] .ui-lib-soft-drawer__panel {
+	left: 0;
+	border-radius: 0 var(--moe-radius-lg) var(--moe-radius-lg) 0;
+	box-shadow: 18px 0 44px -22px rgb(77 60 56 / 0.45);
+	animation: ui-lib-moe-drawer-left 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes ui-lib-moe-drawer-right {
+	from {
+		transform: translateX(102%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes ui-lib-moe-drawer-left {
+	from {
+		transform: translateX(-102%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes ui-lib-moe-drawer-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.ui-lib-soft-drawer__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 14px;
+	padding: 20px 20px 15px;
+	border-bottom: 1.5px solid var(--moe-stroke);
+}
+
+.ui-lib-soft-drawer__titles {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+}
+
+.ui-lib-soft-drawer__title {
+	margin: 0;
+	font-size: 17px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+}
+
+.ui-lib-soft-drawer__note {
+	margin: 0;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-drawer__close {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 30px;
+	height: 30px;
+	margin: -3px -3px 0 0;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.95 0.012 20);
+	color: var(--moe-cocoa-soft);
+	cursor: pointer;
+	transition:
+		background 160ms ease-out,
+		transform 240ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-drawer__close:hover {
+	background: oklch(0.91 0.02 20);
+	transform: rotate(90deg);
+}
+
+.ui-lib-soft-drawer__close:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+.ui-lib-soft-drawer__body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 18px 20px;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.65;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-drawer__foot {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	padding: 14px 20px;
+	border-top: 1.5px solid var(--moe-stroke);
+	background: oklch(0.98 0.006 60);
+	border-radius: 0 0 0 var(--moe-radius-lg);
+}
+
+/* --- divider -------------------------------------------------------------
+ *
+ * The fade at both ends is the point. A hairline that runs edge to edge is a
+ * box; one that fades is a separation, and it can sit inside a rounded card
+ * without a special case at the corners.
+ */
+
+.ui-lib-soft-divider {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	height: 1px;
+	border: none;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		var(--moe-stroke) 14%,
+		var(--moe-stroke) 86%,
+		transparent
+	);
+}
+
+/* A labelled divider is taller and the rule is drawn on either side of the
+   label rather than behind it, so the text never sits on a line. */
+.ui-lib-soft-divider[data-ui-lib-labelled] {
+	height: auto;
+	background: none;
+}
+
+.ui-lib-soft-divider[data-ui-lib-labelled]::before,
+.ui-lib-soft-divider[data-ui-lib-labelled]::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--moe-stroke));
+}
+
+.ui-lib-soft-divider[data-ui-lib-labelled]::after {
+	background: linear-gradient(90deg, var(--moe-stroke), transparent);
+}
+
+.ui-lib-soft-divider__label {
+	font-family: var(--moe-font-rounded);
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	white-space: nowrap;
+}
+
+.ui-lib-soft-divider[data-ui-lib-orientation="vertical"] {
+	width: 1px;
+	height: auto;
+	align-self: stretch;
+	background: linear-gradient(
+		180deg,
+		transparent,
+		var(--moe-stroke) 14%,
+		var(--moe-stroke) 86%,
+		transparent
+	);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-drawer__panel {
+		animation: none;
+	}
+
+	.ui-lib-soft-drawer__close {
+		transition: none;
+	}
+
+	.ui-lib-soft-drawer__close:hover {
+		transform: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
