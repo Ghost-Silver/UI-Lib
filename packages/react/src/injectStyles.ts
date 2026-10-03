@@ -811,6 +811,134 @@ const CSS = `
 	}
 }
 
+
+/* --- soft tabs -----------------------------------------------------------
+ *
+ * A sunken groove with a raised pill in it. Same physics as the switch: the
+ * groove is an inset shadow because the pill sits in it, and the pill is clay
+ * because it is the thing being pushed around.
+ *
+ * The travelling state narrows the pill and draws a neck behind it. Two shapes
+ * that overlap while one shrinks is not a real metaball, but at this size the
+ * eye reads the result as surface tension — which is what the design is after
+ * — and it costs two spans instead of a shader.
+ */
+
+.ui-lib-soft-tabs {
+	display: inline-block;
+	font-family: var(--moe-font-rounded);
+}
+
+.ui-lib-soft-tabs__list {
+	position: relative;
+	display: inline-flex;
+	gap: 2px;
+	padding: 4px;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.94 0.005 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.8);
+	isolation: isolate;
+}
+
+.ui-lib-soft-tabs__tab {
+	position: relative;
+	z-index: 1;
+	appearance: none;
+	border: none;
+	background: none;
+	/* A two-character CJK label has no break opportunity, so it will fold in
+	   half the moment the track is a few pixels narrow — 柔 / 光. The labels
+	   are single words and never want to wrap. */
+	white-space: nowrap;
+	padding: 0 20px;
+	height: 34px;
+	border-radius: var(--moe-radius-full);
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	cursor: pointer;
+	transition: color var(--moe-dur-base) var(--moe-ease-gentle);
+	-webkit-tap-highlight-color: transparent;
+}
+
+.ui-lib-soft-tabs[data-ui-lib-size="md"] .ui-lib-soft-tabs__tab {
+	height: 42px;
+	padding: 0 24px;
+	font-size: 15px;
+}
+
+.ui-lib-soft-tabs__tab[aria-selected="true"] {
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-tabs__tab:focus-visible {
+	outline: 3px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+/* The pill and the neck. Both sit behind the labels, which is why the tabs
+   carry z-index 1 and the groove is isolation: isolate. */
+.ui-lib-soft-tabs__pill,
+.ui-lib-soft-tabs__neck {
+	position: absolute;
+	top: 4px;
+	height: calc(100% - 8px);
+	border-radius: var(--moe-radius-full);
+	background: var(--moe-sakura-500);
+	box-shadow: var(--moe-clay-pink);
+	pointer-events: none;
+}
+
+.ui-lib-soft-tabs__pill {
+	transition:
+		left var(--moe-dur-slow) var(--moe-ease-jelly),
+		width var(--moe-dur-slow) var(--moe-ease-jelly),
+		transform 220ms var(--moe-ease-jelly);
+	transform-origin: center;
+}
+
+/* While moving, the pill narrows. A droplet that is being pulled thins in the
+   middle before it separates. */
+.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__pill {
+	transform: scaleX(0.62);
+	transition:
+		left var(--moe-dur-slow) var(--moe-ease-jelly),
+		width var(--moe-dur-slow) var(--moe-ease-jelly),
+		transform 180ms ease-out;
+}
+
+.ui-lib-soft-tabs__neck {
+	opacity: 0;
+	transition: opacity 180ms ease-out;
+}
+
+.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__neck {
+	opacity: 0.85;
+	transition: opacity 120ms ease-in;
+}
+
+.ui-lib-soft-tabs[data-ui-lib-size="sm"] .ui-lib-soft-tabs__pill,
+.ui-lib-soft-tabs[data-ui-lib-size="sm"] .ui-lib-soft-tabs__neck {
+	top: 4px;
+	height: calc(100% - 8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-tabs__pill,
+	.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__pill {
+		transition: none;
+		transform: none;
+	}
+
+	.ui-lib-soft-tabs__neck,
+	.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__neck {
+		display: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

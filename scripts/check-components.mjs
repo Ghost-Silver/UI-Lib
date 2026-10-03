@@ -53,6 +53,7 @@ const COMPONENTS = [
 	{ name: "watercolor-card", toned: true },
 	{ name: "bling", toned: true },
 	{ name: "switch", toned: false },
+	{ name: "tabs", toned: false },
 ];
 const TONES = ["iris", "blossom", "mist"];
 

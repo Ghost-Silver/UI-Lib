@@ -6,6 +6,7 @@ import {
 	PinkPaperButton,
 	SoftLightPanel,
 	SoftSwitch,
+	SoftTabs,
 	WatercolorCard,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
@@ -33,6 +34,7 @@ const COMPONENTS = [
 	"watercolor-card",
 	"bling",
 	"switch",
+	"tabs",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -117,11 +119,26 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 		>
 			<div className="kit" data-ui-lib-acceptance="iris-kit">
 				{/* The measured box. Fixed size so every capture is comparable. */}
-				<div className="kit__box" data-ui-lib-kit-box>
+				<div
+					className="kit__box"
+					data-ui-lib-kit-box
+					data-ui-lib-wide={component === "tabs" || component === "switch" ? "" : undefined}
+				>
 					<KitSubject component={component} tone={tone} />
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Three tabs, so the indicator has somewhere to travel to. */
+function TabsKit() {
+	const [tab, setTab] = useState(0);
+	return (
+		<div className="kit__tabs">
+			<SoftTabs items={["柔光", "水彩", "玻璃"]} value={tab} onChange={setTab} label="材质" />
+			<SoftTabs items={["一", "二"]} value={tab % 2} onChange={setTab} size="sm" label="小号" />
+		</div>
 	);
 }
 
@@ -184,6 +201,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 					<p>颜料是自己摊开的，上面盖着真玻璃。</p>
 				</WatercolorCard>
 			);
+		case "tabs":
+			return <TabsKit />;
 		case "switch":
 			return <SwitchKit />;
 		case "bling":

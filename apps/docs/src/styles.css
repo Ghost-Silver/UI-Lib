@@ -2383,3 +2383,17 @@ input[type="range"]::-moz-range-thumb {
 	font-weight: 600;
 	color: #4d3c38;
 }
+
+.kit__tabs {
+	display: grid;
+	gap: 20px;
+	justify-items: center;
+}
+
+/* A tab row is wider than a badge, and the fixed 260px box was folding CJK
+   labels in half. The box exists to make captures comparable, not to constrain
+   the component under test. */
+.kit__box[data-ui-lib-wide] {
+	width: 420px;
+	height: 220px;
+}
