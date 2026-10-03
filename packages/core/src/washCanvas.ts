@@ -87,8 +87,17 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 		 * scaling the context while the gradient is drawn and scaling it back
 		 * afterwards.
 		 */
-		const radiusX = ((Number(rxRaw) / 100) * width) / 2;
-		const radiusY = ((Number(ryRaw) / 100) * height) / 2;
+		/*
+		 * The percentages are the gradient's **size**, not its radius.
+		 *
+		 * `radial-gradient(72% 66% at ...)` means the ellipse is 72% of the box
+		 * wide and 66% tall — so the radii are half of that, and the first
+		 * version divided by two a second time. The mark came out at half size
+		 * with a hollow middle, which reads as a ring rather than as a wash, and
+		 * the cause was a unit confusion rather than anything about canvas.
+		 */
+		const radiusX = (Number(rxRaw) / 100) * width * 0.5;
+		const radiusY = (Number(ryRaw) / 100) * height * 0.5;
 
 		const gradient = ctx.createRadialGradient(
 			centreX,
@@ -140,32 +149,61 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 	}
 	if (arcs.length > 0) {
 		const rim = read("--wash-rim");
-		const band = ctx.createRadialGradient(
-			width / 2,
-			height / 2,
-			Math.min(width, height) * 0.36,
-			width / 2,
-			height / 2,
-			Math.min(width, height) * 0.5,
-		);
-		band.addColorStop(0, "rgba(0,0,0,0)");
-		band.addColorStop(0.5, rim);
-		band.addColorStop(1, "rgba(0,0,0,0)");
+		/*
+		 * The band is an **ellipse**, matching the body.
+		 *
+		 * It was a circle of `min(width, height) / 2`, and that mismatch is what
+		 * put a dark crescent in the lower right of every mark: the ring and the
+		 * ground it was supposed to sit on had different shapes, so where the
+		 * ground ended the ring did not. The two are one mark and have to agree.
+		 */
+		const ringX = width * 0.5;
+		const ringY = height * 0.5;
+		const inner = Math.min(ringX, ringY) * 0.72;
+		const outer = Math.max(ringX, ringY);
 
 		ctx.save();
-		// The ring is inside the band; the conic decides where along it the
-		// pigment is, by being the alpha of what is drawn.
+		ctx.translate(width / 2, height / 2);
+		ctx.scale(1, Math.max(ringY / Math.max(ringX, 1e-6), 1e-6));
+		const band = ctx.createRadialGradient(0, 0, inner, 0, 0, outer);
+		band.addColorStop(0, "rgba(0,0,0,0)");
+		band.addColorStop(0.55, rim);
+		band.addColorStop(1, "rgba(0,0,0,0)");
+
 		ctx.fillStyle = band;
-		ctx.globalCompositeOperation = "source-over";
-		ctx.globalAlpha = 0.55;
+		ctx.globalAlpha = 0.2;
 		ctx.beginPath();
-		ctx.arc(width / 2, height / 2, Math.min(width, height) * 0.5, 0, Math.PI * 2);
+		ctx.arc(0, 0, outer, 0, Math.PI * 2);
 		ctx.fill();
 
 		ctx.globalCompositeOperation = "destination-in";
 		ctx.globalAlpha = 1;
 		ctx.fillStyle = conic;
-		ctx.fillRect(0, 0, width, height);
+		ctx.fillRect(-outer, -outer, outer * 2, outer * 2);
+		ctx.restore();
+	}
+
+	/*
+	 * Softening, which the stylesheet gets from `filter: blur(1.5px)` on the mark
+	 * and which canvas has no equivalent for — `ctx.filter` blurs **per draw
+	 * call**, not per layer, so setting it before the ring would blur the ring
+	 * and setting it before the fibre would blur the fibre.
+	 *
+	 * Verified rather than assumed: `ctx.filter = "blur(4px)"` is supported and
+	 * takes effect. What it cannot do is blur something already drawn, so the
+	 * softening is applied by drawing the whole mark into a scratch canvas and
+	 * compositing it back once.
+	 */
+	const scratch = document.createElement("canvas");
+	scratch.width = canvas.width;
+	scratch.height = canvas.height;
+	const soft = scratch.getContext("2d");
+	if (soft) {
+		soft.drawImage(canvas, 0, 0);
+		ctx.clearRect(0, 0, width, height);
+		ctx.save();
+		ctx.filter = `blur(${read("--wash-blur").replace(/px$/, "") || "1.5"}px)`;
+		ctx.drawImage(scratch, 0, 0, canvas.width, canvas.height, 0, 0, width, height);
 		ctx.restore();
 	}
 
@@ -213,7 +251,15 @@ async function paintGrain(
 
 	ctx.save();
 	ctx.globalCompositeOperation = "multiply";
-	ctx.globalAlpha = opacity;
+	/*
+	 * The generator's opacity is for **one** layer composited once, and the
+	 * first version applied it to each layer independently — two multiply passes
+	 * at 0.17 is very nearly a multiply at 0.31, and the fibre came out strong
+	 * enough to bury the pigment underneath it. Measured across a horizontal
+	 * profile, the alpha alternated between 33 and 66 with no shape to it at
+	 * all: the paper was the picture and the wash was noise on top of it.
+	 */
+	ctx.globalAlpha = opacity / Math.max(images.length, 1);
 	for (const image of images) {
 		if (!image) continue;
 		// Tiled rather than stretched, so the fibre keeps the scale it was
