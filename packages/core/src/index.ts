@@ -37,12 +37,13 @@ export { mergeDefined } from "./mergeDefined.js";
 export type { PointerState, PointerTrackerOptions } from "./pointer.js";
 export { PointerTracker } from "./pointer.js";
 export type {
+	PlatformBudget,
 	QualityManagerOptions,
 	QualityPreset,
 	QualitySettings,
 	QualityTier,
 } from "./quality.js";
-export { QUALITY_PRESETS, QualityManager, scoreTier } from "./quality.js";
+export { QUALITY_PRESETS, QualityManager, resolveBudget, scoreTier } from "./quality.js";
 export type {
 	ResourceHandle,
 	ResourceKind,

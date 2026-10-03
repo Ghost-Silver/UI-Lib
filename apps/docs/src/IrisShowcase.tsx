@@ -1,3 +1,4 @@
+import type { PlatformBudget } from "@ui-lib/core";
 import { IRIS, IRIS_TONES } from "@ui-lib/core";
 import {
 	Bling,
@@ -45,6 +46,18 @@ export function IrisShowcasePage() {
 	// WebGL2 routes so the fallbacks are testable, not just theoretical.
 	const forceWebGL = readFlag("backend", "webgl");
 	const forceFallback = readFlag("fallback", "1");
+	// `?budget=declared` states the budget instead of probing for it, the way a
+	// non-web host would. It exists so the seam is reachable from a URL and can
+	// be asserted, rather than only being reachable from a type signature.
+	const declared = readFlag("budget", "declared");
+	const budget: PlatformBudget | undefined = declared
+		? {
+				host: "declared-demo",
+				source: "declared",
+				tier: 2,
+				preset: { particleBudget: 5_000, maxPanels: 6 },
+			}
+		: undefined;
 
 	useEffect(() => {
 		document.title = "IRIS · UI-Lib";
@@ -57,6 +70,7 @@ export function IrisShowcasePage() {
 			backdrop={BACKDROP}
 			forceWebGL={forceWebGL}
 			forceFallback={forceFallback}
+			budget={budget}
 		>
 			<div className="iris" data-ui-lib-acceptance="iris">
 				<Bling count={16} tone="iris" />

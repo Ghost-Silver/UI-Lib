@@ -228,6 +228,47 @@ pnpm check:pixels:self-test          # 探针是不是瞎的
 
 **它的边界，也一并写清楚**：如果一处错位恰好把面板映到它自己矩形附近（布局对称，或面板本就靠近镜像轴），这个判据看不见。它抓的是**整块挪走**这一类，而那正是实际发生过的 bug。
 
+### 平台预算：第二个后端的接缝
+
+Web 端的渲染预算原本只能**探测**：`detectCapabilities()` 读浏览器，`scoreTier()` 选档，`QUALITY_PRESETS` 填数字。一个不是浏览器的宿主没有东西可探——它知道自己有多少算力，直接说就行。
+
+```ts
+import { createGlassLayer } from "@ui-lib/renderer";
+
+// Web：什么都不传，走探测。
+await createGlassLayer({ parent });
+
+// 非 Web 宿主：把数字说出来。
+await createGlassLayer({
+  parent,
+  budget: {
+    host: "ue5-metal",
+    source: "declared",
+    tier: 2,                                   // 只用来补没写的字段
+    preset: { particleBudget: 900_000, allowCompute: true, maxPanels: 64 },
+  },
+});
+```
+
+React 侧直接传 `budget` 即可（`GlassStage` 的 props 就是 layer options）。页面上可以用 `?budget=declared` 看这条路径。
+
+三条设计约束：
+
+- **只钉住宿主写出来的字段。** `preset` 里没提的（`blurTaps`、`dprCap`、面板上限）仍然跟着档位走，所以一份声明式预算**不会冻结自适应降档**。反过来，宿主写了的字段在降档时也不会被改掉——它不是在猜。
+- **声明压过探测。** 同时给 `budget` 和 `capabilities` 时以声明为准，因为说了数字的宿主不需要再猜一遍。
+- **来源必须可见。** `data-ui-lib-budget-host` / `-budget-source` 暴露到 DOM，`stats.budgetHost` / `budgetSource` 暴露给代码。一条只在类型里的声明和一个真的限制，验收时要能分开。
+
+```bash
+?demo=iris                   # host=web           source=probed    tier=3
+?demo=iris&budget=declared   # host=declared-demo source=declared  tier=2
+```
+
+#### 顺带发现：`maxPanels` 目前只是建议值
+
+`QUALITY_PRESETS` 每个档位都声明了 `maxPanels`，但 `register()` 超限时**只打一条 warn 然后照常创建并渲染**——而那条 warn 写的是「new panel will not render」，是假的。已改成如实描述，并把超出的数量暴露为 `stats.panelsOverBudget` 与 `data-ui-lib-panels-over-budget`。
+
+**没有在本轮强制执行**：强制执行会让每个注册数超过本档上限的页面掉面板（headless 环境稳定落在 tier 1，上限 8，而 Playground 注册 12），这需要七页逐页目视验证才能安全地改。先让它**可度量**，再谈约束。
+
 ## React 用法
 
 `@ui-lib/react` 是第一个适配层。内容保持普通 DOM，stage 负责共享 GPU layer：

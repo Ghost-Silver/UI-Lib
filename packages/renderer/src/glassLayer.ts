@@ -8,6 +8,7 @@ import {
 	getScheduler,
 	mergeDefined,
 	onReducedMotionChange,
+	type PlatformBudget,
 	PointerTracker,
 	QualityManager,
 	type QualityTier,
@@ -158,6 +159,13 @@ export interface GlassLayerOptions {
 	forceWebGL?: boolean;
 	tier?: QualityTier | "auto";
 	autoQuality?: boolean;
+	/**
+	 * A budget stated by the host instead of probed from the browser.
+	 *
+	 * This is the seam a non-web backend attaches to: state the numbers and the
+	 * whole layer behaves as if it had probed them. On the web, leave it out.
+	 */
+	budget?: PlatformBudget;
 	/** Track the pointer and feed it to materials as a specular bloom. */
 	pointer?: boolean;
 	/** Re-read element rects every frame instead of on layout/scroll changes. */
@@ -216,6 +224,22 @@ export interface GlassLayerStats {
 	particleActive: number;
 	/** Particles allocated across every attached system. */
 	particleAllocated: number;
+	/**
+	 * Allocated minus active: what the tier budget is holding back. A page that
+	 * asks for a million and gets twenty thousand should be able to say so
+	 * without reading two numbers and subtracting.
+	 */
+	particleDropped: number;
+	/** Id of the host whose budget is in force, e.g. `"web"` or `"ue5-metal"`. */
+	budgetHost: string;
+	/** Whether that budget was probed from a device or stated by the host. */
+	budgetSource: "probed" | "declared";
+	/**
+	 * Panels registered beyond the tier's `maxPanels`. The cap is advisory:
+	 * they render anyway, and this is how a page can tell that it is over
+	 * budget instead of inferring it from two other numbers.
+	 */
+	panelsOverBudget: number;
 	/** Logical owned-resource counts; this is not a VRAM estimate. */
 	resources: ResourceSnapshot;
 }
@@ -331,6 +355,7 @@ export class GlassLayer implements Disposable {
 	private readonly worldPosition = new Vector3();
 	private readonly projectedWorldPosition = new Vector3();
 	private readonly panels = new Set<Panel>();
+	private overBudgetPanels = 0;
 	private readonly resizeObserver: ResizeObserver;
 
 	private backdrop: BackdropInstance;
@@ -419,6 +444,7 @@ export class GlassLayer implements Disposable {
 			tier: options.tier ?? "auto",
 			auto: options.autoQuality ?? true,
 			capabilities: ui.capabilities,
+			budget: options.budget,
 			onChange: (settings, previous) => {
 				// Blur tap count is baked into the shader graph, so a tier change
 				// rebuilds the materials with the new budget.
@@ -663,6 +689,10 @@ export class GlassLayer implements Disposable {
 			reducedMotion: this.reducedMotion,
 			particleActive: this.particleActiveTotal(),
 			particleAllocated: this.particleAllocatedTotal(),
+			particleDropped: this.particleAllocatedTotal() - this.particleActiveTotal(),
+			budgetHost: this.quality.budgetHost,
+			budgetSource: this.quality.budgetSource,
+			panelsOverBudget: this.overBudgetPanels,
 			resources: getResourceSnapshot(),
 		};
 	}
@@ -944,14 +974,21 @@ export class GlassLayer implements Disposable {
 
 	register(element: HTMLElement, options: Partial<GlassPanelOptions> = {}): GlassPanelHandle {
 		const max = this.quality.settings.maxPanels;
-		if (this.panels.size >= max) {
+		if (this.panels.size >= max && this.overBudgetPanels === 0) {
+			// Reported, not refused. The cap is advisory today: enforcing it
+			// would drop panels on every page that registers more than its tier
+			// allows, and that needs a visual pass on all seven before it is a
+			// safe change. What it must not do is lie — the previous message
+			// promised the panel would not render, and then rendered it.
 			console.warn(
-				`[ui-lib] panel budget exhausted (${max} at tier ${this.quality.tier}); new panel will not render.`,
+				`[ui-lib] panel budget exceeded (${max} at tier ${this.quality.tier}); ` +
+					`panels past the budget still render. See stats.panelsOverBudget.`,
 			);
 		}
 
 		const panel = this.createPanel(element, mergeDefined(GLASS_PANEL_DEFAULTS, options));
 		this.panels.add(panel);
+		if (this.panels.size > max) this.overBudgetPanels += 1;
 		this.resizeObserver.observe(element);
 		this.markDirty();
 

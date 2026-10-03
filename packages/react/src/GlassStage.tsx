@@ -79,6 +79,7 @@ export function GlassStage({
 	forceWebGL = false,
 	tier = "auto",
 	autoQuality = true,
+	budget,
 	pointer = true,
 	alwaysSyncLayout = false,
 	onDeviceLost,
@@ -128,6 +129,7 @@ export function GlassStage({
 			antialias,
 			tier,
 			autoQuality,
+			budget,
 			pointer,
 			alwaysSyncLayout,
 			forceWebGL: forceWebGL || recoveryAttempt > 0,
@@ -174,6 +176,7 @@ export function GlassStage({
 		forceWebGL,
 		tier,
 		autoQuality,
+		budget,
 		pointer,
 		alwaysSyncLayout,
 		recoveryAttempt,
@@ -213,6 +216,10 @@ export function GlassStage({
 				data-ui-lib-mode={mode}
 				data-ui-lib-backend={stats?.backend ?? "unknown"}
 				data-ui-lib-tier={stats?.tier ?? ""}
+				data-ui-lib-budget-host={stats?.budgetHost ?? ""}
+				data-ui-lib-budget-source={stats?.budgetSource ?? ""}
+				data-ui-lib-particle-dropped={stats?.particleDropped ?? ""}
+				data-ui-lib-panels-over-budget={stats?.panelsOverBudget ?? ""}
 				data-ui-lib-fps={stats?.fps ?? ""}
 				data-ui-lib-dropped-frames={stats?.droppedFrames ?? ""}
 				data-ui-lib-long-frames={stats?.longFrames ?? ""}
