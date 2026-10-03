@@ -2815,6 +2815,12 @@ const CSS = `
 	vertical-align: middle;
 }
 
+.ui-lib-soft-tag__label {
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 1;
+}
+
 .ui-lib-soft-tag__leading,
 .ui-lib-soft-tag__remove {
 	display: inline-flex;
@@ -2968,6 +2974,16 @@ const CSS = `
 
 .ui-lib-soft-accordion__item[data-ui-lib-disabled] .ui-lib-soft-accordion__trigger {
 	cursor: not-allowed;
+}
+
+/* Named by the component and missing from here until the guard was generalised.
+   A class with no rule renders as nothing at all, which for a title is invisible
+   and for a border is the difference between a control and a label. */
+.ui-lib-soft-accordion__title {
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa);
 }
 
 .ui-lib-soft-accordion__note {

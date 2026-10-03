@@ -279,6 +279,8 @@ function AccordionKit() {
 						title: "颜料是怎么待在纸上的",
 						note: "边缘沉积与干湿两态",
 						defaultOpen: true,
+						material: "wash",
+						tone: "iris",
 						content: (
 							<p>
 								真实的颜料会往边缘走，会沉进纤维。干和湿两种状态下边界完全不同——渐变一个都做不到，这也是水彩和「模糊色块」的全部区别。

@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -95,5 +96,112 @@ describe("the generated washes", () => {
 		for (const selector of new Set(selectors)) {
 			expect(reduced, `${selector} is not covered`).toContain(selector);
 		}
+	});
+});
+
+/**
+ * Every class the package names, the stylesheet defines.
+ *
+ * This replaces a narrower version of the same idea, and the replacement is the
+ * point. The first guard asked `createWash` for its class names and checked them
+ * against the stylesheet, which caught the wash and nothing else — so when
+ * `material.ts` emitted `ui-lib-material` and the stylesheet defined
+ * `ui-lib-material--ground`, three generated washes were fine and every material
+ * card rendered as plain paper. The check was correct and its scope was one
+ * function.
+ *
+ * This one does not call anything. It reads every source file in the package,
+ * takes every `ui-lib-*` string that appears in a class position, and requires a
+ * rule for it. That is a fact about the two files rather than about one
+ * generator, so it cannot be correct while the contract it guards is broken.
+ *
+ * Two exclusions, both explicit rather than inferred:
+ *  - names the component *consumes* from a consumer, which is what `className`
+ *    composition is for, are listed by prefix below;
+ *  - `ui-lib-visually-hidden` and friends are defined, so they need no entry.
+ */
+describe("the stylesheet and the components agree", () => {
+	const SRC = fileURLToPath(new URL("../src", import.meta.url));
+
+	/*
+	 * Names with the prefix that are not CSS classes.
+	 *
+	 * Both of these are real and both were flagged on the first run, which is
+	 * the tension in a check this broad: a prefix is a convention, not a type.
+	 *
+	 *  - `ui-lib-tip` is an **anchor name**, the CSS anchor-positioning
+	 *    identifier the tooltip positions against. It looks like a class and is
+	 *    never one.
+	 *  - `ui-lib-styles` is the **id of the style element** this module injects.
+	 *    An id selector for it would be wrong twice over.
+	 *
+	 * Listed rather than pattern-matched, so adding a third is a deliberate act
+	 * with a reason next to it.
+	 */
+	const NOT_A_CLASS = ["ui-lib-tip", "ui-lib-styles"];
+
+	/** Classes a caller supplies, or that come from another package's contract. */
+	const EXTERNAL = [
+		// The wash generator's own class names are asserted separately, above,
+		// with the state list they come from.
+		"ui-lib-wash",
+	];
+
+	function sourceFiles(): string[] {
+		const out: string[] = [];
+		const walk = (dir: string) => {
+			for (const entry of readdirSync(dir, { withFileTypes: true })) {
+				const full = join(dir, entry.name);
+				if (entry.isDirectory()) walk(full);
+				else if (/\.tsx?$/.test(entry.name)) out.push(full);
+			}
+		};
+		walk(SRC);
+		return out;
+	}
+
+	it("has a rule for every class any component names", async () => {
+		const found = new Map<string, string>();
+		for (const file of sourceFiles()) {
+			const text = readFileSync(file, "utf8");
+			// In a className string, a template literal, an array, or a
+			// className= attribute. Not in an import path or a comment, which is
+			// why this does not simply scan for the prefix everywhere: a comment
+			// that mentions ui-lib-material--ground would otherwise become a
+			// requirement that the stylesheet define it twice.
+			for (const match of text.matchAll(/["'`]([a-z0-9_\- ]*ui-lib-[a-z0-9_\- ]+)["'`]/g)) {
+				for (const name of match[1]!.split(/\s+/)) {
+					if (name.startsWith("ui-lib-")) found.set(name, relative(SRC, file));
+				}
+			}
+		}
+		expect(found.size).toBeGreaterThan(10);
+
+		const missing = [...found.entries()]
+			.filter(([name]) => !EXTERNAL.some((prefix) => name.startsWith(prefix)))
+			.filter(([name]) => !NOT_A_CLASS.includes(name))
+			.filter(([name]) => !source.includes(`.${name}`))
+			.map(([name, file]) => `${name} (named in ${file})`);
+
+		expect(missing, `the stylesheet has no rule for: ${missing.join(", ")}`).toEqual([]);
+	});
+
+	it("defines no rule that no component names", async () => {
+		// The other direction, and it is the one that would have caught a rename
+		// that left a rule behind. Only top-level class rules are considered, and
+		// only ones with the package prefix, because the stylesheet also defines
+		// the token layer.
+		const defined = new Set(
+			[...source.matchAll(/^\.(ui-lib-[a-z0-9_-]+)/gm)].map((m) => m[1]!),
+		);
+		const used = new Set<string>();
+		for (const file of sourceFiles()) {
+			const text = readFileSync(file, "utf8");
+			for (const match of text.matchAll(/ui-lib-[a-z0-9_-]+/g)) used.add(match[0]);
+		}
+		expect(defined.size).toBeGreaterThan(10);
+
+		const orphans = [...defined].filter((name) => !used.has(name));
+		expect(orphans, `nothing names: ${orphans.join(", ")}`).toEqual([]);
 	});
 });
