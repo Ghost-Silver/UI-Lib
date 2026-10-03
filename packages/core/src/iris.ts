@@ -149,7 +149,13 @@ export const IRIS_GLASS_LOOKS = {
 		refraction: 9,
 		dispersion: 0.04,
 		roughness: 0.3,
-		frost: 26,
+		// 10, not 26. The description is "real glass that bends what is behind it",
+		// and refraction is not the same thing as a heavy frost. At 26 the crystal
+		// text on the card arrived as an embossed ghost — legible, but nothing
+		// like the clear type it is named for, and no amount of tuning the text
+		// could recover it because the glass was doing the blurring. Bending is
+		// kept; the veil is lighter.
+		frost: 10,
 		tint: IRIS.blossom[100],
 		tintAmount: 0.2,
 		specular: 0.24,

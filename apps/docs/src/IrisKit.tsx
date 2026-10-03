@@ -131,14 +131,16 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			return <PinkPaperButton tone={tone}>开始</PinkPaperButton>;
 		case "soft-light-panel":
 			return (
-				<SoftLightPanel tone={tone} className="kit__subject">
-					<p>柔光</p>
+				<SoftLightPanel tone={tone} className="kit__subject kit__subject--pane">
+					<h3>柔光</h3>
+					<p>重磨砂、宽亮边，边缘是化开的。</p>
 				</SoftLightPanel>
 			);
 		case "watercolor-card":
 			return (
-				<WatercolorCard tone={tone} className="kit__subject">
-					<p>水彩</p>
+				<WatercolorCard tone={tone} className="kit__subject kit__subject--pane">
+					<h3>水彩</h3>
+					<p>颜料是自己摊开的，上面盖着真玻璃。</p>
 				</WatercolorCard>
 			);
 		case "bling":

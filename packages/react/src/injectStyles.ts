@@ -86,6 +86,13 @@ const CSS = `
 
 .ui-lib-soft-light-panel {
 	border-radius: 32px;
+	/* A light pane has to say what colour its own text is. Inheriting the
+	   host page's colour is only correct by accident: on a page written for a
+	   dark ground the inherited value is near-white, and the text inside a
+	   near-white panel is invisible. Found by looking at a contact sheet of
+	   every component and tone — no pixel gate could see it, because the gates
+	   measure the canvas and the text is DOM. */
+	color: #33224f;
 	/* Faint by design, but not absent: the canvas glass alone leaves nothing to
 	   see where the ground behind it is already white.
 	   The iris fill was rgba(239, 234, 255, 0.42), which against a wash built
@@ -101,22 +108,33 @@ const CSS = `
 .ui-lib-watercolor-card {
 	border-radius: 28px;
 	overflow: hidden;
+	color: #4a2440;
 }
 
-/* A wash is layered, never flat: pools at different scales so the edge of the
-   card never shows the same value twice. */
+/*
+ * A wash, not a stain.
+ *
+ * The first version put four pools down with hard 0% cores, and the most
+ * saturated of them sat in a 40% box low on the card. At card size that read as
+ * a smudge — the contact sheet made it obvious and nothing else would have.
+ * Pigment spreads: the cores are graded rather than flat, the pools are wider
+ * than the card so their edges fall outside it, and the layer is blurred so
+ * there is no hard boundary anywhere. saturate keeps the blur from washing
+ * the colour out.
+ */
 .ui-lib-watercolor-card::before {
 	content: "";
 	position: absolute;
-	inset: 0;
+	inset: -12%;
 	z-index: -1;
 	background:
-		radial-gradient(60% 55% at 18% 12%, #efeaff 0%, transparent 70%),
-		radial-gradient(50% 45% at 84% 22%, #fff0f7 0%, transparent 72%),
-		radial-gradient(70% 60% at 72% 88%, #eef5fd 0%, transparent 74%),
-		radial-gradient(40% 40% at 32% 74%, #ffc2dc 0%, transparent 76%),
-		linear-gradient(160deg, #efeaff 0%, #ffffff 100%);
-	opacity: 0.9;
+		radial-gradient(62% 58% at 20% 16%, #efeaff 0%, rgba(239, 234, 255, 0.55) 42%, transparent 74%),
+		radial-gradient(54% 50% at 82% 24%, #fff0f7 0%, rgba(255, 240, 247, 0.5) 46%, transparent 76%),
+		radial-gradient(72% 64% at 74% 86%, #eef5fd 0%, rgba(238, 245, 253, 0.5) 48%, transparent 78%),
+		radial-gradient(58% 54% at 36% 76%, rgba(191, 168, 244, 0.66) 0%, rgba(191, 168, 244, 0.3) 44%, transparent 78%),
+		linear-gradient(158deg, #e7e0ff 0%, #fdfbff 62%, #f3ecff 100%);
+	filter: blur(11px) saturate(1.1);
+	opacity: 0.74;
 	pointer-events: none;
 }
 
@@ -149,27 +167,29 @@ const CSS = `
 
 .ui-lib-watercolor-card--blossom::before {
 	background:
-		radial-gradient(60% 55% at 18% 12%, #fff0f7 0%, transparent 70%),
-		radial-gradient(50% 45% at 84% 22%, #ffe4ef 0%, transparent 72%),
-		radial-gradient(70% 60% at 72% 88%, #fff7fb 0%, transparent 74%),
-		radial-gradient(40% 40% at 32% 74%, #ffb3d1 0%, transparent 76%),
-		linear-gradient(160deg, #fff0f7 0%, #ffffff 100%);
+		radial-gradient(62% 58% at 20% 16%, #fff0f7 0%, rgba(255, 240, 247, 0.55) 42%, transparent 74%),
+		radial-gradient(54% 50% at 82% 24%, #ffe4ef 0%, rgba(255, 228, 239, 0.5) 46%, transparent 76%),
+		radial-gradient(72% 64% at 74% 86%, #fff7fb 0%, rgba(255, 247, 251, 0.5) 48%, transparent 78%),
+		radial-gradient(58% 54% at 36% 76%, rgba(255, 179, 209, 0.62) 0%, rgba(255, 179, 209, 0.28) 44%, transparent 78%),
+		linear-gradient(158deg, #fff0f7 0%, #ffffff 62%, #fff7fb 100%);
 }
 
 .ui-lib-watercolor-card--mist::before {
 	background:
-		radial-gradient(60% 55% at 18% 12%, #eef5fd 0%, transparent 70%),
-		radial-gradient(50% 45% at 84% 22%, #e3eefb 0%, transparent 72%),
-		radial-gradient(70% 60% at 72% 88%, #f6faff 0%, transparent 74%),
-		radial-gradient(40% 40% at 32% 74%, #a8c6e8 0%, transparent 76%),
-		linear-gradient(160deg, #eef5fd 0%, #ffffff 100%);
+		radial-gradient(62% 58% at 20% 16%, #eef5fd 0%, rgba(238, 245, 253, 0.55) 42%, transparent 74%),
+		radial-gradient(54% 50% at 82% 24%, #e3eefb 0%, rgba(227, 238, 251, 0.5) 46%, transparent 76%),
+		radial-gradient(72% 64% at 74% 86%, #f6faff 0%, rgba(246, 250, 255, 0.5) 48%, transparent 78%),
+		radial-gradient(58% 54% at 36% 76%, rgba(168, 198, 232, 0.62) 0%, rgba(168, 198, 232, 0.28) 44%, transparent 78%),
+		linear-gradient(158deg, #eef5fd 0%, #ffffff 62%, #f6faff 100%);
 }
 
 .ui-lib-soft-light-panel--blossom {
+	color: #6d1436;
 	background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 206, 228, 0.62));
 }
 
 .ui-lib-soft-light-panel--mist {
+	color: #26375c;
 	background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(190, 216, 244, 0.66));
 }
 

@@ -2215,6 +2215,11 @@ input[type="range"]::-moz-range-thumb {
 	place-items: center;
 	min-height: 100vh;
 	padding: 40px;
+	/* The fixture is a host page too, and a host that hands a component a
+	   near-white inherited colour is not a fair test of that component. The
+	   components set their own colour now; this keeps the fixture honest
+	   rather than accidentally passing for the wrong reason. */
+	color: #33224f;
 }
 
 .kit__box {
@@ -2233,10 +2238,44 @@ input[type="range"]::-moz-range-thumb {
 
 .kit__subject p {
 	margin: 0;
+	font-size: 13px;
+	line-height: 1.6;
+	opacity: 0.78;
+}
+
+/* A panel and a card are not lozenges: one line of text in a 200px box makes
+   a 60px-tall pill, and the radius then reads as a capsule. Give them the
+   proportions they are designed for. */
+.kit__subject--pane {
+	width: 240px;
+	padding: 20px 22px 22px;
+	text-align: left;
+}
+
+.kit__subject--pane h3 {
+	margin: 0 0 8px;
+	font-size: 18px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
 }
 
 .kit__bling {
 	position: relative;
 	width: 200px;
 	height: 140px;
+}
+
+/* A place on the page with no glass in front of it, so the SDF text resolves
+   the way it actually is rather than through a pane. */
+.iris__crystal-band {
+	display: grid;
+	place-items: center;
+	min-height: 260px;
+	margin: 40px 0 8px;
+}
+
+.iris__crystal-band-slot {
+	width: 320px;
+	height: 120px;
+	pointer-events: none;
 }

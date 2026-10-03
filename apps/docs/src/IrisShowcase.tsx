@@ -61,6 +61,7 @@ export function IrisShowcasePage() {
 		: undefined;
 
 	const crystalSlot = useRef<HTMLDivElement>(null);
+	const crystalBand = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		document.title = "IRIS · UI-Lib";
@@ -121,7 +122,10 @@ export function IrisShowcasePage() {
 						</SoftLightPanel>
 
 						<WatercolorCard tone="blossom" className="iris__card">
-							<CrystalText text="水彩" anchor={crystalSlot} size={0.85} color="#2a0f45" />
+							{/* Behind the card's glass: the wash bends and veils it, so it
+							    reads as ink under watercolour. The crisp instance is
+							    further down the page, where no glass is in front of it. */}
+							<CrystalText text="水彩" anchor={crystalSlot} size={1.5} color="#1c0730" />
 							<div ref={crystalSlot} className="iris__crystal-slot" aria-hidden="true" />
 							<p className="iris__kicker">水彩卡片</p>
 							<h3>颜料是自己摊开的。</h3>
@@ -132,6 +136,21 @@ export function IrisShowcasePage() {
 							</div>
 						</WatercolorCard>
 					</div>
+
+					{/* No glass in front of this one, so it resolves the way the distance
+					    field actually is: solid and sharp. The two instances together
+					    are the honest picture — one bent by a pane, one not. */}
+					<section className="iris__crystal-band">
+						<CrystalText
+							text="紫鸢尾"
+							anchor={crystalBand}
+							size={2.6}
+							color="#3b1d6e"
+							opacity={0.9}
+							rotation={[0, 0, -0.02]}
+						/>
+						<div ref={crystalBand} className="iris__crystal-band-slot" aria-hidden="true" />
+					</section>
 
 					<ul className="iris__tones">
 						{COPY.map((item) => (
