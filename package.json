@@ -26,10 +26,12 @@
 		"check:post": "node scripts/check-post.mjs",
 		"check:post:self-test": "node scripts/check-post.mjs --self-test",
 		"check:pixels:self-test": "node scripts/check-pixels.mjs --self-test",
+		"check:templates": "node scripts/check-templates.mjs",
+		"check:templates:self-test": "node scripts/check-templates.mjs --self-test",
 		"build:font-atlas": "node scripts/build-font-atlas.mjs",
 		"verify": "pnpm test && pnpm typecheck && pnpm size",
 		"verify:device": "pnpm verify && pnpm check:shaders",
-		"lint": "biome check .",
+		"lint": "biome check . && node scripts/check-templates.mjs",
 		"format": "biome format --write ."
 	},
 	"devDependencies": {
