@@ -2403,3 +2403,34 @@ input[type="range"]::-moz-range-thumb {
 	gap: 26px;
 	width: 320px;
 }
+
+/* The wordmark: plain text in a liquid-glass pane. */
+.iris__wordmark {
+	padding: 14px 42px 18px;
+	border-radius: 42px;
+}
+
+.iris__wordmark-text {
+	font-family: var(--font-mix);
+	font-size: clamp(40px, 5.2vw, 76px);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.05;
+	color: #3b1d6e;
+}
+
+/* The rail the buttons sit on. Inset so the buttons overhang it slightly —
+   a control that sits strictly inside its backing reads as a row in a table. */
+.iris__button-rail {
+	display: inline-flex;
+	padding: 10px 14px;
+	margin: 6px 0 2px;
+	border-radius: 34px;
+}
+
+.iris__button-rail .iris__buttons {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}

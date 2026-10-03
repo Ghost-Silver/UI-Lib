@@ -3,9 +3,9 @@ import { IRIS, IRIS_TONES } from "@ui-lib/core";
 import {
 	Bling,
 	BubbleBadge,
-	CrystalText,
 	fieldOptions,
 	GlassStage,
+	LiquidGlass,
 	ParticleField,
 	PinkPaperButton,
 	Reveal,
@@ -14,7 +14,7 @@ import {
 	WatercolorCard,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 /**
  * The IRIS surface: five components on one stage.
@@ -94,8 +94,6 @@ export function IrisShowcasePage() {
 			}
 		: undefined;
 
-	const crystalBand = useRef<HTMLDivElement>(null);
-
 	useEffect(() => {
 		document.title = "IRIS · UI-Lib";
 	}, []);
@@ -138,13 +136,20 @@ export function IrisShowcasePage() {
 								</BubbleBadge>
 							))}
 						</div>
-						<div className="iris__buttons">
-							<PinkPaperButton tone="blossom">开始</PinkPaperButton>
-							<PinkPaperButton tone="iris">了解更多</PinkPaperButton>
-							<PinkPaperButton tone="mist" disabled>
-								暂不可用
-							</PinkPaperButton>
-						</div>
+						{/* The buttons sit on a liquid-glass rail.
+					    The pair is deliberate: the pane is the material, the button
+					    is the control mounted on it. Stacking two materials that
+					    both want the same edge is what makes glass UI look muddy,
+					    so the pane is inset rather than the button. */}
+						<LiquidGlass tint="blossom" className="iris__button-rail">
+							<div className="iris__buttons">
+								<PinkPaperButton tone="blossom">开始</PinkPaperButton>
+								<PinkPaperButton tone="iris">了解更多</PinkPaperButton>
+								<PinkPaperButton tone="mist" disabled>
+									暂不可用
+								</PinkPaperButton>
+							</div>
+						</LiquidGlass>
 					</div>
 
 					{/* Behind the panels, so their glass has something to bend. Sized and
@@ -188,16 +193,18 @@ export function IrisShowcasePage() {
 				    there, but a pane that hides them entirely teaches nothing.
 				    This one is the same palette with nothing in the way. */}
 
+					{/* Plain DOM text, set by the browser.
+					    This was an SDF glyph mesh and it was the wrong tool: at
+					    96px the quads that carry the distance field show their own
+					    edges and the curves turn into visible polygons. A distance
+					    field earns its keep at small sizes and where something has
+					    to refract the type — as a headline it is worse than the
+					    font the machine already has. `CrystalText` is still here
+					    and still correct for what it was built for. */}
 					<section className="iris__crystal-band">
-						<CrystalText
-							text="Iris UI"
-							anchor={crystalBand}
-							size={2.6}
-							color="#3b1d6e"
-							opacity={0.9}
-							rotation={[0, 0, -0.02]}
-						/>
-						<div ref={crystalBand} className="iris__crystal-band-slot" aria-hidden="true" />
+						<LiquidGlass tint="iris" glossy className="iris__wordmark">
+							<span className="iris__wordmark-text">Iris UI</span>
+						</LiquidGlass>
 					</section>
 
 					<section className="iris__cards">

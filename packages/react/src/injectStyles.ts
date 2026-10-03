@@ -1101,6 +1101,332 @@ const CSS = `
 	}
 }
 
+
+/* --- soft modal ----------------------------------------------------------
+ *
+ * Built on a real dialog, so the veil is its ::backdrop and the panel is the
+ * element. The scrim is a warm translucent white rather than black: a black
+ * scrim over a pastel page changes the page's colour instead of dimming it,
+ * and every pastel in the composition goes muddy at once.
+ *
+ * The entry is 0.4 -> 1.08 -> 1.0. A single ease reads as a box appearing; the
+ * overshoot reads as a balloon being blown up and then relaxing, which is the
+ * same volume story the button's press tells in the other direction.
+ */
+
+.ui-lib-soft-modal {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: transparent;
+	overflow: visible;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	display: grid;
+	place-items: center;
+}
+
+.ui-lib-soft-modal::backdrop {
+	background: rgb(250 248 245 / 0.62);
+	backdrop-filter: blur(8px) saturate(115%);
+	-webkit-backdrop-filter: blur(8px) saturate(115%);
+}
+
+@keyframes ui-lib-moe-inflate {
+	0% {
+		transform: scale(0.4);
+		opacity: 0;
+	}
+	62% {
+		transform: scale(1.08);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+@keyframes ui-lib-moe-twinkle {
+	0% {
+		opacity: 0;
+		transform: scale(0.4) rotate(0deg);
+	}
+	45% {
+		opacity: 1;
+		transform: scale(1.15) rotate(28deg);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(0.8) rotate(60deg);
+	}
+}
+
+.ui-lib-soft-modal__veil {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.ui-lib-soft-modal__panel {
+	position: relative;
+	width: min(92vw, 380px);
+	padding: 26px 26px 20px;
+	border-radius: var(--moe-radius-xl);
+	background: var(--moe-card);
+	border: 1.5px solid var(--moe-stroke);
+	box-shadow:
+		0 24px 48px -12px rgb(77 60 56 / 0.22),
+		inset 0 4px 6px 0 rgb(255 255 255 / 0.9),
+		inset 0 -4px 6px 0 rgb(77 60 56 / 0.06);
+	animation: ui-lib-moe-inflate 420ms var(--moe-ease-jelly) both;
+}
+
+.ui-lib-soft-modal[data-ui-lib-reduced] .ui-lib-soft-modal__panel {
+	animation: none;
+}
+
+.ui-lib-soft-modal__spark {
+	position: absolute;
+	font-size: 15px;
+	line-height: 1;
+	color: var(--moe-lemon-500);
+	text-shadow: 0 0 8px rgb(253 224 139 / 0.9);
+	animation: ui-lib-moe-twinkle 900ms var(--moe-ease-jelly) 220ms both;
+}
+
+/* One per rounded corner, pulled just outside the edge so the glow sits on the
+   curve rather than inside the panel. */
+.ui-lib-soft-modal__spark[data-ui-lib-corner="top-left"] {
+	top: -6px;
+	left: -4px;
+}
+.ui-lib-soft-modal__spark[data-ui-lib-corner="top-right"] {
+	top: -6px;
+	right: -4px;
+}
+.ui-lib-soft-modal__spark[data-ui-lib-corner="bottom-left"] {
+	bottom: -6px;
+	left: -4px;
+}
+.ui-lib-soft-modal__spark[data-ui-lib-corner="bottom-right"] {
+	bottom: -6px;
+	right: -4px;
+}
+
+.ui-lib-soft-modal__head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.ui-lib-soft-modal__title {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 800;
+	line-height: 1.33;
+	letter-spacing: -0.01em;
+}
+
+.ui-lib-soft-modal__body {
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.57;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-modal__body p {
+	margin: 0;
+}
+
+/* The dismiss is a plump pill, and it wobbles on hover. A 15 degree tilt is
+   the smallest movement that reads as a reaction rather than as a glitch. */
+.ui-lib-soft-modal__dismiss {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.95 0.01 20);
+	color: var(--moe-cocoa-soft);
+	font-size: 17px;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+	transition:
+		transform 220ms var(--moe-ease-jelly),
+		background 160ms ease-out;
+}
+
+.ui-lib-soft-modal__dismiss:hover {
+	transform: rotate(15deg);
+	background: var(--moe-sakura-300);
+}
+
+.ui-lib-soft-modal__foot {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+.ui-lib-soft-modal__cancel,
+.ui-lib-soft-modal__confirm {
+	height: 40px;
+	padding: 0 20px;
+	border-radius: var(--moe-radius-full);
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	border: none;
+	transition: transform 200ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-modal__cancel {
+	background: oklch(0.95 0.006 60);
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-modal__confirm {
+	background: var(--moe-sakura-500);
+	color: var(--moe-cocoa);
+	box-shadow: var(--moe-clay-pink);
+}
+
+.ui-lib-soft-modal__cancel:hover,
+.ui-lib-soft-modal__confirm:hover {
+	transform: translateY(-1px);
+}
+
+.ui-lib-soft-modal__confirm:active,
+.ui-lib-soft-modal__cancel:active {
+	transform: scale(1.04, 0.94);
+}
+
+.ui-lib-soft-modal__dismiss:focus-visible,
+.ui-lib-soft-modal__cancel:focus-visible,
+.ui-lib-soft-modal__confirm:focus-visible {
+	outline: 3px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-modal__panel {
+		animation: none;
+	}
+
+	.ui-lib-soft-modal__spark {
+		display: none;
+	}
+
+	.ui-lib-soft-modal__dismiss:hover {
+		transform: none;
+	}
+}
+
+
+/* --- liquid glass --------------------------------------------------------
+ *
+ * The compositor's blur, not the shader's refraction. See the component's own
+ * comment for why both exist.
+ *
+ * Three things stop it from reading as flat frosted plastic:
+ *
+ * 1. **A bright rim, not a dark border.** A dark outline on a translucent body
+ *    reads as a sticker with a stroke. The rim here is a light line at 85 per
+ *    cent, which is what an edge looks like when light passes through it.
+ * 2. **An inner top highlight**, the same light-from-above story the clay
+ *    surfaces tell, so the pane has thickness rather than being a hole.
+ * 3. **A diagonal sheen** that is brighter at the top-left. Flat translucency
+ *    has no direction; every real pane of glass has one.
+ *
+ * The body sits at 0.42 alpha. Higher and the page behind the pane is lost;
+ * lower and the content the pane was put there to hold stops being readable.
+ */
+
+.ui-lib-liquid-glass {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	isolation: isolate;
+	background: var(--lg-body, oklch(0.88 0.07 300 / 0.42));
+	backdrop-filter: blur(14px) saturate(165%);
+	-webkit-backdrop-filter: blur(14px) saturate(165%);
+	border: 1px solid var(--lg-rim, oklch(0.99 0.02 305 / 0.85));
+	box-shadow:
+		0 10px 24px -10px rgb(77 60 56 / 0.24),
+		inset 0 2px 2px 0 rgb(255 255 255 / 0.8),
+		inset 0 -6px 12px -6px var(--lg-glow, oklch(0.72 0.12 300 / 0.35));
+	transition:
+		transform var(--moe-dur-base) var(--moe-ease-jelly),
+		box-shadow var(--moe-dur-base) var(--moe-ease-jelly);
+}
+
+.ui-lib-liquid-glass__sheen {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	border-radius: inherit;
+	background: linear-gradient(
+		150deg,
+		rgb(255 255 255 / 0.55) 0%,
+		rgb(255 255 255 / 0.16) 34%,
+		rgb(255 255 255 / 0) 62%
+	);
+	pointer-events: none;
+}
+
+.ui-lib-liquid-glass[data-ui-lib-glossy] .ui-lib-liquid-glass__sheen {
+	background: linear-gradient(
+		150deg,
+		rgb(255 255 255 / 0.82) 0%,
+		rgb(255 255 255 / 0.2) 40%,
+		rgb(255 255 255 / 0) 68%
+	);
+}
+
+.ui-lib-liquid-glass__content {
+	position: relative;
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* --- buttons on a pane ---------------------------------------------------
+ *
+ * The button keeps its own clay body; the pane is added *under* it as a
+ * translucent rail, so the pair reads as a control mounted on glass rather
+ * than as two stacked materials competing for the same edge.
+ */
+
+.ui-lib-paper-button[data-ui-lib-on-glass]::before {
+	content: "";
+	position: absolute;
+	inset: -6px -8px;
+	border-radius: var(--moe-radius-full);
+	background: rgb(255 255 255 / 0.34);
+	backdrop-filter: blur(12px) saturate(150%);
+	-webkit-backdrop-filter: blur(12px) saturate(150%);
+	border: 1px solid rgb(255 255 255 / 0.6);
+	box-shadow: 0 8px 18px -10px rgb(77 60 56 / 0.28);
+	pointer-events: none;
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
