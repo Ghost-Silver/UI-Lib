@@ -42,6 +42,7 @@ import {
 	SoftTag,
 	SoftTextarea,
 	SoftToast,
+	SoftToolbar,
 	SoftTooltip,
 	WatercolorCard,
 } from "@ui-lib/react";
@@ -91,6 +92,7 @@ const COMPONENTS = [
 	"textarea",
 	"list",
 	"combobox",
+	"toolbar",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -192,6 +194,101 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Two toolbars: a horizontal one and a vertical one. */
+function ToolbarKit() {
+	const [tool, setTool] = useState("brush");
+	const [grid, setGrid] = useState(true);
+	const [snap, setSnap] = useState(false);
+	const icon = (d: string) => (
+		<svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+			<path
+				d={d}
+				stroke="currentColor"
+				strokeWidth="1.6"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
+	return (
+		<div className="kit__toolbar">
+			<SoftToolbar
+				label="画布"
+				items={[
+					{
+						id: "brush",
+						label: "画笔",
+						icon: icon("M2.5 13.5 L5 12.5 L13 4.5 L11.5 3 L3.5 11 Z"),
+						pressed: tool === "brush",
+						onSelect: () => setTool("brush"),
+					},
+					{
+						id: "fill",
+						label: "填充",
+						icon: icon(
+							"M3 9.5 L7.5 4 L12.5 9 L8 13.5 Z M12.5 11.5 C12.5 11.5 13.5 12.6 13.5 13.2 A1 1 0 0 1 11.5 13.2 C11.5 12.6 12.5 11.5 12.5 11.5 Z",
+						),
+						pressed: tool === "fill",
+						onSelect: () => setTool("fill"),
+					},
+					{
+						id: "grid",
+						label: "网格",
+						icon: icon("M3 3 H13 V13 H3 Z M3 7 H13 M7 3 V13"),
+						pressed: grid,
+						onSelect: () => setGrid((v) => !v),
+					},
+					{
+						id: "snap",
+						label: "吸附",
+						hint: "对齐到网格",
+						icon: icon("M8 2 V6 M8 10 V14 M2 8 H6 M10 8 H14"),
+						pressed: snap,
+						onSelect: () => setSnap((v) => !v),
+					},
+					{
+						id: "lock",
+						label: "锁定",
+						disabled: true,
+						icon: icon("M4.5 7.5 V5.5 A3.5 3.5 0 0 1 11.5 5.5 V7.5 M3.5 7.5 H12.5 V13 H3.5 Z"),
+						onSelect: () => undefined,
+					},
+				]}
+			/>
+			<div className="kit__toolbar-row">
+				<SoftToolbar
+					label="图层"
+					orientation="vertical"
+					size="sm"
+					items={[
+						{
+							id: "up",
+							label: "上移",
+							icon: icon("M8 12 V4 M4.5 7.5 L8 4 L11.5 7.5"),
+							onSelect: () => undefined,
+						},
+						{
+							id: "down",
+							label: "下移",
+							icon: icon("M8 4 V12 M4.5 8.5 L8 12 L11.5 8.5"),
+							onSelect: () => undefined,
+						},
+						{
+							id: "dup",
+							label: "复制",
+							icon: icon("M5.5 5.5 H12.5 V12.5 H5.5 Z M3.5 10.5 V3.5 H10.5"),
+							onSelect: () => undefined,
+						},
+					]}
+				/>
+				<p className="kit__toolbar-note">
+					当前工具 {tool}，网格 {grid ? "开" : "关"}，吸附 {snap ? "开" : "关"}
+				</p>
+			</div>
+		</div>
 	);
 }
 
@@ -861,6 +958,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "toolbar":
+			return <ToolbarKit />;
 		case "combobox":
 			return <ComboboxKit />;
 		case "list":

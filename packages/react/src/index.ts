@@ -120,6 +120,8 @@ export type { SoftTabsProps } from "./SoftTabs.js";
 export { SoftTabs } from "./SoftTabs.js";
 export type { SoftTextareaProps } from "./SoftTextarea.js";
 export { SoftTextarea } from "./SoftTextarea.js";
+export type { SoftToolbarItem, SoftToolbarProps } from "./SoftToolbar.js";
+export { SoftToolbar } from "./SoftToolbar.js";
 export { pageRange } from "./softNavigationRange.js";
 export { useFrame } from "./useFrame.js";
 export type { WatercolorCardProps } from "./WatercolorCard.js";

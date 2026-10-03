@@ -3351,3 +3351,23 @@ input[type="range"]::-moz-range-thumb {
 	font-size: 12.5px;
 	color: var(--moe-cocoa-soft);
 }
+
+.kit__toolbar {
+	display: grid;
+	gap: 24px;
+	justify-items: center;
+	align-content: center;
+	width: 360px;
+}
+
+.kit__toolbar-row {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+}
+
+.kit__toolbar-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}

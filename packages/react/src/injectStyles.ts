@@ -4488,6 +4488,113 @@ const CSS = `
 	}
 }
 
+
+/* --- toolbar -------------------------------------------------------------
+ *
+ * A recess with buttons in it, which is the same construction the segmented
+ * control uses and for the same reason: a row of related controls should read as
+ * one article rather than as several that happen to be adjacent.
+ *
+ * The difference is that a segmented control is a single choice and a toolbar is
+ * a set of actions, so its items are not sized equally and they do not carry a
+ * shared selection — a toolbar button that is "on" is a toggle, and its own
+ * aria-pressed says so.
+ *
+ * No focus ring on the container: focus lands on an item and moves between items,
+ * so the item is what has to show it.
+ */
+
+.ui-lib-soft-toolbar {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	padding: 3px;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.96 0.008 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.11),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+}
+
+.ui-lib-soft-toolbar[data-ui-lib-orientation="vertical"] {
+	flex-direction: column;
+	border-radius: var(--moe-radius-lg);
+}
+
+.ui-lib-soft-toolbar__item {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	color: var(--moe-cocoa-soft);
+	cursor: pointer;
+	transition:
+		background 160ms ease-out,
+		color 160ms ease-out,
+		box-shadow 160ms ease-out,
+		transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-lib-soft-toolbar[data-ui-lib-size="sm"] .ui-lib-soft-toolbar__item {
+	width: 28px;
+	height: 28px;
+}
+
+.ui-lib-soft-toolbar__item:hover:not(:disabled) {
+	background: oklch(0.92 0.02 310);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-toolbar__item:active:not(:disabled) {
+	transform: scale(0.92);
+}
+
+/*
+ * Focus is a ring on the item, because the item is what has focus. The toolbar
+ * itself deliberately draws none: a ring around the whole row would say the whole
+ * row is active when one button is.
+ */
+.ui-lib-soft-toolbar__item:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 1px;
+}
+
+/* A toggle that is on. Raised out of the recess, like the segmented control's
+   chosen segment — the same gesture for the same meaning. */
+.ui-lib-soft-toolbar__item[data-ui-lib-pressed] {
+	background: var(--moe-card);
+	color: var(--moe-cocoa);
+	box-shadow:
+		0 2px 5px -1px rgb(77 60 56 / 0.2),
+		inset 0 -2px 4px 0 rgb(77 60 56 / 0.05);
+}
+
+.ui-lib-soft-toolbar__item:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-toolbar__icon {
+	display: grid;
+	place-items: center;
+	line-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-toolbar__item {
+		transition: none;
+	}
+
+	.ui-lib-soft-toolbar__item:active:not(:disabled) {
+		transform: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
