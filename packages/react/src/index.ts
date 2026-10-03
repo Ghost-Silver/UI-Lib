@@ -64,7 +64,7 @@ export { anchorNameFrom, usePopover } from "./overlay.js";
 export type { ParticleFieldProps } from "./ParticleField.js";
 export { ParticleField } from "./ParticleField.js";
 export type { PinkPaperButtonProps } from "./PinkPaperButton.js";
-export { PinkPaperButton } from "./PinkPaperButton.js";
+export { PinkPaperButton, SoftButton } from "./PinkPaperButton.js";
 export type { PointerTrailProps } from "./PointerTrail.js";
 export { PointerTrail } from "./PointerTrail.js";
 export type { RevealProps } from "./Reveal.js";

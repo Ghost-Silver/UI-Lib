@@ -161,3 +161,27 @@ export const PinkPaperButton = forwardRef<HTMLButtonElement, PinkPaperButtonProp
 		);
 	},
 );
+
+/**
+ * The same button, under the name the rest of the library uses.
+ *
+ * `PinkPaperButton` was written before the `Soft` layer existed, and it is the
+ * one component that ended up on the wrong side of the line: measured, it is the
+ * only unprefixed export that carries an accessibility contract — a real
+ * `<button>` with a `tone`, a `variant` and a size, sitting in the same layer as
+ * `SoftCard` and `SoftInput` while being named as though it were a primitive.
+ *
+ * **An alias rather than a rename.** Renaming it would break every call site for
+ * a naming preference, and the old name is not wrong so much as uninformative:
+ * a reader who sees `PinkPaperButton` learns what it looks like, and a reader who
+ * sees `SoftButton` learns what it is. Both are true, and one of them is
+ * consistent with the other thirty-three components.
+ *
+ * `PinkPaperButton` stays exported and stays supported. There is no deprecation
+ * warning, because a warning for a name that works is a cost with no benefit —
+ * the documentation points at the new one and the old one keeps working.
+ */
+export const SoftButton = PinkPaperButton;
+
+/** The props of `SoftButton`, under the name the rest of the library uses. */
+export type SoftButtonProps = PinkPaperButtonProps;
