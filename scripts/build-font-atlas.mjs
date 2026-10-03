@@ -36,13 +36,23 @@ const DEFAULT_CHARS =
 
 /** Padding around each glyph, in atlas pixels. The field needs room to fall off. */
 const PADDING = 6;
-/** Distance, in pixels, that maps to the 0..1 range of the stored field. */
-const RANGE = 4;
+/**
+ * Texels the 0..1 field spans either side of the edge.
+ *
+ * This has to be *smaller than half the thinnest stroke*, or the field never
+ * saturates inside that stroke and the glyph renders as a faint wash rather
+ * than as ink. A CJK glyph at 48px has strokes about 3px wide, so a range of 4
+ * left the inside at `sigDist ≈ -0.12` and `smoothstep` returned nearly zero —
+ * the text was there, correctly placed and correctly sized, and almost
+ * invisible. Rendering larger and keeping the range tight is what makes the
+ * field reach its floor inside a stroke.
+ */
+const RANGE = 2;
 
 function parseArgs(argv) {
 	const options = {
 		chars: DEFAULT_CHARS,
-		size: 48,
+		size: 64,
 		font: "",
 		out: "apps/docs/public/fonts",
 		name: "iris-sdf",

@@ -9,18 +9,37 @@ import { LinearFilter, Mesh, NoColorSpace, Texture } from "three/webgpu";
 import { useGlassStage } from "./context.js";
 
 /*
- * NOT EXPORTED, AND NOT KNOWN TO RENDER.
+ * NOT EXPORTED, AND NOT YET USABLE.
  *
- * The atlas, the material and the layout are all in place, and this mounts a
- * mesh that the layer accepts — but nothing reaches the screen, and the cause
- * was not found. It is not the geometry (the probe reported 8 vertices for two
- * glyphs), not scene membership (`addWorldObject` ran), and not the material:
- * a solid opaque red with no atlas sampling was equally invisible, which
- * narrows it to the world-object pass or to where `follow` places the mesh.
+ * It draws. Getting that far took finding three separate defects, two of which
+ * were silent:
  *
- * Kept as a starting point rather than deleted, and kept out of the package's
- * export surface so nothing can depend on a component that silently draws
- * nothing. Finish the render path first, then export it.
+ *  - **Back-face culling.** `createTextGeometry` winds its quads top-left ->
+ *    top-right -> bottom-right, which is clockwise from +Z and therefore a back
+ *    face under three's default. Every glyph was culled and nothing reported
+ *    it. Fixed with `side: DoubleSide` in `createTextMaterial` rather than by
+ *    reordering the indices, because `sampleTextPoints` reads index `i` and
+ *    `i + 2` as opposite corners of a quad and depends on that order.
+ *  - **Scale.** The layout is in atlas pixels; `size` now means a height in
+ *    world units, normalised by the real bounding box.
+ *  - **Coverage applied twice.** Multiplying the colour by alpha in the shader
+ *    and again in three's `srcAlpha` blend squares the coverage. Split into
+ *    `colorNode` / `opacityNode`.
+ *
+ * What is left: the glyphs render in the right place at the right size and are
+ * **far too faint to use** — a pale wash on the card rather than ink. Ruled
+ * out: the atlas polarity and saturation (sampled directly — inside reaches
+ * 255), placement (`follow` resolves the slot and reports
+ * `[4.81, 2.08, 0]`), and the anti-aliasing width, whose derivation
+ * `scaleW / (2 * distanceRange)` matches the measured per-pixel change in
+ * `sigDist` to within a few percent.
+ *
+ * Next: the atlas's usable range against the stroke width it actually
+ * rasterised, then whether the post chain is attenuating a `transparent`
+ * material in the world pass.
+ *
+ * Kept as a starting point and out of the export surface, so nothing can depend
+ * on a component that renders a ghost.
  */
 
 export interface CrystalTextProps {
@@ -156,10 +175,32 @@ export function CrystalText({
 		mesh.frustumCulled = false;
 
 		const object = layer.addWorldObject(mesh, undefined, { refractive: true });
+		// TEMP-DIAG
+		(window as unknown as Record<string, unknown>).__crystalFollowCalled =
+			anchorRef.current?.current != null;
 		const follow = anchorRef.current?.current
 			? layer.follow(
-					() => anchorRef.current?.current ?? null,
-					(point) => mesh.position.set(point[0], point[1], point[2]),
+					() => {
+						const el = anchorRef.current?.current ?? null;
+						// TEMP-DIAG
+						(window as unknown as Record<string, unknown>).__crystalAnchor = el
+							? {
+									tag: el.tagName,
+									cls: String(el.className),
+									rects: el.getClientRects().length,
+								}
+							: null;
+						return el;
+					},
+					(point) => {
+						mesh.position.set(point[0], point[1], point[2]);
+						// TEMP-DIAG
+						const w = window as unknown as Record<string, unknown>;
+						const seen = (w.__crystalSeen as number) ?? 0;
+						w.__crystalSeen = seen + 1;
+						w.__crystalPos = [point[0], point[1], point[2]];
+						w.__crystalScale = mesh.scale.x;
+					},
 					0,
 				)
 			: null;

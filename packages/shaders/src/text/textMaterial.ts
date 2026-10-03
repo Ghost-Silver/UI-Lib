@@ -1,7 +1,8 @@
-import { float, mix, uv, vec4 } from "three/tsl";
+import { float, mix, uv } from "three/tsl";
 import {
 	Color,
 	type ColorRepresentation,
+	DoubleSide,
 	MeshBasicNodeMaterial,
 	type Texture,
 } from "three/webgpu";
@@ -69,11 +70,20 @@ export function createTextMaterial(options: TextMaterialOptions): MeshBasicNodeM
 		// SDF glyphs overlap at their padded edges; writing depth would let the
 		// padding of one quad clip the stroke of the next.
 		depthWrite: false,
+		// `createTextGeometry` winds its quads top-left -> top-right ->
+		// bottom-right, which is clockwise seen from +Z and therefore a back
+		// face under three's default. Front-side only culled every glyph, and
+		// nothing reported it: the mesh existed, was in the scene, and simply
+		// was not drawn. Text is a sheet, so draw both sides.
+		side: DoubleSide,
 	});
 
-	// The field's outer band ramps through the whole 0..1 range, so tinting by
-	// alpha itself gives a soft edge for free without a second texture.
-	material.colorNode = vec4(mix(glow, color, alpha).mul(opacity), alpha.mul(opacity));
+	// Colour and coverage are separate on purpose. Multiplying the colour by
+	// alpha here as well would apply it twice — once in the shader and once in
+	// three's `srcAlpha` blend — which squares the coverage. Near alpha 1 that
+	// is invisible; across an SDF's soft edge it drains the glyph to a wash.
+	material.colorNode = mix(glow, color, alpha);
+	material.opacityNode = alpha.mul(opacity);
 	return material;
 }
 

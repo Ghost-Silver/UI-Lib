@@ -2194,3 +2194,9 @@ input[type="range"]::-moz-range-thumb {
 		grid-template-columns: 1fr;
 	}
 }
+
+.iris__crystal-slot {
+	width: 128px;
+	height: 56px;
+	pointer-events: none;
+}
