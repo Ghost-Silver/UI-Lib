@@ -13,11 +13,13 @@ import {
 	GlassStage,
 	PinkPaperButton,
 	SoftAccordion,
+	SoftAlert,
 	SoftAvatar,
 	SoftCard,
 	SoftCheckbox,
 	SoftDivider,
 	SoftDrawer,
+	SoftEmptyState,
 	SoftInput,
 	SoftLightPanel,
 	SoftModal,
@@ -77,6 +79,7 @@ const COMPONENTS = [
 	"material",
 	"wash-canvas",
 	"segments",
+	"status",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -178,6 +181,53 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Four tones and the empty state. */
+function StatusKit() {
+	return (
+		<div className="kit__status">
+			<SoftAlert tone="info" title="新的一笔">
+				颜料会在边缘沉积。
+			</SoftAlert>
+			<SoftAlert tone="success" title="已经保存了" onDismiss={() => undefined}>
+				这一笔留住了。
+			</SoftAlert>
+			<SoftAlert tone="warn" title="纸张有点湿" urgency="polite">
+				再等一下会更均匀。
+			</SoftAlert>
+			<SoftAlert tone="danger" title="没有连上" urgency="assertive">
+				正在重试。
+			</SoftAlert>
+			<div className="kit__status-empty">
+				<SoftEmptyState
+					size="sm"
+					title="还没有画过"
+					body="第一笔会出现在这里。"
+					art={
+						<svg viewBox="0 0 32 32" width="34" height="34" fill="none" aria-hidden="true">
+							<circle
+								cx="16"
+								cy="16"
+								r="9.5"
+								stroke="currentColor"
+								strokeWidth="1.6"
+								opacity="0.5"
+							/>
+							<circle
+								cx="16"
+								cy="16"
+								r="5"
+								stroke="currentColor"
+								strokeWidth="1.6"
+								opacity="0.8"
+							/>
+						</svg>
+					}
+				/>
+			</div>
+		</div>
 	);
 }
 
@@ -660,6 +710,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "status":
+			return <StatusKit />;
 		case "segments":
 			return <SegmentsKit />;
 		case "wash-canvas":

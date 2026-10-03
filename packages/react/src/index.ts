@@ -96,6 +96,8 @@ export type { SoftSelectOption, SoftSelectProps } from "./SoftSelect.js";
 export { SoftSelect } from "./SoftSelect.js";
 export type { SoftSliderProps } from "./SoftSlider.js";
 export { SoftSlider } from "./SoftSlider.js";
+export type { SoftAlertProps, SoftEmptyStateProps } from "./SoftStatus.js";
+export { SoftAlert, SoftEmptyState } from "./SoftStatus.js";
 export type { SoftSwitchProps } from "./SoftSwitch.js";
 export { SoftSwitch } from "./SoftSwitch.js";
 export type { SoftTableColumn, SoftTableProps } from "./SoftTable.js";

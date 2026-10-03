@@ -3693,6 +3693,194 @@ const CSS = `
 	}
 }
 
+
+/* --- alert ---------------------------------------------------------------
+ *
+ * A tinted panel with a drawn mark. The tint is mixed with the card rather than
+ * laid over it, so an alert sits on the page as a message instead of as a
+ * coloured block pasted on top of it.
+ *
+ * Every tone gets its own **shape**, and that is the part that carries the
+ * meaning. Four colours of one glyph is a component that only works for readers
+ * who separate the hues; a tick, a triangle, an octagon and a plain circle work
+ * for everyone and survive a greyscale print.
+ */
+
+.ui-lib-soft-alert {
+	display: flex;
+	align-items: flex-start;
+	gap: 11px;
+	padding: 13px 15px;
+	border-radius: var(--moe-radius-md);
+	border: 1.5px solid transparent;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-alert__mark {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 22px;
+	height: 22px;
+	margin-top: 1px;
+	border-radius: var(--moe-radius-full);
+}
+
+.ui-lib-soft-alert__body {
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	gap: 3px;
+}
+
+.ui-lib-soft-alert__title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.45;
+}
+
+.ui-lib-soft-alert__text {
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.6;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-alert__dismiss {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 24px;
+	height: 24px;
+	margin: -2px -3px 0 0;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	color: var(--moe-cocoa-soft);
+	cursor: pointer;
+	opacity: 0.7;
+	transition:
+		opacity 160ms ease-out,
+		background 160ms ease-out,
+		transform 240ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-alert__dismiss:hover {
+	opacity: 1;
+	background: rgb(77 60 56 / 0.08);
+	transform: rotate(90deg);
+}
+
+.ui-lib-soft-alert__dismiss:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+.ui-lib-soft-alert[data-ui-lib-tone="info"] {
+	background: oklch(0.97 0.02 300);
+	border-color: oklch(0.9 0.04 300);
+}
+.ui-lib-soft-alert[data-ui-lib-tone="info"] .ui-lib-soft-alert__mark {
+	background: oklch(0.92 0.05 300);
+	color: oklch(0.44 0.09 300);
+}
+
+.ui-lib-soft-alert[data-ui-lib-tone="success"] {
+	background: oklch(0.97 0.025 165);
+	border-color: oklch(0.9 0.05 165);
+}
+.ui-lib-soft-alert[data-ui-lib-tone="success"] .ui-lib-soft-alert__mark {
+	background: oklch(0.92 0.06 165);
+	color: oklch(0.42 0.09 165);
+}
+
+.ui-lib-soft-alert[data-ui-lib-tone="warn"] {
+	background: oklch(0.975 0.03 85);
+	border-color: oklch(0.91 0.06 85);
+}
+.ui-lib-soft-alert[data-ui-lib-tone="warn"] .ui-lib-soft-alert__mark {
+	background: oklch(0.93 0.07 85);
+	color: oklch(0.45 0.1 75);
+}
+
+.ui-lib-soft-alert[data-ui-lib-tone="danger"] {
+	background: oklch(0.97 0.028 20);
+	border-color: oklch(0.9 0.055 20);
+}
+.ui-lib-soft-alert[data-ui-lib-tone="danger"] .ui-lib-soft-alert__mark {
+	background: oklch(0.92 0.06 20);
+	color: oklch(0.44 0.13 20);
+}
+
+/* --- empty state ---------------------------------------------------------
+ *
+ * Centred, roomy, and quiet. An empty state is what a reader sees when there is
+ * nothing to look at, so it has to be worth looking at without pretending there
+ * is content — which is the line between an empty state and a decorative
+ * placeholder. No illustration is drawn here; art is the caller's.
+ */
+
+.ui-lib-soft-empty {
+	display: grid;
+	justify-items: center;
+	text-align: center;
+	gap: 7px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-empty[data-ui-lib-size="md"] {
+	padding: 44px 28px;
+}
+.ui-lib-soft-empty[data-ui-lib-size="sm"] {
+	padding: 26px 20px;
+}
+
+.ui-lib-soft-empty__art {
+	display: grid;
+	place-items: center;
+	margin-bottom: 6px;
+	color: oklch(0.72 0.04 310);
+	opacity: 0.9;
+}
+
+.ui-lib-soft-empty__title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.5;
+}
+
+.ui-lib-soft-empty[data-ui-lib-size="sm"] .ui-lib-soft-empty__title {
+	font-size: 14px;
+}
+
+.ui-lib-soft-empty__body {
+	margin: 0;
+	max-width: 34ch;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.65;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-empty__action {
+	margin-top: 9px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-alert__dismiss {
+		transition: none;
+	}
+
+	.ui-lib-soft-alert__dismiss:hover {
+		transform: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

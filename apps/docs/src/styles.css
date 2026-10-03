@@ -3279,3 +3279,15 @@ input[type="range"]::-moz-range-thumb {
 	width: 360px;
 	align-content: center;
 }
+
+.kit__status {
+	display: grid;
+	gap: 14px;
+	width: 380px;
+	align-content: center;
+}
+
+.kit__status-empty {
+	border: 1.5px dashed var(--moe-stroke);
+	border-radius: var(--moe-radius-md);
+}
