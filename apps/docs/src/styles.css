@@ -3254,3 +3254,21 @@ input[type="range"]::-moz-range-thumb {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }
+
+.kit__washcanvas {
+	display: flex;
+	gap: 40px;
+	align-items: flex-start;
+}
+
+.kit__washcanvas-label {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--moe-cocoa-soft);
+}
+
+.kit__washcanvas-error {
+	color: #c00;
+	font-size: 12px;
+}

@@ -1,4 +1,11 @@
-import { IRIS, IRIS_TONES, type IrisTone, type PlatformBudget } from "@ui-lib/core";
+import {
+	createWash,
+	IRIS,
+	IRIS_TONES,
+	type IrisTone,
+	type PlatformBudget,
+	washToCanvas,
+} from "@ui-lib/core";
 import type { SoftToastData } from "@ui-lib/react";
 import {
 	Bling,
@@ -30,7 +37,7 @@ import {
 	WatercolorCard,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * One component at a time, in a known box.
@@ -67,6 +74,7 @@ const COMPONENTS = [
 	"table",
 	"drawer",
 	"material",
+	"wash-canvas",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -168,6 +176,58 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/**
+ * The same wash, drawn two ways.
+ *
+ * Left is the CSS wash a component renders; right is the canvas one the
+ * renderer can sample. They should be recognisably the same mark — same arcs,
+ * same silhouette, same fibre — because they are the same generator's output
+ * going to two consumers.
+ */
+function WashCanvasKit() {
+	const holder = useRef<HTMLDivElement | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		void (async () => {
+			try {
+				const canvas = await washToCanvas({
+					hue: "#b79cf5",
+					weight: 0.9,
+					seed: 7,
+					width: 190,
+					height: 190,
+				});
+				if (cancelled || !holder.current) return;
+				canvas.style.width = "190px";
+				canvas.style.height = "190px";
+				holder.current.replaceChildren(canvas);
+			} catch (e) {
+				setError(String(e).slice(0, 120));
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+	const css = createWash({ hue: "#b79cf5", weight: 0.9, seed: 7, size: 190 });
+	return (
+		<div className="kit__washcanvas">
+			<div>
+				<p className="kit__washcanvas-label">CSS</p>
+				<span className="ui-lib-wash ui-lib-wash--dry" style={css.style as React.CSSProperties}>
+					<span className="ui-lib-wash__deposit" />
+				</span>
+			</div>
+			<div>
+				<p className="kit__washcanvas-label">Canvas</p>
+				<div ref={holder} />
+			</div>
+			{error && <p className="kit__washcanvas-error">{error}</p>}
+		</div>
 	);
 }
 
@@ -566,6 +626,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "wash-canvas":
+			return <WashCanvasKit />;
 		case "material":
 			return <MaterialKit />;
 		case "drawer":
