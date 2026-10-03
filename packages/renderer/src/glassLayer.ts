@@ -1365,9 +1365,15 @@ export class GlassLayer implements Disposable {
 			const pw = w * dpr;
 			const ph = h * dpr;
 			panel.mesh.scale.set(pw, ph, 1);
+			// Screen y grows downward, world y grows upward. The composite is
+			// presented without a V flip, so the conversion is `world = screen
+			// - centre`: a panel whose element sits at y = 841 has to be placed
+			// at +341, not -341. Getting this sign wrong leaves every pane
+			// mirrored about the canvas centre — a 39px chip 700px from its
+			// own text, and the LGP panes floating above their labels.
 			panel.mesh.position.set(
 				(localLeft + w / 2) * dpr - halfW,
-				halfH - (localTop + h / 2) * dpr,
+				(localTop + h / 2) * dpr - halfH,
 				panel.options.z,
 			);
 
