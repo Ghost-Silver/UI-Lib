@@ -746,10 +746,22 @@ const CSS = `
 		inset 0 4px 6px 0 rgb(255 255 255 / 0.9);
 }
 
-.ui-lib-soft-card[data-ui-lib-interactive]:active {
-	transform: translateY(1px) scale(0.985);
-	transition-duration: var(--moe-dur-quick);
-}
+/*
+ * No :active on a card, and its absence is the fix rather than an omission.
+ *
+ * A pressed state is a promise that something will happen when the press ends,
+ * and on a div only a pointer can make it. A keyboard user sees no lift when
+ * they press nothing and no collapse when they press nothing either — the card
+ * said "clickable" to one kind of user and said nothing to the other.
+ *
+ * interactive is a hover response: it lifts under the pointer and settles when
+ * the pointer leaves. A card that is genuinely clickable is a button, and this
+ * library has one — <SoftButton>, or a button inside the card — which is the
+ * thing that can be reached by Tab and activated by Enter.
+ *
+ * cursor is deliberately not pointer for the same reason: the cursor is the
+ * other half of the same promise.
+ */
 
 /* Typography: the spec's two rules that change how a page feels most are the
    line-height and the weight. Body text at 1.57 rather than 1.33, and at 600

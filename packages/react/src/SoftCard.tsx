@@ -4,8 +4,18 @@ import { type SoftMaterial, useMaterial } from "./material.js";
 
 export interface SoftCardProps extends React.HTMLAttributes<HTMLDivElement> {
 	/**
-	 * Lift, tilt and squeeze under the pointer. Off by default: a card that
-	 * moves is a card that is claiming to be clickable, and most are not.
+	 * Lift and tilt under the pointer, and settle when it leaves.
+	 *
+	 * **Hover only, and it used to have a pressed state as well.** That was a
+	 * promise the element could not keep: a pressed state says something happens
+	 * when the press ends, and on a `div` only a pointer can make one. A keyboard
+	 * user got no lift and no collapse, because there was nothing for them to
+	 * press — the card said "clickable" to one kind of user and nothing to the
+	 * other.
+	 *
+	 * So it is a hover response. A card that is genuinely clickable should hold a
+	 * `<SoftButton>` or be one: that is the element a keyboard can reach and
+	 * Enter can activate, and the one whose press means something.
 	 */
 	interactive?: boolean;
 	/** A sheen across the top-left corner. Reads as a glass edge, not a line. */
