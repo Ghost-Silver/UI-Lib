@@ -269,6 +269,23 @@ React 侧直接传 `budget` 即可（`GlassStage` 的 props 就是 layer options
 
 **没有在本轮强制执行**：强制执行会让每个注册数超过本档上限的页面掉面板（headless 环境稳定落在 tier 1，上限 8，而 Playground 注册 12），这需要七页逐页目视验证才能安全地改。先让它**可度量**，再谈约束。
 
+### 命名约定与已知冲突
+
+4.2 的命名审计做了一轮机器扫描：把三个 look 注册表的键、以及每个 `*Options` 接口的字段全部抽出来对比。结论是**光学参数名一路是一致的**——`refraction` / `dispersion` / `roughness` / `frost` / `tint` / `tintAmount` / `specular` / `shininess` / `fresnel` / `highlight` / `lightDirection` / `pointerStrength` / `pointerRadius` / `environment` 在 `GlassPanelOptions`、`LiquidGlassOptions`、`WorldLensOptions` 里含义相同、拼写相同。
+
+look 的键**不追求同一套隐喻**，这是有意的：`crystal` / `flare` / `ice` / `ember` 是光学气质，`product` / `cinema` 是使用场景，`pill` / `milk` / `veil` 是材质形态。硬凑成一个家族只会让名字失真。真正要守的是**同一个概念不出现两个叫法**。
+
+审计找出两处**同名不同义**，都属于危险的一类（比同义不同名更容易写出安静的 bug），记录在此，改名需要破坏性变更所以留待 1.0 之前统一处理：
+
+| 名字 | 出现处 | 实际含义 |
+|---|---|---|
+| `size` | `LiquidGlassOptions.size` | 面板尺寸，**CSS 像素**，`[w, h]` |
+| `size` | `ParticleSystemOptions.size` | 精灵尺寸，**世界单位**，`[min, max]` |
+| `colors` | `GradientBackdropOptions.colors` | **4** 个颜色，按位置混合 |
+| `colors` | `ParticleSystemOptions.colors` | **恰好 3** 个颜色，按生命周期混合 |
+
+`ParticleSystemOptions.colors` 那个三元组是硬约束（着色器按 `life` 在三色间插值），不是惯例；写成四个不会报错，只会静默丢掉一个。
+
 ## React 用法
 
 `@ui-lib/react` 是第一个适配层。内容保持普通 DOM，stage 负责共享 GPU layer：
