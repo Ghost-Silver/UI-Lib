@@ -77,6 +77,28 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 		? { host: "declared-demo", source: "declared", tier: 2 }
 		: undefined;
 
+	/**
+	 * Three states, and the gate needs all three.
+	 *
+	 * `off`          — `post={false}`, the chain is never built and a present
+	 *                  quad moves the composite to the canvas.
+	 * `passthrough`  — the chain is built with `enabled: false`, which makes its
+	 *                  output node `mix(baseSample, colour, 0)`, i.e. the input
+	 *                  unchanged.
+	 * default        — the library's own grade.
+	 *
+	 * The residual between the first two is the check: they should be the same
+	 * picture, because both are the composite with one output transform applied.
+	 * When they are not, the chain is reading something other than what the
+	 * scene wrote — which is exactly the failure that hid behind a green suite
+	 * once already.
+	 */
+	const postMode = new URLSearchParams(
+		typeof window === "undefined" ? "" : window.location.search,
+	).get("post");
+	const post =
+		postMode === "off" ? false : postMode === "passthrough" ? { enabled: false } : undefined;
+
 	useEffect(() => {
 		document.title = `IRIS kit · ${component} · ${tone}`;
 	}, [component, tone]);
@@ -86,6 +108,7 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 			className="kit-stage"
 			mode="section"
 			backdrop={BACKDROP}
+			post={post}
 			forceWebGL={forceWebGL}
 			forceFallback={forceFallback}
 			budget={budget}

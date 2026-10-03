@@ -124,6 +124,12 @@ jobs:
       - name: Component gate — every component visible, every palette wired
         run: pnpm check:components
 
+      - name: Post gate — prove the probe can fail
+        run: pnpm check:post:self-test
+
+      - name: Post gate — the chain reads the composite
+        run: pnpm check:post
+
       # A browser that wedges leaves no console output. The HTML report and
       # any retained traces are the only evidence, so always collect them.
       - name: Upload Playwright report
