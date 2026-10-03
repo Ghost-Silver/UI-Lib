@@ -1,3 +1,4 @@
+import { IRIS_GLASS_LOOKS } from "@ui-lib/core";
 import { type ParticleSystemOptions, WAKE_FIELD } from "@ui-lib/particles";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
 
@@ -391,6 +392,9 @@ export const GLASS_LOOKS = {
 		pointerRadius: 200,
 		environment: 0.22,
 	},
+	/* The IRIS looks are defined in @ui-lib/core so @ui-lib/dom can share
+	   them without depending on this package. */
+	...IRIS_GLASS_LOOKS,
 } as const satisfies Record<string, GlassPanelOptions>;
 
 export type GlassLookName = keyof typeof GLASS_LOOKS;

@@ -24,6 +24,7 @@ import { AuroraFlowPage } from "./AuroraFlow.js";
 import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
+import { IrisShowcasePage } from "./IrisShowcase.js";
 import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
@@ -608,6 +609,7 @@ export default function App() {
 		if (demo === "aurora-flow") return <AuroraFlowPage />;
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
+		if (demo === "iris") return <IrisShowcasePage />;
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;

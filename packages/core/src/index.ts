@@ -13,6 +13,8 @@ export {
 	hasDom,
 	onReducedMotionChange,
 } from "./device.js";
+export type { IrisGlassLookName, IrisTone, IrisToneRoles } from "./iris.js";
+export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone } from "./iris.js";
 export type { Disposable, Teardown } from "./lifecycle.js";
 export { Disposer, nextFrame } from "./lifecycle.js";
 export type { EasingName, SpringOptions } from "./math.js";

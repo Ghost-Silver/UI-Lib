@@ -2025,3 +2025,172 @@ input[type="range"]::-moz-range-thumb {
 	letter-spacing: 0.08em;
 	color: rgba(244, 239, 230, 0.5);
 }
+
+/* ---- IRIS components showcase ---- */
+
+.iris-stage {
+	background: #fffafd;
+}
+
+.iris {
+	position: relative;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+	padding: clamp(22px, 4vw, 60px);
+	color: #33224f;
+	background: radial-gradient(120% 90% at 78% 8%, rgba(255, 255, 255, 0.72), transparent 62%);
+}
+
+.iris__top {
+	position: relative;
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 24px;
+}
+
+.iris__kicker {
+	margin: 0;
+	font-size: 11px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: rgba(91, 58, 166, 0.72);
+}
+
+.iris__kicker span {
+	margin-left: 10px;
+	color: rgba(91, 58, 166, 0.4);
+}
+
+.iris__links {
+	position: relative;
+	display: flex;
+	gap: 18px;
+	font-size: 13px;
+}
+
+.iris__links a {
+	color: rgba(51, 34, 79, 0.66);
+	text-decoration: none;
+}
+
+.iris__links a:hover {
+	color: #5b3aa6;
+}
+
+.iris__main {
+	position: relative;
+	flex: 1;
+	display: grid;
+	grid-template-columns: minmax(0, 1.05fr) minmax(280px, 400px);
+	gap: clamp(28px, 4vw, 64px);
+	align-content: start;
+	padding-bottom: 5vh;
+}
+
+.iris__title {
+	margin: 0;
+	max-width: 14em;
+	font-size: clamp(30px, 3.6vw, 50px);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	color: #33224f;
+}
+
+.iris__accent {
+	background: linear-gradient(100deg, #5b3aa6 0%, #8b5cf6 34%, #c02b6e 100%);
+	background-size: 100% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+.iris__lede {
+	max-width: 26em;
+	margin: 18px 0 0;
+	font-size: 16px;
+	line-height: 1.75;
+	color: rgba(51, 34, 79, 0.78);
+}
+
+.iris__badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 22px;
+}
+
+.iris__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 28px;
+}
+
+.iris__panels {
+	display: grid;
+	gap: 20px;
+	align-content: start;
+}
+
+.iris__panel {
+	padding: 24px 26px 26px;
+}
+
+.iris__panel h2 {
+	margin: 10px 0 10px;
+	font-size: 24px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+.iris__panel p,
+.iris__card p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.7;
+	color: rgba(51, 34, 79, 0.76);
+}
+
+.iris__card {
+	padding: 24px 26px 26px;
+}
+
+.iris__card h3 {
+	margin: 10px 0 10px;
+	font-size: 21px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	color: #6d1436;
+}
+
+.iris__tones {
+	grid-column: 1 / -1;
+	list-style: none;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+	margin: 12px 0 0;
+	padding: 0;
+}
+
+.iris__tones li {
+	display: grid;
+	gap: 8px;
+	justify-items: start;
+	font-size: 13px;
+	line-height: 1.6;
+	color: rgba(51, 34, 79, 0.7);
+}
+
+@media (max-width: 860px) {
+	.iris__main {
+		grid-template-columns: 1fr;
+	}
+	.iris__tones {
+		grid-template-columns: 1fr;
+	}
+}

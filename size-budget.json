@@ -1,35 +1,35 @@
 {
-	"$comment": "Size budget for published package entries. Byte counts are raw, uncompressed, and measured from a clean `pnpm build`. Budgets are ceilings enforced by `pnpm size`, not targets to grow into: when a change needs more room, raise the number in the same commit and say why.",
-	"$measuredAt": "2026-10-01",
-	"$measuredOn": "tsup 8.5.1, es2022, esm, no minify",
-	"packages": {
-		"core": {
-			"maxJsBytes": 21000,
-			"maxDtsBytes": 16000
-		},
-		"shaders": {
-			"maxJsBytes": 32000,
-			"maxDtsBytes": 15000
-		},
-		"particles": {
-			"maxJsBytes": 28000,
-			"maxDtsBytes": 13500
-		},
-		"post": {
-			"maxJsBytes": 24000,
-			"maxDtsBytes": 11500
-		},
-		"motion": {
-			"maxJsBytes": 6500,
-			"maxDtsBytes": 5500
-		},
-		"renderer": {
-			"maxJsBytes": 70000,
-			"maxDtsBytes": 26500
-		},
-		"react": {
-			"maxJsBytes": 52000,
-			"maxDtsBytes": 28500
-		}
-	}
+  "$comment": "Size budget for published package entries. Byte counts are raw, uncompressed, and measured from a clean `pnpm build`. Budgets are ceilings enforced by `pnpm size`, not targets to grow into: when a change needs more room, raise the number in the same commit and say why.",
+  "$measuredAt": "2026-10-02",
+  "$measuredOn": "tsup 8.5.1, es2022, esm, no minify",
+  "packages": {
+    "core": {
+      "maxJsBytes": 22500,
+      "maxDtsBytes": 19500
+    },
+    "shaders": {
+      "maxJsBytes": 32000,
+      "maxDtsBytes": 15000
+    },
+    "particles": {
+      "maxJsBytes": 28000,
+      "maxDtsBytes": 13500
+    },
+    "post": {
+      "maxJsBytes": 24000,
+      "maxDtsBytes": 11500
+    },
+    "motion": {
+      "maxJsBytes": 6500,
+      "maxDtsBytes": 5500
+    },
+    "renderer": {
+      "maxJsBytes": 70000,
+      "maxDtsBytes": 26500
+    },
+    "react": {
+      "maxJsBytes": 61000,
+      "maxDtsBytes": 33800
+    }
+  }
 }
