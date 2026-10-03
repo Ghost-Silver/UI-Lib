@@ -2673,6 +2673,224 @@ const CSS = `
 	}
 }
 
+
+/* --- visually hidden -----------------------------------------------------
+ *
+ * Text that is in the accessibility tree and not on the screen.
+ *
+ * Not display none, which removes it from the tree as well, and not visibility
+ * hidden for the same reason. The clip-path form is used rather than the older
+ * 1px box, because that one leaves a box some layouts notice.
+ */
+
+.ui-lib-visually-hidden:not(:focus):not(:active) {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* --- avatar --------------------------------------------------------------
+ *
+ * The fallback is a pigment mark, generated rather than grey.
+ *
+ * Every avatar component has a fallback and it is always a grey circle with
+ * initials, which means the case most systems are actually in — nobody has
+ * uploaded anything — is the one the design spends no time on. Here the mark
+ * comes from createWash with a seed hashed from the name, so the arc strengths,
+ * the silhouette, the noise and the rotation all differ between two people
+ * rather than only the tint.
+ *
+ * The wash element carries the base class from the wash stylesheet. Setting the
+ * twelve generated variables is not enough on its own: the base class is what
+ * turns them into a mark. An earlier version set the variables correctly and
+ * gave the element only a size, so every variable was present and nothing read
+ * them — the measured background was fully transparent and the avatar rendered
+ * as the grey circle it was meant to replace.
+ */
+
+.ui-lib-soft-avatar {
+	position: relative;
+	display: inline-grid;
+	place-items: center;
+	flex: none;
+	border-radius: var(--moe-radius-full);
+	overflow: hidden;
+	isolation: isolate;
+	background: oklch(0.96 0.01 320);
+	vertical-align: middle;
+}
+
+.ui-lib-soft-avatar__image {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/*
+ * Two classes deep on purpose, and this is not tidiness.
+ *
+ * The element carries the wash base class as well as this one, and the base
+ * class sets position: relative. Both rules are single-class selectors, so the
+ * later one in the sheet wins — and the base class is written later, in the wash
+ * section. The result was that this rule did not apply at all: the wash stayed
+ * in the grid, took a row of its own, and pushed the letter into a second row.
+ * Measured, the avatar's grid was 52px 21.84px, two rows, with the letter at
+ * y=372 inside a circle that ended at 372.
+ *
+ * Specificity rather than source order, so the intent survives anyone moving
+ * either block.
+ */
+.ui-lib-soft-avatar .ui-lib-soft-avatar__wash {
+	position: absolute;
+	inset: -14%;
+	/* Stated rather than left to document order.
+	   The initial sits at z-index 1 and would be above this anyway in a naive
+	   reading, but the wash carries an inline opacity, which puts it in its own
+	   stacking context, and the parent has isolation on. Relying on source order
+	   across three stacking-context rules is how a letter ends up underneath a
+	   wash that appears to be behind it. */
+	z-index: 0;
+	/*
+	 * The opacity is set by the component, not here.
+	 *
+	 * It was written here first as a calc on the generated variable, and it did
+	 * nothing: the generator emits opacity as an inline style on the element,
+	 * and an inline declaration beats a stylesheet rule. The measured opacity was
+	 * unchanged at 0.232 with the rule present.
+	 *
+	 * It belongs in the component anyway, because the value depends on the size
+	 * the component was given — a 40px mark needs a thicker film than a 190px
+	 * one, since the deposit ring is two device pixels at the former and the eye
+	 * reads the whole ring at the latter.
+	 */
+}
+
+.ui-lib-soft-avatar__initial {
+	position: relative;
+	z-index: 1;
+	font-family: var(--moe-font-rounded);
+	font-weight: 700;
+	line-height: 1;
+	color: var(--moe-cocoa);
+	user-select: none;
+	/* The letter sits on top of pigment, and pigment varies. A halo of the card
+	   colour keeps the glyph legible over both the pale centre and the darker
+	   rim, without dimming the mark underneath to make room for it. */
+	text-shadow:
+		0 0 3px var(--moe-card),
+		0 0 6px var(--moe-card);
+}
+
+/* A ring for a selected or active state. Drawn outside the clip so it does not
+   eat into the portrait. */
+.ui-lib-soft-avatar[data-ui-lib-ring] {
+	box-shadow:
+		0 0 0 2px var(--moe-card),
+		0 0 0 4px var(--moe-taro-500);
+}
+
+/* --- tag -----------------------------------------------------------------
+ *
+ * Three amounts of one substance, not three unrelated styles. Soft is a wash,
+ * solid is the same pigment at full strength, outline has no body at all — for
+ * a row of tags where three filled pills is a wall of colour.
+ */
+
+.ui-lib-soft-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 26px;
+	padding: 0 10px;
+	border-radius: var(--moe-radius-full);
+	font-family: var(--moe-font-rounded);
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 1;
+	white-space: nowrap;
+	vertical-align: middle;
+}
+
+.ui-lib-soft-tag__leading,
+.ui-lib-soft-tag__remove {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+}
+
+.ui-lib-soft-tag[data-ui-lib-variant="soft"][data-ui-lib-tone="iris"] {
+	background: oklch(0.94 0.03 300);
+	color: oklch(0.4 0.06 300);
+}
+.ui-lib-soft-tag[data-ui-lib-variant="soft"][data-ui-lib-tone="blossom"] {
+	background: oklch(0.95 0.03 15);
+	color: oklch(0.44 0.07 15);
+}
+.ui-lib-soft-tag[data-ui-lib-variant="soft"][data-ui-lib-tone="mist"] {
+	background: oklch(0.95 0.03 235);
+	color: oklch(0.42 0.06 235);
+}
+
+.ui-lib-soft-tag[data-ui-lib-variant="solid"][data-ui-lib-tone="iris"] {
+	background: var(--moe-taro-500);
+	color: var(--moe-cocoa);
+}
+.ui-lib-soft-tag[data-ui-lib-variant="solid"][data-ui-lib-tone="blossom"] {
+	background: var(--moe-sakura-500);
+	color: var(--moe-cocoa);
+}
+.ui-lib-soft-tag[data-ui-lib-variant="solid"][data-ui-lib-tone="mist"] {
+	background: var(--moe-soda-500);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-tag[data-ui-lib-variant="outline"] {
+	background: transparent;
+	border: 1.5px solid currentColor;
+	color: var(--moe-cocoa-soft);
+}
+
+/* A real button, because it has to be reachable by Tab and activated by
+   keyboard like any other control — and a span with an onClick is neither. */
+.ui-lib-soft-tag__remove {
+	display: inline-grid;
+	place-items: center;
+	width: 16px;
+	height: 16px;
+	margin-right: -3px;
+	padding: 0;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: rgb(77 60 56 / 0.1);
+	color: inherit;
+	cursor: pointer;
+	transition:
+		background 160ms ease-out,
+		transform 200ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-tag__remove:hover {
+	background: rgb(77 60 56 / 0.2);
+	transform: rotate(90deg);
+}
+
+.ui-lib-soft-tag__remove:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-tag__remove 
+		transition: none;
+
+	.ui-lib-soft-tag__remove:hover 
+		transform: none;
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
@@ -2683,15 +2901,13 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-paper-button,
 	.ui-lib-paper-button:hover:not(:disabled),
-	.ui-lib-paper-button:active:not(:disabled) {
+	.ui-lib-paper-button:active:not(:disabled) 
 		transition: none;
 		transform: none;
 		animation: none;
-	}
 
-	.ui-lib-paper-button__spark {
+	.ui-lib-paper-button__spark 
 		display: none;
-	}
 }
 
 
@@ -2802,14 +3018,14 @@ const CSS = `
 }
 
 @keyframes ui-lib-wash-spread {
-	from { transform: scale(0.82); opacity: 0.72; filter: blur(9px); }
+	from transform: scale(0.82); opacity: 0.72; filter: blur(9px); 
 	62% { transform: scale(1.06); opacity: 1; }
 	to { transform: scale(1); opacity: 1; filter: blur(0); }
 }
 
 @keyframes ui-lib-wash-settle {
-	from { opacity: 0; filter: blur(9px); }
-	to { opacity: 1; filter: blur(1.8px); }
+	from opacity: 0; filter: blur(9px); 
+	to opacity: 1; filter: blur(1.8px); 
 }
 
 .ui-lib-wash--living {
@@ -2827,9 +3043,8 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-wash--living,
 	.ui-lib-wash--laying,
-	.ui-lib-wash--laying .ui-lib-wash__deposit {
+	.ui-lib-wash--laying .ui-lib-wash__deposit 
 		animation: none;
-	}
 }
 `;
 

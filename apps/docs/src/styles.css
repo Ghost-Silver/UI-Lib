@@ -3041,3 +3041,22 @@ input[type="range"]::-moz-range-thumb {
 	position: static;
 	justify-items: stretch;
 }
+
+.kit__identity {
+	display: grid;
+	gap: 22px;
+	width: 340px;
+	justify-items: center;
+}
+
+.kit__identity-row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.kit__identity-tags {
+	gap: 8px;
+}

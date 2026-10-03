@@ -5,6 +5,7 @@ import {
 	BubbleBadge,
 	GlassStage,
 	PinkPaperButton,
+	SoftAvatar,
 	SoftCheckbox,
 	SoftInput,
 	SoftLightPanel,
@@ -18,6 +19,7 @@ import {
 	SoftSpinner,
 	SoftSwitch,
 	SoftTabs,
+	SoftTag,
 	SoftToast,
 	SoftTooltip,
 	WatercolorCard,
@@ -55,6 +57,7 @@ const COMPONENTS = [
 	"choice",
 	"loading",
 	"overlay",
+	"identity",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -156,6 +159,35 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Portraits and labels. */
+function IdentityKit() {
+	return (
+		<div className="kit__identity">
+			<div className="kit__identity-row">
+				<SoftAvatar name="陈奕帆" size={52} />
+				<SoftAvatar name="苏璃珞" size={52} tone="blossom" />
+				<SoftAvatar name="Iris" size={52} tone="mist" />
+				<SoftAvatar name="未命名" size={52} ring />
+			</div>
+			<div className="kit__identity-row">
+				{[28, 36, 44].map((size) => (
+					<SoftAvatar key={size} name="小" size={size} />
+				))}
+			</div>
+			<div className="kit__identity-row kit__identity-tags">
+				<SoftTag>水彩</SoftTag>
+				<SoftTag tone="blossom">主色</SoftTag>
+				<SoftTag tone="mist">冷色</SoftTag>
+				<SoftTag variant="solid" tone="blossom">
+					实心
+				</SoftTag>
+				<SoftTag variant="outline">描边</SoftTag>
+				<SoftTag onRemove={() => undefined}>可移除</SoftTag>
+			</div>
+		</div>
 	);
 }
 
@@ -397,6 +429,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "identity":
+			return <IdentityKit />;
 		case "overlay":
 			return <OverlayKit />;
 		case "loading":

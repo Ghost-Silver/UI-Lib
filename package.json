@@ -32,7 +32,8 @@
 		"verify": "pnpm test && pnpm typecheck && pnpm size",
 		"verify:device": "pnpm verify && pnpm check:shaders",
 		"lint": "biome check . && node scripts/check-templates.mjs",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"check:templates:write": "node scripts/check-templates.mjs --write"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.4",

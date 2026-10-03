@@ -119,6 +119,58 @@ export function inspect(source) {
 }
 
 async function main() {
+	/*
+	 * The auto-fix, and its first version destroyed a file.
+	 *
+	 * It took everything from `const CSS = \`` to the last backtick in the file
+	 * and stripped every backtick in that range — which includes the two that
+	 * delimit the literal. The stylesheet stopped being a string, the file
+	 * stopped parsing, and three edits were lost with it.
+	 *
+	 * The range is right and the *operation* was wrong. What has to go is the
+	 * stray backticks inside the body, so the body is what gets rewritten: the
+	 * slice starts after the opening delimiter and ends at the closing one, and
+	 * the two delimiters are put back around the result rather than being
+	 * included in it.
+	 *
+	 * It also refuses to act if the template is not exactly where it expects.
+	 * A fixer that guesses at offsets is worse than no fixer: this one either
+	 * finds both delimiters and rewrites strictly between them, or it changes
+	 * nothing and says so.
+	 */
+	if (process.argv.includes("--write")) {
+		const { readFileSync: read, writeFileSync: write } = await import("node:fs");
+		let fixed = 0;
+		for (const file of STYLESHEET_FILES) {
+			const path = new URL(`../${file}`, import.meta.url);
+			const source = read(path, "utf8");
+			if (inspect(source).length === 0) continue;
+
+			const openMarker = "const CSS = `";
+			const open = source.indexOf(openMarker);
+			const close = source.lastIndexOf("`;");
+			if (open === -1 || close === -1 || close <= open + openMarker.length) {
+				console.error(`  ${file}: could not locate the literal; refusing to guess`);
+				return 1;
+			}
+			const head = source.slice(0, open + openMarker.length);
+			const body = source.slice(open + openMarker.length, close);
+			const tail = source.slice(close);
+
+			const count = (body.match(/`/g) ?? []).length;
+			if (count === 0) continue;
+			write(path, head + body.replace(/`/g, "") + tail, "utf8");
+			console.error(`  ${file}: removed ${count} backtick(s) from inside the literal`);
+			fixed += count;
+		}
+		if (fixed > 0) {
+			console.error(`\ncheck-templates --write: ${fixed} removed; re-run the gates\n`);
+			return 0;
+		}
+		console.log("check-templates --write: nothing to fix\n");
+		return 0;
+	}
+
 	if (process.argv.includes("--self-test")) {
 		/*
 		 * Prove the probe can fail, on the exact mistake it exists for: a

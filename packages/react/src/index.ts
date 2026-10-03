@@ -74,6 +74,8 @@ export type { SoftCardProps } from "./SoftCard.js";
 export { SoftCard } from "./SoftCard.js";
 export type { SoftCheckboxProps, SoftRadioProps } from "./SoftChoice.js";
 export { SoftCheckbox, SoftRadio, SoftRadioGroup } from "./SoftChoice.js";
+export type { SoftAvatarProps, SoftTagProps } from "./SoftIdentity.js";
+export { SoftAvatar, SoftTag } from "./SoftIdentity.js";
 export type { SoftInputProps } from "./SoftInput.js";
 export { SoftInput } from "./SoftInput.js";
 export type { SoftLightPanelProps } from "./SoftLightPanel.js";
