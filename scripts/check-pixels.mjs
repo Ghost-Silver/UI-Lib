@@ -334,7 +334,7 @@ export function selfTest() {
 
 async function main() {
 	const args = process.argv.slice(2);
-	const options = { demos: null, report: false, selfTest: false, timeout: 45_000 };
+	const options = { demos: null, report: false, selfTest: false, timeout: 120_000 };
 	for (let i = 0; i < args.length; i += 1) {
 		if (args[i] === "--self-test") options.selfTest = true;
 		else if (args[i] === "--report") options.report = true;
@@ -425,11 +425,14 @@ async function main() {
 				await live.close();
 				return row;
 			}
-			const liveShot = decodePng(await canvas.screenshot());
+			const liveShot = decodePng(await canvas.screenshot({ timeout: options.timeout }));
 			await live.waitForTimeout(160);
 			const stats = frameStats(liveShot);
 			row.ink = stats.ink;
-			row.delta = frameDelta(liveShot, decodePng(await canvas.screenshot()));
+			row.delta = frameDelta(
+				liveShot,
+				decodePng(await canvas.screenshot({ timeout: options.timeout })),
+			);
 			if (stats.ink < 0.02) {
 				row.ok = false;
 				row.notes.push(`flat frame (ink ${stats.ink.toFixed(3)})`);
@@ -475,9 +478,9 @@ async function main() {
 			});
 
 			if (panels.length > 0 && canvasBox) {
-				const before = decodePng(await frozenCanvas.screenshot());
+				const before = decodePng(await frozenCanvas.screenshot({ timeout: options.timeout }));
 				await frozen.waitForTimeout(400);
-				const after = decodePng(await frozenCanvas.screenshot());
+				const after = decodePng(await frozenCanvas.screenshot({ timeout: options.timeout }));
 				row.frozenNoise = frameDelta(before, after);
 				const px = before.width / canvasBox.width;
 
@@ -536,7 +539,9 @@ async function main() {
 							el?.setAttribute("data-ui-lib-pixel-hide", "");
 						}, panel.index);
 						await frozen.waitForTimeout(360);
-						const without = decodePng(await frozenCanvas.screenshot());
+						const without = decodePng(
+							await frozenCanvas.screenshot({ timeout: options.timeout }),
+						);
 						const placement = placementContrast(before, after, without, [toLocal(panel)]);
 						perPanel.push(placement.contrast);
 						await frozen.evaluate((index) => {
@@ -575,9 +580,18 @@ async function main() {
 		return row;
 	}
 
+	// Concurrency is a property of the machine, not of the check.
+	//
+	// Three at once is right on a GPU: the contexts really do run in parallel.
+	// On a software rasteriser it is worse than useless — SwiftShader has one
+	// CPU to share, so three pages compiling the same heavy node graphs starve
+	// each other and every one of them times out. That is exactly how this
+	// failed the first time it ever ran on CI: the first page passed, and the
+	// next five died in `waitForFunction` and `screenshot` rather than in an
+	// assertion. CI sets this to 1.
 	const results = await pool(
 		demos,
-		Math.max(1, Number(process.env.UI_LIB_PIXEL_CONCURRENCY ?? 3)),
+		Math.max(1, Number(process.env.UI_LIB_PIXEL_CONCURRENCY ?? 2)),
 		checkDemo,
 	);
 	for (const row of results) {

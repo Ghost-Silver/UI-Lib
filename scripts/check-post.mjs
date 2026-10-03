@@ -161,7 +161,7 @@ export function selfTest() {
 
 async function main() {
 	const args = process.argv.slice(2);
-	const options = { report: false, selfTest: false, timeout: 45_000 };
+	const options = { report: false, selfTest: false, timeout: 120_000 };
 	for (let i = 0; i < args.length; i += 1) {
 		if (args[i] === "--self-test") options.selfTest = true;
 		else if (args[i] === "--report") options.report = true;
@@ -208,7 +208,9 @@ async function main() {
 					{ timeout: options.timeout },
 				);
 				await page.waitForTimeout(3500);
-				shots[mode] = decodePng(await page.locator("[data-ui-lib-kit-box]").screenshot());
+				shots[mode] = decodePng(
+					await page.locator("[data-ui-lib-kit-box]").screenshot({ timeout: options.timeout }),
+				);
 			} catch (error) {
 				row.ok = false;
 				row.notes.push(`${mode}: ${String(error).split("\n")[0].slice(0, 90)}`);

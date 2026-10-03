@@ -270,7 +270,7 @@ export function selfTest() {
 
 async function main() {
 	const args = process.argv.slice(2);
-	const options = { report: false, selfTest: false, timeout: 45_000 };
+	const options = { report: false, selfTest: false, timeout: 120_000 };
 	for (let i = 0; i < args.length; i += 1) {
 		if (args[i] === "--self-test") options.selfTest = true;
 		else if (args[i] === "--report") options.report = true;
@@ -345,7 +345,7 @@ async function main() {
 					}
 					await page.waitForTimeout(route === "gpu" ? 3500 : 900);
 					const box = page.locator("[data-ui-lib-kit-box]");
-					shots[route] = decodePng(await box.screenshot());
+					shots[route] = decodePng(await box.screenshot({ timeout: options.timeout }));
 				} catch (error) {
 					row.ok = false;
 					row.notes.push(`${tone}/${route}: ${String(error).split("\n")[0].slice(0, 90)}`);
@@ -405,7 +405,9 @@ async function main() {
 		return row;
 	}
 
-	const concurrency = Math.max(1, Number(process.env.UI_LIB_KIT_CONCURRENCY ?? 3));
+	// Same reasoning as `check-pixels`: a software rasteriser has no parallelism
+	// to exploit, so concurrency only adds contention. CI sets this to 1.
+	const concurrency = Math.max(1, Number(process.env.UI_LIB_KIT_CONCURRENCY ?? 2));
 	rows.push(...(await pool(COMPONENTS, concurrency, checkComponent)));
 	for (const row of rows) if (!row.ok) failed += 1;
 

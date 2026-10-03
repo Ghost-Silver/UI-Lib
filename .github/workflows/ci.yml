@@ -56,8 +56,20 @@ jobs:
     name: browser acceptance (chromium)
     runs-on: ubuntu-latest
     # The suite has its own 8-minute global ceiling; this is the backstop for
-    # a wedged browser that refuses to shut down.
-    timeout-minutes: 15
+    # a wedged browser that refuses to shut down. The pixel gates below add to
+    # the wall clock and are slower here than anywhere else, because this runs
+    # a software rasteriser.
+    timeout-minutes: 30
+
+    # This runner has no GPU. Two things follow, and both are stated rather
+    # than guessed: shader compilation is slow enough to need the generous
+    # timeouts the gates now use, and there is no parallelism to exploit, so
+    # the gates run one page at a time. Running them concurrently on one CPU
+    # only made every page time out — which is how this job failed the first
+    # time it ever ran.
+    env:
+      UI_LIB_PIXEL_CONCURRENCY: 1
+      UI_LIB_KIT_CONCURRENCY: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -107,10 +119,11 @@ jobs:
       - name: Acceptance suite
         run: pnpm test:e2e
 
-      # `check:shaders` is deliberately absent from this job, but its sibling
-      # is not. The two structural questions this asks — did anything reach the
-      # canvas, and did the glass land on its element — are not adapter
-      # specific, so SwiftShader answers them honestly. What still needs a real
+      # `check:shaders` is deliberately absent from this job, but its siblings
+      # are not. The structural questions these ask — did anything reach the
+      # canvas, did the glass land on its element, is every component visible,
+      # is the post chain reading the composite — are not adapter specific, so
+      # a software rasteriser answers them honestly. What still needs a real
       # GPU is how it looks, and that stays out.
       - name: Pixel gate — prove the probe can fail
         run: pnpm check:pixels:self-test
