@@ -24,6 +24,17 @@ export interface IrisEffectOptions extends GlassPanelOptions {
 	/** Accent family. Defaults to the brand violet. */
 	tone?: IrisTone;
 }
+/**
+ * The effect options, under the neutral name.
+ *
+ * Same reasoning as the tone aliases in `core`: `IrisEffectOptions` is accurate
+ * from inside and inward-looking from outside. A caller attaching an effect to a
+ * DOM node should not have to learn what `Iris` is to type the options.
+ *
+ * This one was found by the check rather than by reading, after four others were
+ * found by reading — which is the argument for having the check.
+ */
+export type EffectOptions = IrisEffectOptions;
 
 type EffectFactory = (
 	element: HTMLElement,

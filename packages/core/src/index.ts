@@ -13,8 +13,15 @@ export {
 	hasDom,
 	onReducedMotionChange,
 } from "./device.js";
-export type { IrisGlassLookName, IrisTone, IrisToneRoles } from "./iris.js";
-export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone } from "./iris.js";
+export type {
+	GlassLookName,
+	IrisGlassLookName,
+	IrisTone,
+	IrisToneRoles,
+	Tone,
+	ToneRoles,
+} from "./iris.js";
+export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone, TONE_LABELS, TONES } from "./iris.js";
 export type { KubelkaMunkPigment, ProcessPigmentName } from "./kubelkaMunk.js";
 export {
 	mixPigments,

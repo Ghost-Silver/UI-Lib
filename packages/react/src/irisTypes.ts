@@ -18,3 +18,13 @@ export interface IrisPanelProps extends GlassPanelOptions {
 	className?: string;
 	style?: CSSProperties;
 }
+
+/**
+ * The panel props, under the neutral name.
+ *
+ * `IrisPanelProps` is accurate from inside this project and inward-looking from
+ * outside: a caller writing a panel would have to learn what `Iris` is to type
+ * the props of a glass pane. `PanelProps` is the neutral name; both are exported
+ * and the old one keeps working.
+ */
+export type PanelProps = IrisPanelProps;

@@ -55,6 +55,47 @@ export type IrisTone = keyof Pick<typeof IRIS, "iris" | "blossom" | "mist">;
 export const IRIS_TONES: readonly IrisTone[] = ["iris", "blossom", "mist"];
 
 /**
+ * The same accent set, under the name a caller outside this project would use.
+ *
+ * `IrisTone` is the registry's name — `IRIS` is the palette, and naming the
+ * type after it is accurate from inside. From outside, a component prop typed
+ * `IrisTone` asks a caller to learn what `Iris` is in order to pass `"blossom"`.
+ * The three accents are a *tone* set, and `Tone` says that without requiring
+ * anyone to know the project.
+ *
+ * **An alias rather than a rename**, for the same reason `SoftButton` is one:
+ * renaming would break every call site for a naming improvement, and the old
+ * name is not wrong so much as inward-looking. Both are exported; the
+ * documentation points at the neutral one and the old one keeps working.
+ */
+export type Tone = IrisTone;
+
+/** The accents, under the neutral name. */
+export const TONES: readonly Tone[] = IRIS_TONES;
+
+/**
+ * What each accent is called in English, for a caller building a picker.
+ *
+ * Kept out of the registry because it is a presentation concern: a palette is
+ * hex values and roles, and a label is a word in a language.
+ */
+/**
+ * The glass look names, under a neutral name.
+ *
+ * `IrisGlassLookName` names a set of looks; the set does not belong to a project.
+ */
+export type GlassLookName = IrisGlassLookName;
+
+/** The roles a tone plays, under a neutral name. */
+export type ToneRoles = IrisToneRoles;
+
+export const TONE_LABELS = {
+	iris: "Violet",
+	blossom: "Blossom",
+	mist: "Mist",
+} as const satisfies Record<Tone, string>;
+
+/**
  * The rungs a component reaches for. Naming the roles here means a component
  * never hard-codes which rung is the fill and which is the edge.
  */

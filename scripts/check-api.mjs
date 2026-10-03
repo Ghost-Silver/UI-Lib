@@ -81,6 +81,41 @@ const PRIMITIVES = new Set([
 ]);
 
 /**
+ * Names that tie the library to one project.
+ *
+ * The library is independent, and the one thing that quietly breaks that is a
+ * public type named after the product it was built for. `IrisTone` was exactly
+ * that: a component prop typed `IrisTone` asks a caller to learn what `Iris` is
+ * in order to pass `"blossom"`. There is a `Tone` alias now and the old name is
+ * kept, so this check does not fail on it — what it does is stop the *next* one.
+ *
+ * Only exported type names are checked, and only these words. The palette itself
+ * is still called `IRIS` and that is a value rather than a type: a consumer who
+ * never touches it never meets the name.
+ */
+const PROJECT_WORDS = ["Iris", "SuLiluo", "ShengFlow", "CTorch"];
+
+/**
+ * Exported types whose name carries a project word, with the neutral name that
+ * satisfies the rule.
+ *
+ * Registered rather than renamed, for the reason `SoftButton` is an alias: these
+ * names are in call sites, and renaming them would break every one for a naming
+ * improvement. `Tone`, `GlassLookName`, `ToneRoles` and `PanelProps` are the
+ * neutral names; the old ones stay exported and stay supported.
+ *
+ * The list is what keeps the exception **visible and finite**. Adding a fifth is
+ * a decision with a reason; leaving one off is a check that quietly widens.
+ */
+const ALIASED_TYPES = new Map([
+	["IrisTone", "Tone"],
+	["IrisToneRoles", "ToneRoles"],
+	["IrisGlassLookName", "GlassLookName"],
+	["IrisPanelProps", "PanelProps"],
+	["IrisEffectOptions", "EffectOptions"],
+]);
+
+/**
  * Whether a source file carries an accessibility contract.
  *
  * Three signals, any of which is enough: an explicit `role`, an `aria-*`
@@ -128,13 +163,72 @@ async function main() {
 		}
 	}
 
+	/*
+	 * Public type names, read off the built declarations rather than the sources.
+	 *
+	 * The declarations write `type X = ...` and export it from a list at the end of
+	 * the file, so matching `export type` matches nothing — which is what the first
+	 * version of this did, and it reported a clean bill of health for a check that
+	 * had not looked at anything. A guard that cannot fail is worse than no guard.
+	 */
+	const { existsSync } = await import("node:fs");
+	let checkedTypes = 0;
+	const PACKAGES = [
+		"core",
+		"react",
+		"dom",
+		"renderer",
+		"particles",
+		"post",
+		"motion",
+		"shaders",
+	];
+	for (const pkg of PACKAGES) {
+		const path = join(ROOT, "packages/" + pkg + "/dist/index.d.ts");
+		if (!existsSync(path)) continue;
+		const text = readFileSync(path, "utf8");
+
+		// The exported names, from the export list rather than from the declarations.
+		const exported = new Set(
+			[...text.matchAll(/export\s*\{([^}]*)\}/gs)]
+				.flatMap((m) => m[1].split(","))
+				.map((entry) =>
+					(
+						entry
+							.trim()
+							.split(/\s+as\s+/)
+							.pop() || ""
+					).trim(),
+				)
+				// The export list prefixes types with the keyword — "type IrisTone" — so
+				// the keyword is stripped here. Without this nothing matches and the check
+				// reports a clean bill of health for having looked at nothing.
+				.map((entry) => entry.replace(/^type\s+/, ""))
+				.filter(Boolean),
+		);
+
+		for (const match of text.matchAll(/^(?:declare )?(?:type|interface|class|enum) (\w+)/gm)) {
+			const name = match[1];
+			if (!name || !exported.has(name)) continue;
+			checkedTypes += 1;
+			if (ALIASED_TYPES.has(name)) continue;
+			for (const word of PROJECT_WORDS) {
+				if (name.includes(word)) {
+					problems.push(pkg + ": exported type " + name + " carries the project name " + word);
+				}
+			}
+		}
+	}
+
 	if (problems.length > 0) {
 		console.error("\ncheck-api: the naming rule is broken");
 		for (const p of problems) console.error("  " + p);
 		console.error("");
 		return 1;
 	}
-	console.log(`check-api: ${files.length} components follow the rule`);
+	console.log(
+		`check-api: ${files.length} components follow the rule; ${checkedTypes} exported types carry no project name`,
+	);
 	return 0;
 }
 

@@ -37,7 +37,7 @@ export { GlassPanel } from "./GlassPanel.js";
 export type { GlassStageProps } from "./GlassStage.js";
 export { GlassStage } from "./GlassStage.js";
 export { ensureStyles } from "./injectStyles.js";
-export type { IrisPanelProps } from "./irisTypes.js";
+export type { IrisPanelProps, PanelProps } from "./irisTypes.js";
 export type { LensProps } from "./Lens.js";
 export { Lens } from "./Lens.js";
 export type { LiquidGlassProps, LiquidTint } from "./LiquidGlass.js";
