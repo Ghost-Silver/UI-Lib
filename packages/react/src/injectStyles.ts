@@ -3556,6 +3556,143 @@ const CSS = `
 	}
 }
 
+
+/* --- segmented control ---------------------------------------------------
+ *
+ * A recess with a chosen segment in it. The track is the same inset shadow as
+ * every other groove in this library — the input's shell, the switch's track,
+ * the choice box, the table's header — because they are all the same thing: a
+ * place on the paper that something goes into.
+ *
+ * The chosen segment is raised *out* of that recess rather than filled flat
+ * inside it, which is what makes the control read as a physical selector instead
+ * of as a row of buttons with a colour on one of them.
+ */
+
+.ui-lib-soft-segments {
+	display: grid;
+	gap: 6px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-segments__label {
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-segments__track {
+	display: inline-flex;
+	gap: 3px;
+	padding: 3px;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.955 0.008 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.12),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+}
+
+.ui-lib-soft-segments__segment {
+	display: grid;
+	gap: 1px;
+	justify-items: center;
+	flex: 1;
+	min-width: 0;
+	padding: 7px 16px;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	text-align: center;
+	cursor: pointer;
+	transition:
+		background 200ms ease-out,
+		color 200ms ease-out,
+		box-shadow 200ms ease-out,
+		transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-lib-soft-segments__segment:hover:not([data-ui-lib-disabled]) {
+	color: var(--moe-cocoa);
+}
+
+/* Raised out of the groove: a lift, not a fill. */
+.ui-lib-soft-segments[data-ui-lib-variant="solid"] .ui-lib-soft-segments__segment[data-ui-lib-checked] {
+	background: var(--moe-card);
+	color: var(--moe-cocoa);
+	box-shadow:
+		0 2px 5px -1px rgb(77 60 56 / 0.18),
+		inset 0 -2px 4px 0 rgb(77 60 56 / 0.05);
+}
+
+/* The other half of the same idea: still raised, but only the text is marked. */
+.ui-lib-soft-segments[data-ui-lib-variant="outline"] .ui-lib-soft-segments__segment[data-ui-lib-checked] {
+	background: var(--moe-card);
+	color: var(--moe-cocoa);
+	box-shadow: inset 0 0 0 1.5px var(--moe-taro-500);
+}
+
+.ui-lib-soft-segments__segment[data-ui-lib-disabled] {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+/*
+ * The radio, hidden but present.
+ *
+ * Clipped rather than display: none, which would take it out of the tab order
+ * and the accessibility tree — and with it the arrow-key navigation, the single
+ * tab stop and the form value, which are the entire reason it is a real radio.
+ * The label it sits inside is the visible segment, so a click anywhere on the
+ * segment reaches this input.
+ */
+.ui-lib-soft-segments__input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	margin: 0;
+	pointer-events: none;
+}
+
+/* Focus is shown on the segment, because the input cannot show it. */
+.ui-lib-soft-segments__segment:has(.ui-lib-soft-segments__input:focus-visible) {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+/* The segment is the label, so it is the click target and it needs to lay out
+   like the button it replaced. */
+.ui-lib-soft-segments__segment {
+	position: relative;
+}
+
+.ui-lib-soft-segments__text {
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.3;
+	white-space: nowrap;
+}
+
+.ui-lib-soft-segments__note {
+	font-size: 11.5px;
+	font-weight: 500;
+	line-height: 1.3;
+	color: var(--moe-cocoa-soft);
+	white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-segments__segment {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

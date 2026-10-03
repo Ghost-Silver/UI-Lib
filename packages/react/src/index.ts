@@ -90,6 +90,8 @@ export type { SoftModalProps } from "./SoftModal.js";
 export { SoftModal } from "./SoftModal.js";
 export type { SoftToastData, SoftToastProps, SoftTooltipProps } from "./SoftOverlay.js";
 export { SoftToast, SoftTooltip } from "./SoftOverlay.js";
+export type { SoftSegmentedControlProps, SoftSegmentOption } from "./SoftSegmentedControl.js";
+export { SoftSegmentedControl } from "./SoftSegmentedControl.js";
 export type { SoftSelectOption, SoftSelectProps } from "./SoftSelect.js";
 export { SoftSelect } from "./SoftSelect.js";
 export type { SoftSliderProps } from "./SoftSlider.js";

@@ -24,6 +24,7 @@ import {
 	SoftProgress,
 	SoftRadio,
 	SoftRadioGroup,
+	SoftSegmentedControl,
 	SoftSelect,
 	SoftSkeleton,
 	SoftSlider,
@@ -75,6 +76,7 @@ const COMPONENTS = [
 	"drawer",
 	"material",
 	"wash-canvas",
+	"segments",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -176,6 +178,38 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Both variants, with the keyboard behaviour worth trying. */
+function SegmentsKit() {
+	const [density, setDensity] = useState("cosy");
+	const [align, setAlign] = useState("left");
+	return (
+		<div className="kit__segments">
+			<SoftSegmentedControl
+				label="密度"
+				value={density}
+				onChange={setDensity}
+				options={[
+					{ value: "compact", label: "紧凑" },
+					{ value: "cosy", label: "舒适", note: "默认" },
+					{ value: "loose", label: "宽松" },
+				]}
+			/>
+			<SoftSegmentedControl
+				label="对齐"
+				variant="outline"
+				value={align}
+				onChange={setAlign}
+				options={[
+					{ value: "left", label: "左" },
+					{ value: "center", label: "中" },
+					{ value: "right", label: "右" },
+					{ value: "off", label: "不可用", disabled: true },
+				]}
+			/>
+		</div>
 	);
 }
 
@@ -626,6 +660,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "segments":
+			return <SegmentsKit />;
 		case "wash-canvas":
 			return <WashCanvasKit />;
 		case "material":

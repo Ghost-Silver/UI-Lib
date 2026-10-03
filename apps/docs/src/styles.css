@@ -3272,3 +3272,10 @@ input[type="range"]::-moz-range-thumb {
 	color: #c00;
 	font-size: 12px;
 }
+
+.kit__segments {
+	display: grid;
+	gap: 22px;
+	width: 360px;
+	align-content: center;
+}

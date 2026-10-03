@@ -55,6 +55,19 @@ import { createWash, type WashOptions } from "./wash.js";
  *   visibly worse** — the body all but disappeared — so that attempt is known to
  *   be wrong as written, not merely unproven. It was reverted.
  *
+ * A full rewrite was then attempted, on the principle that nothing destructive
+ * should be composited onto the main canvas: one scratch per layer, and the main
+ * canvas receiving nothing but `drawImage`. **It measured worse still** — the rim
+ * went from 45.2 to 167.6 — and it was reverted too.
+ *
+ * The reason is worth keeping, because it is not obvious and it is what the next
+ * attempt has to solve: in the in-place version the ring and the disc *share* a
+ * canvas, so `destination-in` makes the ring the alpha of the composite. Once the
+ * ring is on its own layer that relationship is gone, and the two are composited
+ * with `source-over` — they **add** rather than one masking the other. Moving the
+ * composite therefore changes the arithmetic, and the ring's alpha has to be
+ * re-derived for the addition rather than reused from the masked version.
+ *
  * **And `<conicGradient>` does not exist in SVG**, which was the promising way
  * out and is not one: measured in a `<img>`, a `radialGradient` draws and a
  * `conicGradient` comes out fully transparent. `feTurbulence` and
