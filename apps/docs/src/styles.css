@@ -3304,3 +3304,17 @@ input[type="range"]::-moz-range-thumb {
 	font-size: 12.5px;
 	color: var(--moe-cocoa-soft);
 }
+
+.kit__menu {
+	display: grid;
+	gap: 16px;
+	justify-items: center;
+	align-content: center;
+	width: 320px;
+}
+
+.kit__menu-note {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--moe-cocoa-soft);
+}

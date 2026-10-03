@@ -86,6 +86,8 @@ export type { SoftLightPanelProps } from "./SoftLightPanel.js";
 export { SoftLightPanel } from "./SoftLightPanel.js";
 export type { SoftProgressProps, SoftSkeletonProps, SoftSpinnerProps } from "./SoftLoading.js";
 export { SoftProgress, SoftSkeleton, SoftSpinner } from "./SoftLoading.js";
+export type { SoftMenuItem, SoftMenuProps } from "./SoftMenu.js";
+export { SoftMenu } from "./SoftMenu.js";
 export type { SoftModalProps } from "./SoftModal.js";
 export { SoftModal } from "./SoftModal.js";
 export type {

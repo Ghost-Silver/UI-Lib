@@ -4026,6 +4026,182 @@ const CSS = `
 	}
 }
 
+
+/* --- menu ----------------------------------------------------------------
+ *
+ * A command menu, so it looks like one: a raised panel, items that highlight as
+ * the reader walks them with the arrow keys, and a shortcut column that is
+ * aligned so the hints line up on their digits the way a command list is read.
+ *
+ * The tick column is always present, even when nothing is checked. A column that
+ * appears only when there is a tick makes every item shift sideways the first
+ * time something is checked, which is a menu that moves while it is being used.
+ */
+
+.ui-lib-soft-menu {
+	position: relative;
+	display: inline-block;
+}
+
+.ui-lib-soft-menu__trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 38px;
+	padding: 0 16px;
+	border-radius: var(--moe-radius-full);
+	border: 1.5px solid transparent;
+	background: oklch(0.975 0.006 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+	font-family: var(--moe-font-rounded);
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--moe-cocoa);
+	cursor: pointer;
+	transition:
+		border-color 180ms ease-out,
+		background 180ms ease-out;
+}
+
+.ui-lib-soft-menu__trigger[aria-expanded="true"] {
+	border-color: var(--moe-taro-500);
+	background: oklch(0.985 0.008 300);
+}
+
+.ui-lib-soft-menu__trigger:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 3px;
+}
+
+.ui-lib-soft-menu__trigger:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-menu__chevron {
+	opacity: 0.5;
+	transition: transform 220ms var(--moe-ease-jelly);
+}
+
+.ui-lib-soft-menu__trigger[aria-expanded="true"] .ui-lib-soft-menu__chevron {
+	transform: rotate(180deg);
+}
+
+.ui-lib-soft-menu__list {
+	position: fixed;
+	top: anchor(bottom);
+	width: max-content;
+	min-width: 200px;
+	max-width: 300px;
+	margin: 7px 0 0;
+	padding: 6px;
+	border-radius: var(--moe-radius-md);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	box-shadow: var(--moe-floating);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	position-try-fallbacks: flip-block;
+}
+
+.ui-lib-soft-menu[data-ui-lib-align="start"] .ui-lib-soft-menu__list {
+	left: anchor(left);
+	right: auto;
+}
+
+.ui-lib-soft-menu[data-ui-lib-align="end"] .ui-lib-soft-menu__list {
+	right: anchor(right);
+	left: auto;
+}
+
+.ui-lib-soft-menu__list:not(:popover-open) {
+	display: none;
+}
+
+.ui-lib-soft-menu__sep {
+	height: 1px;
+	margin: 5px 8px;
+	background: linear-gradient(90deg, transparent, var(--moe-stroke) 12%, var(--moe-stroke) 88%, transparent);
+}
+
+.ui-lib-soft-menu__group {
+	padding: 7px 12px 4px;
+	font-size: 11.5px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: var(--moe-cocoa-soft);
+	opacity: 0.8;
+}
+
+.ui-lib-soft-menu__item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: 8px 12px;
+	border: none;
+	border-radius: var(--moe-radius-sm);
+	background: transparent;
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa);
+	text-align: left;
+	cursor: pointer;
+}
+
+/* Focus is the highlight. A menu moves real focus into itself, so the item the
+   reader is on *is* the focused one and :focus is what marks it. */
+.ui-lib-soft-menu__item:focus {
+	background: oklch(0.94 0.025 310);
+	outline: none;
+}
+
+/* A pointer can hover an item the keyboard is not on, and those are two
+   different things: hovering previews, focusing acts. Both are highlighted
+   because in a menu they converge the moment the pointer moves. */
+.ui-lib-soft-menu__item:hover:not(:disabled) {
+	background: oklch(0.955 0.018 310);
+}
+
+.ui-lib-soft-menu__item:disabled {
+	opacity: 0.42;
+	cursor: not-allowed;
+}
+
+/* Always present, whatever is checked. */
+.ui-lib-soft-menu__tick {
+	flex: none;
+	width: 12px;
+	font-size: 12px;
+	line-height: 1;
+	color: var(--moe-taro-600);
+}
+
+.ui-lib-soft-menu__text {
+	flex: 1;
+	min-width: 0;
+}
+
+.ui-lib-soft-menu__shortcut {
+	flex: none;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+	opacity: 0.75;
+	/* Shortcuts are read as columns, so they line up on their digits. */
+	font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-menu__trigger,
+	.ui-lib-soft-menu__chevron {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

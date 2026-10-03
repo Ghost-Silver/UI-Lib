@@ -23,6 +23,7 @@ import {
 	SoftEmptyState,
 	SoftInput,
 	SoftLightPanel,
+	SoftMenu,
 	SoftModal,
 	SoftPagination,
 	SoftProgress,
@@ -83,6 +84,7 @@ const COMPONENTS = [
 	"segments",
 	"status",
 	"navigation",
+	"menu",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -184,6 +186,39 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** A command menu, opened so the capture shows the list. */
+function MenuKit() {
+	const [last, setLast] = useState("(还没选)");
+	const [ruled, setRuled] = useState(true);
+	return (
+		<div className="kit__menu">
+			<SoftMenu
+				label="画布操作"
+				trigger="画布"
+				items={[
+					{ kind: "label", id: "l1", label: "这一笔" },
+					{ id: "new", label: "新建", shortcut: "⌘N", onSelect: () => setLast("新建") },
+					{ id: "save", label: "保存", shortcut: "⌘S", onSelect: () => setLast("保存") },
+					{ kind: "separator", id: "s1" },
+					{
+						id: "rule",
+						label: "显示辅助线",
+						checked: ruled,
+						onSelect: () => {
+							setRuled((v) => !v);
+							setLast("显示辅助线");
+						},
+					},
+					{ id: "wet", label: "保持湿润", disabled: true, onSelect: () => undefined },
+					{ kind: "separator", id: "s2" },
+					{ id: "share", label: "分享", shortcut: "⌘⇧S", onSelect: () => setLast("分享") },
+				]}
+			/>
+			<p className="kit__menu-note">上次选择：{last}</p>
+		</div>
 	);
 }
 
@@ -733,6 +768,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "menu":
+			return <MenuKit />;
 		case "navigation":
 			return <NavigationKit />;
 		case "status":

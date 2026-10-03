@@ -134,11 +134,15 @@ describe("the stylesheet and the components agree", () => {
 	 *    never one.
 	 *  - `ui-lib-styles` is the **id of the style element** this module injects.
 	 *    An id selector for it would be wrong twice over.
+	 *  - `ui-lib-menu` is another **anchor name**. The prefix is doing double duty
+	 *    as both a class namespace and a top-layer identifier namespace, which is
+	 *    what makes this list necessary rather than tidy — a convention is not a
+	 *    type, and the check has to be told which is which.
 	 *
 	 * Listed rather than pattern-matched, so adding a third is a deliberate act
 	 * with a reason next to it.
 	 */
-	const NOT_A_CLASS = ["ui-lib-tip", "ui-lib-styles"];
+	const NOT_A_CLASS = ["ui-lib-tip", "ui-lib-styles", "ui-lib-menu"];
 
 	/** Classes a caller supplies, or that come from another package's contract. */
 	const EXTERNAL = [
