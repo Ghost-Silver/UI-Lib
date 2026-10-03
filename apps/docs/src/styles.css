@@ -3015,3 +3015,16 @@ input[type="range"]::-moz-range-thumb {
 	width: 260px;
 	align-content: center;
 }
+
+.kit__loading {
+	display: grid;
+	gap: 18px;
+	width: 360px;
+	align-content: center;
+}
+
+.kit__loading-row {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}

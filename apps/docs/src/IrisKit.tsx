@@ -8,10 +8,13 @@ import {
 	SoftInput,
 	SoftLightPanel,
 	SoftModal,
+	SoftProgress,
 	SoftRadio,
 	SoftRadioGroup,
 	SoftSelect,
+	SoftSkeleton,
 	SoftSlider,
+	SoftSpinner,
 	SoftSwitch,
 	SoftTabs,
 	WatercolorCard,
@@ -47,6 +50,7 @@ const COMPONENTS = [
 	"input",
 	"select",
 	"choice",
+	"loading",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -148,6 +152,26 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** The three states of not-being-there-yet. */
+function LoadingKit() {
+	return (
+		<div className="kit__loading">
+			<SoftProgress label="正在铺纸" value={62} showValue />
+			<SoftProgress label="正在等" />
+			<SoftProgress label="小号" value={28} size="sm" />
+			<div className="kit__loading-row">
+				<SoftSpinner />
+				<SoftSpinner size={20} label="正在调色" />
+			</div>
+			<SoftSkeleton variant="text" lines={3} />
+			<div className="kit__loading-row">
+				<SoftSkeleton variant="circle" width={44} height={44} />
+				<SoftSkeleton variant="block" width={180} height={44} />
+			</div>
+		</div>
 	);
 }
 
@@ -348,6 +372,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "loading":
+			return <LoadingKit />;
 		case "choice":
 			return <ChoiceKit />;
 		case "select":

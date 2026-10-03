@@ -2183,6 +2183,264 @@ const CSS = `
 	}
 }
 
+
+/* --- progress ------------------------------------------------------------
+ *
+ * The fill travels rather than widens. A solid block that grows reads as a
+ * value being revealed; a gradient moving along its own length reads as
+ * something passing through, which is what the same background-position
+ * animation gives the slider. Two components showing progress should look like
+ * the same substance, so they share the technique on purpose.
+ *
+ * The track is a recess, like every other groove in this library — the input's
+ * shell, the switch's track, the choice box. A raised track with a fill inside
+ * it reads as two objects; a sunken one reads as a channel.
+ */
+
+.ui-lib-soft-progress {
+	display: grid;
+	gap: 7px;
+	width: 100%;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-progress__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.ui-lib-soft-progress__label {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-progress__value {
+	font-size: 12.5px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	color: var(--moe-cocoa-soft);
+	/* Digits change width as the number changes, and a label that shifts by a
+	   pixel every tick is the most distracting thing on a loading screen. */
+	font-variant-numeric: tabular-nums;
+}
+
+.ui-lib-soft-progress__track {
+	position: relative;
+	overflow: hidden;
+	height: 10px;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.955 0.006 60);
+	box-shadow:
+		inset 0 2px 3px 0 rgb(77 60 56 / 0.12),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+}
+
+.ui-lib-soft-progress[data-ui-lib-size="sm"] .ui-lib-soft-progress__track {
+	height: 6px;
+}
+
+.ui-lib-soft-progress__fill {
+	display: block;
+	height: 100%;
+	border-radius: var(--moe-radius-full);
+	background: linear-gradient(90deg, var(--moe-sakura-500), var(--moe-taro-500));
+	background-size: 180% 100%;
+	animation: ui-lib-moe-flow 3.2s linear infinite;
+	transition: width 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Indeterminate: no width to animate, so the band itself travels. It reaches
+   into the track's own edges rather than stopping short, so there is no moment
+   where the bar appears to have finished. */
+.ui-lib-soft-progress[data-ui-lib-indeterminate] .ui-lib-soft-progress__fill {
+	width: 38%;
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		var(--moe-sakura-500) 35%,
+		var(--moe-taro-500) 65%,
+		transparent 100%
+	);
+	background-size: 100% 100%;
+	animation: ui-lib-moe-travel 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes ui-lib-moe-travel {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(264%);
+	}
+}
+
+/* --- spinner -------------------------------------------------------------
+ *
+ * Three rings breathing, not an arc rotating.
+ *
+ * A rotating arc turns at a constant rate for as long as the wait lasts, which
+ * is exactly what makes a wait feel long — it is the one motion in an interface
+ * that never resolves. A ring that expands and contracts at roughly a resting
+ * breath rate suggests something alive rather than something stuck.
+ *
+ * The phase offsets are deliberately uneven. An even spread reads as a
+ * mechanical chase, which is the thing this was chosen to avoid.
+ */
+
+.ui-lib-soft-spinner {
+	position: relative;
+	display: inline-grid;
+	place-items: center;
+	vertical-align: middle;
+}
+
+.ui-lib-soft-spinner__ring {
+	position: absolute;
+	inset: 0;
+	border-radius: var(--moe-radius-full);
+	border: 2px solid var(--moe-taro-500);
+	/* A breath is not a sine wave: it arrives faster than it leaves. The first
+	   55 per cent of the curve is the inhale and the rest is the slower exhale,
+	   which is why the keyframe stops are uneven. */
+	animation: ui-lib-moe-breathe 2.1s cubic-bezier(0.33, 0, 0.35, 1) infinite;
+}
+
+.ui-lib-soft-spinner__ring:nth-child(2) {
+	animation-delay: -0.7s;
+	border-color: var(--moe-sakura-500);
+}
+
+.ui-lib-soft-spinner__ring:nth-child(3) {
+	animation-delay: -1.45s;
+	border-color: var(--moe-soda-500);
+}
+
+/*
+ * The first version of this spread the three rings across scale 0.42 to 1.34
+ * at full opacity, and at any given instant it looked like a target — three
+ * concentric circles, which is a static pattern rather than a living one.
+ *
+ * The fix is to make opacity carry the phase and scale carry almost none. Rings
+ * that are nearly the same size but at very different brightnesses read as one
+ * thing pulsing; rings at very different sizes read as three things. The scale
+ * range is now 0.86 to 1.06, and most of the animation is the fade.
+ */
+@keyframes ui-lib-moe-breathe {
+	0% {
+		transform: scale(0.86);
+		opacity: 0;
+	}
+	22% {
+		transform: scale(0.92);
+		opacity: 0.55;
+	}
+	55% {
+		transform: scale(1.06);
+		opacity: 0.22;
+	}
+	100% {
+		transform: scale(1.06);
+		opacity: 0;
+	}
+}
+
+/* --- skeleton ------------------------------------------------------------
+ *
+ * A placeholder that is wet rather than grey. The usual skeleton is a grey
+ * rectangle with a sheen sliding across it, which says "content is missing"; a
+ * wash says "content is arriving", which is what a half-finished watercolour
+ * says. The drift is at the same rate as the wash on the material page, because
+ * a placeholder should look like the thing it stands in for.
+ */
+
+.ui-lib-soft-skeleton {
+	display: grid;
+	gap: 9px;
+	width: 100%;
+}
+
+.ui-lib-soft-skeleton__shape {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	min-height: 14px;
+	height: 100%;
+	border-radius: var(--moe-radius-sm);
+	background: oklch(0.945 0.012 320);
+}
+
+.ui-lib-soft-skeleton[data-ui-lib-variant="block"] .ui-lib-soft-skeleton__shape {
+	height: 100%;
+	border-radius: var(--moe-radius-md);
+}
+
+.ui-lib-soft-skeleton[data-ui-lib-variant="circle"] .ui-lib-soft-skeleton__shape {
+	border-radius: var(--moe-radius-full);
+	aspect-ratio: 1;
+}
+
+.ui-lib-soft-skeleton[data-ui-lib-variant="text"] .ui-lib-soft-skeleton__shape {
+	height: 13px;
+}
+
+/* The last line of a paragraph is short. Every line being full width is the
+   tell that a placeholder is a rectangle rather than a shape. */
+.ui-lib-soft-skeleton__shape[data-ui-lib-last] {
+	width: 62%;
+}
+
+.ui-lib-soft-skeleton__shape::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		100deg,
+		transparent 20%,
+		rgb(255 255 255 / 0.65) 50%,
+		transparent 80%
+	);
+	background-size: 220% 100%;
+	animation: ui-lib-moe-drift 2.6s linear infinite;
+}
+
+@keyframes ui-lib-moe-drift {
+	from {
+		background-position: 140% 0;
+	}
+	to {
+		background-position: -140% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* Progress keeps its travel, because a bar that does not move is a bar that
+	   looks finished. It slows down instead. */
+	.ui-lib-soft-progress__fill,
+	.ui-lib-soft-progress[data-ui-lib-indeterminate] .ui-lib-soft-progress__fill {
+		animation-duration: 6s;
+		transition-duration: 0s;
+	}
+
+	.ui-lib-soft-spinner__ring {
+		animation: none;
+		transform: scale(1);
+		opacity: 0.4;
+	}
+
+	.ui-lib-soft-spinner__ring:first-child {
+		opacity: 0.85;
+	}
+
+	.ui-lib-soft-skeleton__shape::after {
+		animation: none;
+		background: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
