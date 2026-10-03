@@ -84,7 +84,6 @@ export const SoftPagination = forwardRef<HTMLElement, SoftPaginationProps>(
 			}
 			if (hrefFor) {
 				return (
-					// biome-ignore lint/a11y/useAnchorContent: the text is the child of this element
 					<a
 						key={value}
 						{...shared}
@@ -224,7 +223,6 @@ export const SoftBreadcrumb = forwardRef<HTMLElement, SoftBreadcrumbProps>(
 								 * combination that is both stable and unique for a list this
 								 * short and this authored.
 								 */
-								// biome-ignore lint/suspicious/noArrayIndexKey: the label is the identity and the index disambiguates a legitimate repeat
 								// biome-ignore lint/suspicious/noArrayIndexKey: the label is the identity and the index disambiguates a legitimate repeat
 								key={`${item.label}-${index}`}
 								className="ui-lib-soft-breadcrumb__item"

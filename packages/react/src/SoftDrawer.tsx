@@ -81,7 +81,6 @@ export const SoftDrawer = forwardRef<HTMLDialogElement, SoftDrawerProps>(functio
 
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: the backdrop click is a mouse convenience; Escape is the keyboard path to the same action and the platform provides it
-		// biome-ignore lint/a11y/noStaticElementInteractions: the interactive surface is the dialog the platform opened, not an authored div
 		<dialog
 			ref={(node) => {
 				dialog.current = node;

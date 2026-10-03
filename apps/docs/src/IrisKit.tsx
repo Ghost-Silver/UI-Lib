@@ -23,6 +23,7 @@ import {
 	SoftEmptyState,
 	SoftInput,
 	SoftLightPanel,
+	SoftList,
 	SoftMenu,
 	SoftModal,
 	SoftPagination,
@@ -87,6 +88,7 @@ const COMPONENTS = [
 	"navigation",
 	"menu",
 	"textarea",
+	"list",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -188,6 +190,38 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** A selection list, and a multi-select one beside it. */
+function ListKit() {
+	const [one, setOne] = useState<string[]>(["paper"]);
+	const [many, setMany] = useState<string[]>(["iris"]);
+	const items = [
+		{ id: "paper", label: "水彩纸", note: "会吸水，边缘会沉积" },
+		{ id: "glass", label: "液态玻璃", note: "折射背后的东西" },
+		{ id: "clay", label: "粘土", note: "三层阴影" },
+		{ id: "none", label: "不可用", disabled: true },
+	];
+	return (
+		<div className="kit__list">
+			<SoftList label="基底（单选）" items={items} selected={one} onChange={setOne} />
+			<SoftList
+				label="色调（多选）"
+				size="sm"
+				items={[
+					{ id: "iris", label: "紫", trailing: <SoftTag tone="iris">主</SoftTag> },
+					{ id: "blossom", label: "粉" },
+					{ id: "mist", label: "蓝" },
+				]}
+				selected={many}
+				onChange={setMany}
+				selection="multiple"
+			/>
+			<p className="kit__list-note">
+				选中 {one.length} 项 / {many.length} 项
+			</p>
+		</div>
 	);
 }
 
@@ -794,6 +828,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "list":
+			return <ListKit />;
 		case "textarea":
 			return <TextareaKit />;
 		case "menu":

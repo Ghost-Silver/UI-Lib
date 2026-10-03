@@ -4266,6 +4266,127 @@ const CSS = `
 	}
 }
 
+
+/* --- list ----------------------------------------------------------------
+ *
+ * A list of things that can be chosen. The item is one row with three slots, and
+ * the slots are always present in the same order so a list of mixed rows still
+ * lines up on its labels.
+ *
+ * The highlight and the selection are two different states and they look
+ * different on purpose, which is the same distinction the select makes: the
+ * highlight is where the keyboard is and moves on every arrow press, the
+ * selection is what has been chosen and does not. Merging them would mean a list
+ * that forgets what is chosen the moment an arrow key is pressed.
+ */
+
+.ui-lib-soft-list {
+	display: grid;
+	gap: 2px;
+	margin: 0;
+	padding: 5px;
+	list-style: none;
+	border-radius: var(--moe-radius-md);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	overflow-y: auto;
+	max-height: 340px;
+}
+
+.ui-lib-soft-list:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 2px;
+}
+
+.ui-lib-soft-list__item {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	padding: 9px 12px;
+	border-radius: var(--moe-radius-sm);
+	cursor: pointer;
+	transition: background 160ms ease-out;
+}
+
+.ui-lib-soft-list[data-ui-lib-size="sm"] .ui-lib-soft-list__item {
+	padding: 6px 10px;
+	gap: 9px;
+}
+
+/* Where the keyboard is. */
+.ui-lib-soft-list__item[data-ui-lib-active] {
+	background: oklch(0.955 0.018 310);
+}
+
+/* What is chosen. Stronger than the highlight, because it survives the movement
+   of the highlight and the reader has to be able to tell them apart at a glance. */
+.ui-lib-soft-list__item[data-ui-lib-selected] {
+	background: oklch(0.93 0.035 310);
+}
+
+.ui-lib-soft-list__item[data-ui-lib-selected][data-ui-lib-active] {
+	background: oklch(0.905 0.045 310);
+}
+
+.ui-lib-soft-list__item[data-ui-lib-disabled] {
+	opacity: 0.42;
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-list__leading,
+.ui-lib-soft-list__trailing {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-list__body {
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	gap: 1px;
+}
+
+.ui-lib-soft-list__label {
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.45;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ui-lib-soft-list[data-ui-lib-size="sm"] .ui-lib-soft-list__label {
+	font-size: 13px;
+}
+
+.ui-lib-soft-list__note {
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.45;
+	color: var(--moe-cocoa-soft);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ui-lib-soft-list__empty {
+	padding: 22px 12px;
+	text-align: center;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-list__item {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

@@ -220,6 +220,7 @@ async function main() {
 		const clean = "const CSS = `\n.a { color: red; }\n.b { color: blue; }\n`;\n";
 		const stray =
 			"const CSS = `\n/* use `foo` here */\n.a { color: red; }\n.b { color: blue; }\n`;\n";
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: this string is the probe fixture and must contain the syntax it detects
 		const interpolated = "const CSS = `\n.a { width: ${w}; }\n.b { color: blue; }\n`;\n";
 		const cleanOk = inspect(clean).length === 0;
 		const caughtStray = inspect(stray).length > 0;
