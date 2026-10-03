@@ -66,6 +66,18 @@ Liquid Glass Pro 已经是旗舰页。还没做的是：
 
 ---
 
+## 组件层是怎么来的
+
+渲染切片是底座；组件层是 2026-10 之后补上的，判据与顺序都记在这里，因为「为什么是这样」比「有什么」更容易丢。
+
+**先补依赖。** `@ui-lib/motion` 只有 scroll beats，没有弹簧——组件要么凭眼睛挑常数，要么自己写动画。动效层的接口是**阻尼比 ζ** 而不是 `stiffness`：ζ 无量纲所以可迁移，`stiffness: 350` 说明不了任何事，而 `ζ = 0.55` 是能复现的手感。它也是物理系统共享的参数——伺服导纳控制和 Hill 肌肉模型是同一个二阶方程。五个预设的 k 值对着设计规范校准过（press 350 / pop 199 / badge 449）。
+
+**再按「它和已有的差在哪」逐个补控件，而不是按清单。** `SegmentedControl` 不是 tablist（选值 vs 切视图）、`Chip` 不是 `Tag`（被按 vs 被展示）、`Stepper` 不是 `Progress`（离散命名 vs 连续量）、`List` 有三种形态而它只做第三种（选择）。每一个的注释里都写了它**不是**什么。
+
+**然后才知道该把材质铺到哪。** `material` 只给内容容器（Card / Table / List / Dialog / Drawer），不给控件组（Pagination / SegmentedControl / Stepper）：材质是在说「这个表面是个东西」，而给一排按钮铺颜料是装饰而不是表达。
+
+**过程中有三次同一个错误。** 组件的 `background` 简写三次静默重置了材质的 `background-image`，前两次靠挪代码修，第三次改用选择器优先级——因为「谁赢取决于规则在文件里的位置」是最脆弱的依赖。
+
 ## 为什么需要 UI-Lib
 
 Web 动效通常会在两种方案之间取舍：
@@ -84,6 +96,28 @@ UI-Lib 的取舍是：
 UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面下面的视觉运行时。
 
 ## 当前能力
+
+### 组件层
+
+渲染切片之外，还有一层应用组件。判据是**有没有无障碍契约**：设了 `role`、`aria-*` 或渲染原生交互元素的，是应用组件，带 `Soft` 前缀；渲染宿主与动效原语（`GlassStage`、`Optics`、`Reveal`、`Bling`）不带前缀，它们没有契约要守。这条规则由 `pnpm check:api` 检查，不靠约定。
+
+**35 个 `Soft` 组件。** 表单类（`Input` / `Textarea` / `Select` / `Combobox` / `Checkbox` / `Radio` / `Switch` / `Slider` / `SegmentedControl` / `Button`）、结构类（`Card` / `Table` / `List` / `Accordion` / `Tabs` / `Drawer` / `Modal` / `Toolbar` / `Menu`）、状态类（`Progress` / `Skeleton` / `Spinner` / `Alert` / `Toast` / `EmptyState`）、导航类（`Breadcrumb` / `Pagination` / `Stepper`）、标识类（`Avatar` / `Tag` / `Chip` / `Badge` / `Tooltip` / `Divider`）。
+
+每个的键盘模型是**它自己的**，而且是按角色选的，不是复制的：
+
+- **`List` / `Select` / `Combobox`** 用 `listbox` 模型——焦点留在控件上，`aria-activedescendant` 指向选项，整个控件一个 Tab 停靠点。触发器是还在输入的东西，焦点移走会丢光标。
+- **`Menu` / `Toolbar`** 用相反的做法——焦点**真的移进**各个项。菜单没有输入框，而 Tab 关闭它是正确的：菜单不是要穿过的表单。
+- **`SegmentedControl` / `Radio`** 交给原生 `<input type="radio">`，方向键直接**改变选中**而不是只移焦点，`name` 让三个 radio 成为一个组。
+- **`Combobox`** 的 `aria-autocomplete="list"` 不是装饰：它说的是「会弹列表，且列表内容随输入变化」，省略它读屏就永远不播报结果数从 8 变 2。
+- **`Pagination` / `Breadcrumb` / `Stepper`** 的当前项**不是控件**——`aria-current` 标记它，按下去只是导航到已经在的地方。
+
+### 材质与令牌
+
+**水彩是一套生成器，不是一份手调 CSS。** `createWash({ hue, weight, seed, state })` 派生五个沉积弧段强度、轮廓的八个半径、旋转、两层 `feTurbulence` 频率与 tile 尺寸，全部由 seed 决定，所以同一 seed 在服务端与客户端画得一样。混色走 **Kubelka-Munk** 而不是 `color-mix`：青加黄在 K-M 下饱和度 0.529，在 RGB 线性插值下 0.196——减性介质在发光空间里插值会穿过灰轴。
+
+**任何容器都能声明材质。** `<SoftCard material="wash" tone="iris" seedName="summary">`，`useMaterial` 产出十二个自定义属性，`wash` / `tint` / `plain` 是同一种物质的三种用量。颜料走 `background-image` 而不是伪元素：负 `z-index` 会把它放到父元素背景之后，在一张设了 `background` 的卡片上静默消失。
+
+**令牌实测可换。** 覆盖调色板后输入框的凹槽从 `oklch(0.975 0.006 60)` 变成 `rgb(17 28 46)`，四种语义状态全部跟随。30 个令牌覆盖表面与状态；剩余字面量集中在渐变与阴影里。
 
 ### 已实现的渲染切片
 
@@ -812,19 +846,44 @@ UI-Lib 以约束而不是营销数字为中心：
 ```bash
 pnpm install
 pnpm dev              # Vite Playground
-pnpm verify           # 门禁：build → typecheck → test → size budget
+pnpm verify           # 静态门禁：lint → test → typecheck → size → api → templates
 pnpm verify:device    # 上面的全部 + 真机着色器编译门禁
 pnpm test             # 先构建 dist，再跑 Vitest
 pnpm typecheck        # 全 workspace TypeScript
 pnpm size             # 体积预算门禁（读 size-budget.json）
-pnpm lint             # Biome check
+pnpm lint             # Biome check + 模板守卫 + API 命名规则
+pnpm check:api        # 组件与类型的命名规则（35 组件 / 175 导出类型）
+pnpm check:templates  # CSS 模板里的游离反引号、同一语句内的重复导入
 pnpm build            # 包构建
 pnpm test:e2e         # Playwright 浏览器验收（headless Chromium）
 pnpm test:e2e:update  # 更新视觉 baseline
 pnpm measure          # 真机帧节奏测量（需要真实 GPU；脚本不会启停服务器）
 pnpm check:shaders    # 真机着色器/管线编译门禁（需要真实 GPU；先构建 apps/docs）
 pnpm check:shaders:self-test  # 证伪探针本身：确认门禁不是瞎的
+pnpm check:post       # TSL 后处理链是否真的在干活（passthrough 残差 < 2）
+pnpm check:pixels     # 七张页面真的在出像素、玻璃真的落在元素上
+pnpm check:components # 26 个组件可见、调色板接线
 ```
+
+### 九道门禁
+
+每一道都以**退出码**为准，不以输出为准——一个不可能失败的守卫比没有守卫更糟，这个仓库里有两个检查曾经连续两次报告"全绿"而其实什么都没看。
+
+| 门禁 | 覆盖 |
+| --- | --- |
+| `biome check .` | 格式与 lint |
+| `check:templates` | 游离反引号（CSS 模板提前闭合）、重复导入 |
+| `check:api` | 命名规则：有契约的组件带 `Soft` 前缀；导出类型不带项目名 |
+| `typecheck` | 全部包 |
+| `vitest` | 27 文件 / 173 测试 |
+| `size` | 全部包在 `size-budget.json` 内 |
+| `check:shaders` | 12 张页面的着色器/管线真机编译 |
+| `check:post` | 3 页，passthrough 残差对阈值 2 |
+| `check:pixels` | 7 页在绘制、玻璃在元素上 |
+| `check:components` | 26 组件、调色板接线 |
+| `test:e2e` | 19 项浏览器验收 |
+
+前六道不需要 GPU，`pnpm verify` 跑的就是它们。
 
 当前仓库仍处在 experimental monorepo 阶段。第一个 stable release 之前，公开 API 可能发生变化；依赖规划中或 experimental 标记的能力前，请先查看 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
