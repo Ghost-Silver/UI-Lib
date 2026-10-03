@@ -129,20 +129,19 @@ describe("the stylesheet and the components agree", () => {
 	 * Both of these are real and both were flagged on the first run, which is
 	 * the tension in a check this broad: a prefix is a convention, not a type.
 	 *
-	 *  - `ui-lib-tip` is an **anchor name**, the CSS anchor-positioning
-	 *    identifier the tooltip positions against. It looks like a class and is
-	 *    never one.
 	 *  - `ui-lib-styles` is the **id of the style element** this module injects.
 	 *    An id selector for it would be wrong twice over.
-	 *  - `ui-lib-menu` is another **anchor name**. The prefix is doing double duty
-	 *    as both a class namespace and a top-layer identifier namespace, which is
-	 *    what makes this list necessary rather than tidy — a convention is not a
-	 *    type, and the check has to be told which is which.
+	 *
+	 * There were three entries here and now there is one. The other two were
+	 * **anchor names**, which used to be prefixed `ui-lib-` — the same namespace
+	 * as the classes — so they looked like classes to this check and to a reader.
+	 * Anchor names are `ui-anchor-*` now, which fixes the cause instead of
+	 * listing the symptoms; see `anchorNameFrom`.
 	 *
 	 * Listed rather than pattern-matched, so adding a third is a deliberate act
 	 * with a reason next to it.
 	 */
-	const NOT_A_CLASS = ["ui-lib-tip", "ui-lib-styles", "ui-lib-menu"];
+	const NOT_A_CLASS = ["ui-lib-styles"];
 
 	/** Classes a caller supplies, or that come from another package's contract. */
 	const EXTERNAL = [

@@ -18,6 +18,7 @@ import {
 	SoftBreadcrumb,
 	SoftCard,
 	SoftCheckbox,
+	SoftCombobox,
 	SoftDivider,
 	SoftDrawer,
 	SoftEmptyState,
@@ -89,6 +90,7 @@ const COMPONENTS = [
 	"menu",
 	"textarea",
 	"list",
+	"combobox",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -190,6 +192,37 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** The typing field, opened and filtered. */
+function ComboboxKit() {
+	const [material, setMaterial] = useState("paper");
+	const options = [
+		{ value: "paper", label: "水彩纸", note: "会吸水，边缘会沉积" },
+		{ value: "glass", label: "液态玻璃", note: "折射背后的东西" },
+		{ value: "clay", label: "粘土", note: "三层阴影" },
+		{ value: "wash", label: "水彩印", note: "头像上的那一枚" },
+	];
+	return (
+		<div className="kit__combobox">
+			<SoftCombobox
+				label="材质"
+				value={material}
+				onChange={setMaterial}
+				options={options}
+				hint="打字会过滤，方向键选。"
+			/>
+			<SoftCombobox
+				label="标签（可自由输入）"
+				value=""
+				onChange={() => undefined}
+				options={[{ value: "a", label: "已有的一个" }]}
+				allowCustom
+				placeholder="随便写"
+			/>
+			<p className="kit__combobox-note">选中：{material}</p>
+		</div>
 	);
 }
 
@@ -828,6 +861,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "combobox":
+			return <ComboboxKit />;
 		case "list":
 			return <ListKit />;
 		case "textarea":

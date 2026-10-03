@@ -67,6 +67,19 @@ export function usePopover<T extends HTMLElement>(open: boolean) {
  * React's `useId` produces colons, which are legal in an id and legal in an
  * anchor name once stripped; this strips them rather than hand-rolling a
  * counter, because a counter is not stable across a server render.
+ *
+ * ## The prefix, and why it is not `ui-lib-`
+ *
+ * It was, and that was a mistake with a slow cost. `ui-lib-` is the **class**
+ * namespace, and a stylesheet is written against it — so every anchor name looked
+ * like a class to everything that reads the prefix, including this package's own
+ * class-contract guard. That guard reported four false positives across three
+ * rounds, and each one cost a decision about whether the anchor name needed a
+ * rule.
+ *
+ * Two namespaces sharing a prefix is the actual problem, and a longer exclusion
+ * list is not the fix. Anchor names are `ui-anchor-*` now, which cannot be
+ * confused with a class by a person or by a check.
  */
 export function anchorNameFrom(id: string, prefix: string): string {
 	return `--${prefix}-${id.replace(/[^a-zA-Z0-9_-]/g, "")}`;

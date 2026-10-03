@@ -66,7 +66,7 @@ export const SoftTooltip = forwardRef<HTMLDivElement, SoftTooltipProps>(function
 	const [open, setOpen] = useState(false);
 	const generated = useId();
 	const tipId = `${generated}-tip`;
-	const anchor = anchorNameFrom(generated, "ui-lib-tip");
+	const anchor = anchorNameFrom(generated, "ui-anchor-tip");
 	const { ref: popover } = usePopover<HTMLDivElement>(open);
 
 	/** The trigger element, for the anchor. Set by the cloned child's ref. */

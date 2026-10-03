@@ -96,7 +96,7 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 	 * being mis-anchored. `elementFromPoint` at the list's own corner returned one
 	 * of its own options, which is what ruled the covering theory out.
 	 */
-	const anchorName = `--ui-lib-select-${generated.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+	const anchorName = `--ui-anchor-select-${generated.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 	const trigger = useRef<HTMLButtonElement | null>(null);
 	const popover = useRef<HTMLDivElement | null>(null);
 	/** The option the keyboard is on. Not the same as the chosen one. */

@@ -4387,6 +4387,107 @@ const CSS = `
 	}
 }
 
+
+/* --- combobox ------------------------------------------------------------
+ *
+ * The input's shell with a list under it, because that is exactly what it is:
+ * the same recess, the same field, and a popup. Nothing about the field changes
+ * when the list opens — a control that restyles itself the moment it is used is
+ * a control that moves under the cursor.
+ *
+ * The list reuses the select's vocabulary down to the highlight colour, because a
+ * reader should not have to learn that two popups that look alike behave alike.
+ */
+
+.ui-lib-soft-combobox__list {
+	position: fixed;
+	top: anchor(bottom);
+	left: anchor(left);
+	width: anchor-size(width);
+	margin: 7px 0 0;
+	padding: 6px;
+	max-height: 260px;
+	overflow-y: auto;
+	border-radius: var(--moe-radius-md);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	box-shadow: var(--moe-floating);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+	position-try-fallbacks: flip-block;
+}
+
+.ui-lib-soft-combobox__list:not(:popover-open) {
+	display: none;
+}
+
+@keyframes ui-lib-moe-combo-row {
+	from {
+		opacity: 0;
+		transform: translateY(-3px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.ui-lib-soft-combobox__option {
+	display: grid;
+	gap: 1px;
+	padding: 8px 12px;
+	border-radius: var(--moe-radius-sm);
+	cursor: pointer;
+	animation: ui-lib-moe-combo-row 180ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Where the keyboard is. Moves on every arrow press. */
+.ui-lib-soft-combobox__option[data-ui-lib-active] {
+	background: oklch(0.95 0.02 300);
+}
+
+/* What is chosen. Does not move, which is the same distinction the select and
+   the list make. */
+.ui-lib-soft-combobox__option[data-ui-lib-selected] {
+	background: oklch(0.93 0.035 300);
+}
+
+.ui-lib-soft-combobox__option[data-ui-lib-selected][data-ui-lib-active] {
+	background: oklch(0.91 0.045 300);
+}
+
+.ui-lib-soft-combobox__option[data-ui-lib-option-disabled] {
+	opacity: 0.42;
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-combobox__label {
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.45;
+}
+
+.ui-lib-soft-combobox__note {
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1.45;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-combobox__empty {
+	padding: 18px 12px;
+	text-align: center;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--moe-cocoa-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-combobox__option {
+		animation: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

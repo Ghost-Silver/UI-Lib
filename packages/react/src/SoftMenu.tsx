@@ -82,7 +82,7 @@ export const SoftMenu = forwardRef<HTMLDivElement, SoftMenuProps>(function SoftM
 	const [active, setActive] = useState(-1);
 	const generated = useId();
 	const menuId = `${generated}-menu`;
-	const anchor = anchorNameFrom(generated, "ui-lib-menu");
+	const anchor = anchorNameFrom(generated, "ui-anchor-menu");
 	const { ref: popover } = usePopover<HTMLDivElement>(open);
 
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
