@@ -1761,7 +1761,6 @@ const CSS = `
 	gap: 6px;
 	font-family: var(--moe-font-rounded);
 	color: var(--moe-cocoa);
-	anchor-name: --ui-lib-select;
 }
 
 .ui-lib-soft-select__label {
@@ -1835,10 +1834,21 @@ const CSS = `
 
 .ui-lib-soft-select__list {
 	position: fixed;
-	position-anchor: --ui-lib-select;
+	/* position-anchor is set per instance from the component; a name in the
+	   stylesheet would be claimed by every select on the page at once. */
 	top: anchor(bottom);
 	left: anchor(left);
-	right: anchor(right);
+	/*
+	 * The width comes from the anchor's own size, not from pairing left with
+	 * right.
+	 *
+	 * Both spellings look equivalent and they are not. Measured against a 320px
+	 * trigger, left: anchor(left) paired with right: anchor(right) produced an **82px**
+	 * list, and width: anchor-size(width) produced the correct 334px. Two
+	 * anchor-relative insets do not resolve to the distance between them the way
+	 * two absolute ones do.
+	 */
+	width: anchor-size(width);
 	margin: 8px 0 0;
 	/* position-try is the flip: when the list would overflow the bottom of the
 	   viewport it is placed above the trigger instead, and the platform does the

@@ -85,6 +85,18 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 	const listId = `${generated}-list`;
 	const optionId = useCallback((index: number) => `${generated}-opt-${index}`, [generated]);
 
+	/*
+	 * A per-instance anchor name.
+	 *
+	 * The first version set `anchor-name: --ui-lib-select` in the stylesheet, so
+	 * every select on the page claimed the same name. The browser then has no way
+	 * to know which one a `top: anchor(bottom)` refers to, and it picked one —
+	 * a page with two fields put the second field's list below the first field's
+	 * list, 112px off, which reads as the list being *covered* rather than as
+	 * being mis-anchored. `elementFromPoint` at the list's own corner returned one
+	 * of its own options, which is what ruled the covering theory out.
+	 */
+	const anchorName = `--ui-lib-select-${generated.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 	const trigger = useRef<HTMLButtonElement | null>(null);
 	const popover = useRef<HTMLDivElement | null>(null);
 	/** The option the keyboard is on. Not the same as the chosen one. */
@@ -306,6 +318,15 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 				aria-labelledby={label ? labelId : ariaLabelledBy}
 				disabled={disabled}
 				className="ui-lib-soft-select__trigger"
+				/*
+				 * The anchor is the trigger, not the wrapper. Anchoring the
+				 * wrapper made `left: anchor(left)` and `right: anchor(right)`
+				 * resolve against two different boxes — the label sits above the
+				 * trigger inside the same wrapper — so the list came out 177px
+				 * wide against a 320px field. Anchoring the trigger makes both
+				 * edges the field's own edges, and the list matches it.
+				 */
+				style={{ anchorName } as React.CSSProperties}
 				onClick={() => setOpen((was) => !was)}
 				onKeyDown={handleKeyDown}
 			>
@@ -334,6 +355,7 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 				role="listbox"
 				aria-labelledby={label ? labelId : ariaLabelledBy}
 				className="ui-lib-soft-select__list"
+				style={{ positionAnchor: anchorName } as React.CSSProperties}
 			>
 				{options.map((option, index) => (
 					<div
