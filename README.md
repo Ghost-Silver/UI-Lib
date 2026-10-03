@@ -286,6 +286,39 @@ look 的键**不追求同一套隐喻**，这是有意的：`crystal` / `flare` 
 
 `ParticleSystemOptions.colors` 那个三元组是硬约束（着色器按 `life` 在三色间插值），不是惯例；写成四个不会报错，只会静默丢掉一个。
 
+### 距离场字体 atlas
+
+`evaluateMSDF` 写在 `@ui-lib/shaders` 里，一直正确、也一直没人用——**仓库里没有 atlas 给它采样**。这张 atlas 现在由脚本生成：
+
+```bash
+pnpm build:font-atlas                              # 默认 112 字形
+pnpm build:font-atlas -- --chars "水彩卡片IRIS" --size 64
+```
+
+全过程本地完成，无字体解析器、无图像库、无网络：Playwright 用 Canvas2D 栅格化字形，8SSEDT 变换在页面里跑，PNG 由浏览器编码。产物是 `apps/docs/public/fonts/iris-sdf.{png,json}`，JSON 是 BMFont 兼容格式（多一个 `distanceField.distanceRange`）。
+
+**它是 SDF，不是 MSDF，这个区别要说明白而不是含糊过去。** 真正的多通道距离场会给每个通道分配不同的边，让字的**尖角**在中值滤波后仍保持锐利；这里把同一个距离写进三个通道，那就是单通道场。着色器不用改也照样工作——三个相等通道的 `max(min(r,g), min(max(r,g), b))` 就是那个通道——但字形尖角会略圆。把不是它名字所声称的数据发出去，正是这个仓库反复重新发现的失败模式，所以文件叫 `-sdf`，JSON 里也写 `sdf`。
+
+#### `pxRange` 只能推导，不能猜
+
+`createTextMaterial` 的 `pxRange` 是文字这条链上**唯一一个错了也不报错**的数字：小了边缘锯齿，大了字发糊。
+
+atlas 存的是 `0.5 - d / (2·range)`（`d` 为纹素距离），所以 `sigDist` 每个纹素变化 `1 / (2·range)`。每屏幕像素的纹素数是 `fwidth(uv) · scaleW`。而 `evaluateMSDF` 把 `fwidth(uv)` 乘以 `pxRange`，两者恰好相等当且仅当：
+
+```
+pxRange = scaleW / (2 · distanceRange)      # 随包 atlas 为 696 / 8 = 87
+```
+
+直接传 `distanceRange`（4）是最直觉的错法，会让字软大约四倍。这条推导有断言钉住（`packages/shaders/test/textMaterial.test.ts`）。
+
+#### `CrystalText` 还不能用
+
+`packages/react/src/CrystalText.tsx` **没有导出**。atlas、材质、排版三块都在位，它也确实把网格交给了 layer，但**画面上什么都看不到**，原因未定位。
+
+已经排除的：几何（探针报两个字 8 个顶点）、入场景（`addWorldObject` 执行了）、材质（**把材质换成不采样 atlas 的实心不透明红，同样不可见**）。所以范围收窄到世界对象那一趟绘制，或者 `follow` 把网格放在了哪里。
+
+先修渲染路径，再导出。留作起点而不是删掉。
+
 ## React 用法
 
 `@ui-lib/react` 是第一个适配层。内容保持普通 DOM，stage 负责共享 GPU layer：

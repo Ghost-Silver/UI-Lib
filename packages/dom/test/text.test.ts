@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type BMFont, createTextGeometry, sampleTextPoints } from "../src/text/layout.js";
+import { type BMFont, createTextGeometry, sampleTextPoints } from "../src/index.js";
 import { magicParticleText } from "../src/text/msdf.js";
 
 /**
