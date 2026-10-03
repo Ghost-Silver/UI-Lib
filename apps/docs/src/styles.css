@@ -2998,3 +2998,13 @@ input[type="range"]::-moz-range-thumb {
 	padding: 26px 28px;
 	border-radius: 28px;
 }
+
+.kit__inputs {
+	display: grid;
+	gap: 20px;
+	width: 320px;
+}
+
+.kit__box[data-ui-lib-wide] .kit__inputs {
+	width: 300px;
+}

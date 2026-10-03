@@ -4,6 +4,7 @@ import {
 	BubbleBadge,
 	GlassStage,
 	PinkPaperButton,
+	SoftInput,
 	SoftLightPanel,
 	SoftModal,
 	SoftSlider,
@@ -39,6 +40,7 @@ const COMPONENTS = [
 	"tabs",
 	"slider",
 	"modal",
+	"input",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -127,7 +129,10 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 					className="kit__box"
 					data-ui-lib-kit-box
 					data-ui-lib-wide={
-						component === "tabs" || component === "switch" || component === "slider"
+						component === "tabs" ||
+						component === "switch" ||
+						component === "slider" ||
+						component === "input"
 							? ""
 							: undefined
 					}
@@ -136,6 +141,30 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Every state the field has, so one capture shows all of them. */
+function InputKit() {
+	const [name, setName] = useState("紫鸢尾");
+	const [mail, setMail] = useState("hello@");
+	return (
+		<div className="kit__inputs">
+			<SoftInput
+				label="作品名"
+				value={name}
+				onChange={(event) => setName(event.target.value)}
+				hint="随时可以改。"
+			/>
+			<SoftInput
+				label="邮箱"
+				type="email"
+				value={mail}
+				onChange={(event) => setMail(event.target.value)}
+				error="这个地址看起来还不完整。"
+			/>
+			<SoftInput label="不可用" defaultValue="已锁定" disabled />
+		</div>
 	);
 }
 
@@ -253,6 +282,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "input":
+			return <InputKit />;
 		case "slider":
 			return <SliderKit />;
 		case "tabs":

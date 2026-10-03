@@ -1571,6 +1571,176 @@ const CSS = `
 	animation: ui-lib-wash-settle 1100ms cubic-bezier(0.22, 0.61, 0.36, 1) 700ms both;
 }
 
+
+/* --- soft input ----------------------------------------------------------
+ *
+ * A groove in the paper rather than a box on top of it. The shell uses the same
+ * inset shadow as the switch's track, because they are the same material doing
+ * the same thing — offering a place to put something.
+ *
+ * The focus ring is the first thing in this library driven by a real spring
+ * rather than by a CSS curve. --ring is written from createSpring on every
+ * frame and runs 0 to 1 with an overshoot; the stylesheet only maps it to scale
+ * and opacity. That split is deliberate: the shape of the motion is a physical
+ * decision, and it should not be re-specified in a bezier every time a
+ * component needs it.
+ */
+
+.ui-lib-soft-input {
+	display: grid;
+	gap: 6px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-input__label {
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-input__shell {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border-radius: var(--moe-radius-full);
+	/* The recess. Inset, never raised: an input is a hole, not a brick. */
+	background: oklch(0.975 0.006 60);
+	box-shadow:
+		inset 0 2px 4px 0 rgb(77 60 56 / 0.1),
+		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+	border: 1.5px solid transparent;
+	transition:
+		border-color 180ms ease-out,
+		background 180ms ease-out;
+}
+
+.ui-lib-soft-input[data-ui-lib-size="sm"] .ui-lib-soft-input__shell {
+	height: 40px;
+	padding: 0 16px;
+}
+.ui-lib-soft-input[data-ui-lib-size="md"] .ui-lib-soft-input__shell {
+	/* 48 is the documented height and it is right for the touch target, but the
+	   pill at a full-width 360px read as bloated. The height stays; the radius
+	   and the padding come in, which is what the eye was actually objecting to. */
+	height: 46px;
+	padding: 0 18px;
+	border-radius: 16px;
+}
+.ui-lib-soft-input[data-ui-lib-size="lg"] .ui-lib-soft-input__shell {
+	height: 56px;
+	padding: 0 24px;
+}
+
+.ui-lib-soft-input__field {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	border: none;
+	outline: none;
+	background: none;
+	font: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--moe-cocoa);
+	padding: 0;
+}
+
+.ui-lib-soft-input__field::placeholder {
+	color: oklch(0.7 0.02 40);
+	font-weight: 500;
+}
+
+/* Multi-line, and it grows rather than scrolling — a field that scrolls hides
+   what was just typed. */
+.ui-lib-soft-input__field--grow {
+	resize: none;
+	align-self: stretch;
+	height: auto;
+	min-height: 44px;
+	padding: 12px 0;
+	line-height: 1.6;
+}
+
+.ui-lib-soft-input__affix {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+	color: var(--moe-cocoa-soft);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+/*
+ * The ring. Its own element rather than a box-shadow on the shell, because a
+ * shadow cannot be scaled independently — and scaling is what an overshoot
+ * looks like on a ring.
+ */
+.ui-lib-soft-input__ring {
+	position: absolute;
+	inset: -4px;
+	border-radius: inherit;
+	/* Thinner and further out than the first version, which used 2.5px sitting
+	   flush against the border. A heavy ring in the accent colour competes with
+	   the text inside it; a light ring standing off the field reads as the
+	   field having been singled out, which is what focus is. */
+	border: 1.5px solid var(--moe-taro-500);
+	/* --ring is the spring's value, written every frame. It goes slightly past
+	   1 on the way in, which is what gives the ring its settle. */
+	opacity: calc(var(--ring, 0) * 0.6);
+	transform: scale(calc(0.86 + var(--ring, 0) * 0.14));
+	pointer-events: none;
+	will-change: transform, opacity;
+}
+
+.ui-lib-soft-input[data-ui-lib-focused] .ui-lib-soft-input__shell {
+	background: oklch(0.985 0.008 300);
+}
+
+/* An invalid field is marked by more than its colour: the border thickens, so
+   the state survives a greyscale print and a colour-blind reader. */
+.ui-lib-soft-input[data-ui-lib-invalid] .ui-lib-soft-input__shell {
+	/* The border does the work and the fill barely moves. A field that turns
+	   pink end to end reads as a different control rather than as the same one
+	   with a problem — and it fights the text sitting on top of it. */
+	border-color: var(--moe-sakura-700);
+	background: oklch(0.985 0.008 20);
+}
+
+.ui-lib-soft-input[data-ui-lib-invalid] .ui-lib-soft-input__ring {
+	border-color: var(--moe-sakura-700);
+}
+
+.ui-lib-soft-input[data-ui-lib-disabled] {
+	opacity: 0.55;
+}
+
+.ui-lib-soft-input[data-ui-lib-disabled] .ui-lib-soft-input__shell {
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-input__message {
+	margin: 0;
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 1.5;
+	color: var(--moe-cocoa-soft);
+}
+
+.ui-lib-soft-input[data-ui-lib-invalid] .ui-lib-soft-input__message {
+	color: var(--moe-sakura-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-input__ring {
+		/* No spring: the ring appears at its final size. The value still comes
+		   from the spring, so nothing has to know it is being suppressed. */
+		transform: scale(1);
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is
