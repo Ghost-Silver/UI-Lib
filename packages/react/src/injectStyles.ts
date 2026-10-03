@@ -2891,6 +2891,157 @@ const CSS = `
 		transform: none;
 }
 
+
+/* --- accordion -----------------------------------------------------------
+ *
+ * The open and close is a grid row going from 0fr to 1fr. Three techniques were
+ * measured before choosing this one, and the first three measurements were all
+ * wrong: they ran requestAnimationFrame inside page.evaluate, and headless
+ * Chrome does not drive rAF when nothing is painting, so every sample came back
+ * as either the first value or the last and every technique looked broken.
+ * Sampled properly, grid-template-rows and a measured height produce the
+ * identical curve. The grid wins because it needs no measurement, and therefore
+ * no ResizeObserver per panel and no class of bug where a panel is clipped after
+ * a font loads.
+ *
+ * The panel is always in the DOM and always in the accessibility tree; the
+ * inert attribute is what keeps closed content out of the tab order. That
+ * matters because aria-controls has to point at something that exists.
+ */
+
+.ui-lib-soft-accordion {
+	display: grid;
+	gap: 10px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-accordion__item {
+	overflow: hidden;
+	border-radius: var(--moe-radius-lg);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	transition:
+		border-color 240ms ease-out,
+		box-shadow 240ms ease-out;
+}
+
+.ui-lib-soft-accordion__item[data-ui-lib-open] {
+	border-color: oklch(0.88 0.04 310);
+	box-shadow: 0 10px 24px -16px rgb(77 60 56 / 0.4);
+}
+
+.ui-lib-soft-accordion__item[data-ui-lib-disabled] {
+	opacity: 0.5;
+}
+
+.ui-lib-soft-accordion__heading {
+	display: grid;
+	gap: 2px;
+	margin: 0;
+	font-size: inherit;
+	font-weight: inherit;
+}
+
+.ui-lib-soft-accordion__trigger {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	width: 100%;
+	padding: 15px 18px;
+	border: none;
+	background: none;
+	font: inherit;
+	font-size: 15px;
+	font-weight: 700;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.ui-lib-soft-accordion__trigger:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: -3px;
+	border-radius: var(--moe-radius-lg);
+}
+
+.ui-lib-soft-accordion__item[data-ui-lib-disabled] .ui-lib-soft-accordion__trigger {
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-accordion__note {
+	padding: 0 18px 12px;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--moe-cocoa-soft);
+}
+
+/* The chevron turns rather than being swapped for a different glyph, so the
+   transition has something continuous to interpolate. */
+.ui-lib-soft-accordion__mark {
+	display: grid;
+	place-items: center;
+	flex: none;
+	width: 26px;
+	height: 26px;
+	border-radius: var(--moe-radius-full);
+	background: oklch(0.95 0.02 310);
+	color: var(--moe-cocoa-soft);
+	transition:
+		transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+		background 240ms ease-out;
+}
+
+.ui-lib-soft-accordion__item[data-ui-lib-open] .ui-lib-soft-accordion__mark {
+	transform: rotate(180deg);
+	background: oklch(0.9 0.05 310);
+}
+
+.ui-lib-soft-accordion__panel {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows 380ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.ui-lib-soft-accordion__item[data-ui-lib-open] .ui-lib-soft-accordion__panel {
+	grid-template-rows: 1fr;
+}
+
+/* The middle element is what the row is sized against; it must be able to have
+   no height at all, which a row cannot do on its own. */
+.ui-lib-soft-accordion__body {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.ui-lib-soft-accordion__content {
+	padding: 0 18px 17px;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.7;
+	color: var(--moe-cocoa-soft);
+}
+
+/* The rule between the header and its content, drawn only when there is a
+   header above it to separate from. */
+.ui-lib-soft-accordion__content::before {
+	content: "";
+	display: block;
+	height: 1px;
+	margin-bottom: 13px;
+	background: linear-gradient(90deg, transparent, var(--moe-stroke) 12%, var(--moe-stroke) 88%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ui-lib-soft-accordion__panel,
+	.ui-lib-soft-accordion__mark,
+	.ui-lib-soft-accordion__item {
+		transition: none;
+	}
+}
+
 /* --- reduced motion -------------------------------------------------------
  *
  * Not a smaller animation — none. A user who has asked for less motion is

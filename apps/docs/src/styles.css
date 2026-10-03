@@ -3060,3 +3060,12 @@ input[type="range"]::-moz-range-thumb {
 .kit__identity-tags {
 	gap: 8px;
 }
+
+.kit__accordion {
+	width: 380px;
+	align-content: center;
+}
+
+.kit__accordion p {
+	margin: 0;
+}

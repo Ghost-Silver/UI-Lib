@@ -5,6 +5,7 @@ import {
 	BubbleBadge,
 	GlassStage,
 	PinkPaperButton,
+	SoftAccordion,
 	SoftAvatar,
 	SoftCheckbox,
 	SoftInput,
@@ -58,6 +59,7 @@ const COMPONENTS = [
 	"loading",
 	"overlay",
 	"identity",
+	"accordion",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -159,6 +161,35 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 				</div>
 			</div>
 		</GlassStage>
+	);
+}
+
+/** Sections, one of them open so the capture shows both states. */
+function AccordionKit() {
+	return (
+		<div className="kit__accordion">
+			<SoftAccordion
+				items={[
+					{
+						id: "a",
+						title: "颜料是怎么待在纸上的",
+						note: "边缘沉积与干湿两态",
+						defaultOpen: true,
+						content: (
+							<p>
+								真实的颜料会往边缘走，会沉进纤维。干和湿两种状态下边界完全不同——渐变一个都做不到，这也是水彩和「模糊色块」的全部区别。
+							</p>
+						),
+					},
+					{
+						id: "b",
+						title: "为什么混色不能在线性空间做",
+						content: <p>减性介质的叠加与发光不同。</p>,
+					},
+					{ id: "c", title: "不可用的一节", disabled: true, content: <p>看不到。</p> },
+				]}
+			/>
+		</div>
 	);
 }
 
@@ -429,6 +460,8 @@ function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTo
 			);
 		case "modal":
 			return <ModalKit />;
+		case "accordion":
+			return <AccordionKit />;
 		case "identity":
 			return <IdentityKit />;
 		case "overlay":
