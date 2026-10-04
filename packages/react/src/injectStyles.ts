@@ -505,7 +505,7 @@ const CSS = `
 	 * Default is the cocoa this library has always used, because the default theme
 	 * is the one where pigment is light.
 	 */
-	--moe-on-material: var(--moe-cocoa);
+	--moe-on-material: oklch(0.14 0.02 265.76);
 	/*
 	 * The softer ink, and it is **not** the theme's soft text colour.
 	 *
@@ -514,10 +514,29 @@ const CSS = `
 	 * fifth of its contrast. Measured on the rendered film, 0.55 comes to 3.65:1
 	 * where the standard asks for 4.5.
 	 *
-	 * 0.45 leaves margin rather than landing on the threshold, because the film's
-	 * depth varies with the material's weight and with the seed.
+	 * The secondary line is the same near-black at lower contrast against the film,
+	 * not a different hue: a film has one ink, and "softer" means less of it.
 	 */
-	--moe-on-material-soft: oklch(0.45 0.03 35);
+	--moe-on-material-soft: oklch(0.20 0.02 265.76);
+	/*
+	 * Which token the pigment is read from, when the accent is too deep to make a
+	 * film text can sit on.
+	 *
+	 * minimalist needs this and no other theme does. Its accent is the
+	 * document's #7c3aed, which on a white card mixes to a film at about
+	 * rgb(123 101 254) — and measured, **thinning it does not help**: from weight
+	 * 0.46 down to 0.10 the film only moves from rgb(116 92 252) to roughly
+	 * rgb(129 105 254), because Kubelka-Munk does not lose saturation with
+	 * thickness the way a linear mix does. Extrapolated to zero thickness it is
+	 * still 4.64:1 against near-black.
+	 *
+	 * So the pigment for a film is its own token, defaulting to the accent. A theme
+	 * whose accent is too deep points it at a lighter rung of the same family, which
+	 * is what the palette's -100 and -300 values are for.
+	 */
+	--moe-material-pigment-taro: var(--moe-taro-500);
+	--moe-material-pigment-sakura: var(--moe-sakura-500);
+	--moe-material-pigment-soda: var(--moe-soda-500);
 	--moe-material-tint: 0.62;
 	--moe-material-wash: 1;
 	--moe-text: var(--moe-cocoa);
@@ -690,8 +709,6 @@ const CSS = `
 
 	/* Pure cyan pigment, so the ink on it is the theme's own black rather than its
 	   near-white text. */
-	--moe-on-material: oklch(0.13979 0.01175 265.76);
-	--moe-on-material-soft: oklch(0.28000 0.03000 265.76);
 }
 
 /* --- Minimalist Ceramic White ---------------------------------------------
@@ -747,8 +764,33 @@ const CSS = `
 
 	/* White on white needs restraint: the material has to be visible as a
 	   temperature, not as a colour. */
-	--moe-material-tint: 0.30;
+	/*
+	 * Thinner than any other theme, and this is the one place where thinning is the
+	 * fix rather than a preference.
+	 *
+	 * Measured: this theme's blue-violet film renders at rgb(116 92 252), and
+	 * against that film **no near-black ink reaches 4.5:1** — the best is 4.33 at
+	 * L 0.16, which is already darker than the ground. A film that deep needs light
+	 * text, and light text fails on every other theme's film, because a saturated
+	 * film and a deep film want opposite inks.
+	 *
+	 * So the film is laid down thinner, which is what a material means anyway: the
+	 * ratio is what makes text on it legible, and a lighter film takes the same ink
+	 * every other theme uses.
+	 */
+	--moe-material-tint: 0.34;
 	--moe-material-wash: 0.46;
+
+	/*
+	 * The accent itself is not workable as a film here — see the note on
+	 * --moe-material-pigment-taro. The palette's lighter rung is not in the
+	 * document, so it is derived: the same hue, L raised from 0.553 to 0.72 and
+	 * chroma reduced to match, which is what the other themes' light rungs look
+	 * like.
+	 */
+	--moe-material-pigment-taro: oklch(0.72 0.14 280.02);
+	--moe-material-pigment-sakura: oklch(0.72 0.15 12.2);
+	--moe-material-pigment-soda: oklch(0.72 0.11 238.61);
 
 	/*
 	 * Deep ink, not white.
@@ -762,8 +804,6 @@ const CSS = `
 	 * film, not against the accent the film was mixed from. Those differ by the
 	 * material weight, and getting it wrong is invisible until it is measured.
 	 */
-	--moe-on-material: oklch(0.20000 0.02000 247.86);
-	--moe-on-material-soft: oklch(0.35000 0.02000 247.86);
 }
 
 /* --- Dark Obsidian Spatial Computing --------------------------------------
@@ -818,8 +858,6 @@ const CSS = `
 	--moe-material-wash: 0.34;
 
 	/* Violet pigment on obsidian, so the ink is the ground's own black. */
-	--moe-on-material: oklch(0.12964 0.02737 261.69);
-	--moe-on-material-soft: oklch(0.26000 0.03000 261.69);
 }
 
 
@@ -3980,6 +4018,19 @@ const CSS = `
 	/* The ink for a surface with pigment on it, which is not the theme's text
 	   colour — see --moe-on-material. */
 	color: var(--moe-on-material);
+	/*
+	 * And the tokens rebound, not just the property.
+	 *
+	 * Setting color alone fixed the ground's own text and left every component
+	 * inside it reading --moe-cocoa — so a heading was right and the paragraph
+	 * under it was the theme's soft grey, which is measured against paper and reads
+	 * as near-invisible on a film. Rebounding the tokens is what makes everything
+	 * inside inherit the ground's ink without any component knowing.
+	 */
+	--moe-cocoa: var(--moe-on-material);
+	--moe-cocoa-soft: var(--moe-on-material-soft);
+	--moe-text: var(--moe-on-material);
+	--moe-text-soft: var(--moe-on-material-soft);
 	/* Paper, before pigment. A material surface is a sheet with pigment on it, and
 	   the pigment is painted over whatever is behind the card without this. */
 	background-color: var(--moe-card);

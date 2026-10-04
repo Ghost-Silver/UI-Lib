@@ -53,9 +53,9 @@ export interface MaterialOptions {
  * `oklchToSrgb` exists outside of the contrast checker.
  */
 const TONE_TOKEN: Record<IrisTone, string> = {
-	iris: "--moe-taro-500",
-	blossom: "--moe-sakura-500",
-	mist: "--moe-soda-500",
+	iris: "--moe-material-pigment-taro",
+	blossom: "--moe-material-pigment-sakura",
+	mist: "--moe-material-pigment-soda",
 };
 
 /** The fallbacks, for a server render or a document with no stylesheet yet. */

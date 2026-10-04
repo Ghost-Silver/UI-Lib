@@ -3127,7 +3127,7 @@ input[type="range"]::-moz-range-thumb {
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.6;
-	color: var(--moe-on-material-soft, inherit);
+	color: inherit;
 }
 
 /* A page rather than a fixture: real density, real hierarchy. */
