@@ -5,6 +5,7 @@ import {
 	GlassStage,
 	SoftAccordion,
 	SoftAvatar,
+	SoftButton,
 	SoftCard,
 	SoftDivider,
 	SoftInput,
@@ -17,7 +18,7 @@ import {
 	SoftTag,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * The backdrop, and this is where the first version of the page was wrong.
@@ -191,7 +192,7 @@ export function StudioPage() {
 						<h2 className="studio__panel-title" id="studio-notes">
 							说明
 						</h2>
-						<SoftProgress label="正在铺纸" value={62} showValue />
+						<WashProgress />
 						<SoftDivider />
 						<SoftAccordion
 							items={[
@@ -273,3 +274,77 @@ const USAGE = [
 	{ id: "clay", name: "粘土", kind: "按钮", count: 312 },
 	{ id: "wash", name: "水彩印", kind: "头像", count: 7 },
 ];
+
+/**
+ * A progress bar that is actually measuring something.
+ *
+ * It used to be `<SoftProgress value={62} />` — a number typed into the page. On
+ * a component fixture that is right, because a fixture must not move under its
+ * own screenshots. On this page it is a lie: the page is pretending to be a
+ * workbench, and a bar frozen at 62 per cent with the label "laying paper" says
+ * work is happening when nothing is.
+ *
+ * So it fills for real, over a fixed duration, and **stops when it is done**
+ * rather than looping. A loop would look more alive and mean less — a bar that
+ * restarts is decoration, and the honest reading of a bar that restarts is that
+ * nothing is being measured.
+ *
+ * The duration is a constant rather than a real workload because there is no real
+ * workload; the point is that the number on screen is produced by something
+ * rather than written next to it. If this page ever lays real paper, `value`
+ * becomes the real fraction and nothing else here changes.
+ */
+function WashProgress() {
+	const [value, setValue] = useState(0);
+	const [wetting, setWetting] = useState(false);
+
+	useEffect(() => {
+		if (!wetting) return;
+		const started = Date.now();
+		const step = setInterval(() => {
+			const next = Math.min(100, Math.round(((Date.now() - started) / 2600) * 100));
+			setValue(next);
+			if (next >= 100) {
+				clearInterval(step);
+				setWetting(false);
+			}
+		}, 60);
+		return () => clearInterval(step);
+	}, [wetting]);
+
+	const done = value >= 100;
+	return (
+		<div className="studio__progress">
+			<SoftProgress
+				label={done ? "铺好了" : wetting ? "正在铺纸" : "还没开始铺纸"}
+				// `value` is omitted while idle, which makes the bar indeterminate —
+				// the honest reading of "we do not know how long this will take"
+				// rather than a zero-length bar that looks stuck.
+				value={wetting ? value : done ? 100 : undefined}
+				showValue={wetting || done}
+			/>
+			{/*
+			 * A real `button`, not a tag wearing `role="button"`.
+			 *
+			 * The first version was a `SoftTag` with a role and a `tabIndex` and a
+			 * key handler written by hand — a span that behaves like a button if
+			 * nothing goes wrong. A real button is focusable, is activated by Enter
+			 * and Space, is announced as a button, and submits forms when it should;
+			 * a span with three attributes imitates the first three of those and is
+			 * wrong about the fourth.
+			 */}
+			<SoftButton
+				tone="iris"
+				variant="flat"
+				size="sm"
+				disabled={wetting}
+				onClick={() => {
+					setValue(0);
+					setWetting(true);
+				}}
+			>
+				{wetting ? "铺纸中" : done ? "再铺一次" : "开始铺纸"}
+			</SoftButton>
+		</div>
+	);
+}

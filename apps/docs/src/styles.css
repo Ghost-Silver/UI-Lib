@@ -3385,3 +3385,13 @@ input[type="range"]::-moz-range-thumb {
 	gap: 8px;
 	align-items: center;
 }
+
+.studio__progress {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.studio__progress > *:first-child {
+	flex: 1;
+}
