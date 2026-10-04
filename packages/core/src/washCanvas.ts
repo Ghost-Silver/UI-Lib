@@ -81,6 +81,35 @@ import { createWash, type WashOptions } from "./wash.js";
  * box, asymmetric left and right edges) and then **reverted**, because clipping
  * the existing pipeline to it produced a worse mark than the ellipse — which is
  * a statement about this pipeline, not about the shape.
+ *
+ * ## The canvas mark is not a copy of the CSS one, and chasing that was a waste
+ *
+ * Several rounds went into closing the gap between the two consumers, measured
+ * as radial pigment density against the paper. The gap is real and one bug
+ * behind it was real too (see `globalWashAlpha` and the body's transform). But
+ * the *goal* was wrong, and the tell was that the numbers converged while the
+ * picture got worse: mean error fell to 1.03 out of 255 while the mark turned
+ * into a bullseye — a disc, a pale ring, a darker ring, a square ghost.
+ *
+ * A radial profile cannot see concentric structure. Every band's mean sat on
+ * target while the shape was wrong, so the metric kept saying "closer" as the
+ * thing being measured got further away. It is the same failure as the
+ * smooth-gradient backdrop in `glass-lab`: an apparatus that cannot express the
+ * property, reporting a number anyway.
+ *
+ * The two marks want different things and should stop being compared:
+ *
+ * - The **CSS** mark is looked at directly. It can afford to be soft and low
+ *   contrast, because nothing is going to displace it.
+ * - The **canvas** mark is sampled by the glass layer and then displaced by
+ *   refraction. Softness there is lost — a displaced soft gradient is a
+ *   displaced soft gradient, exactly the problem the probe backdrop exists to
+ *   fix. It needs structure that survives being moved.
+ *
+ * So the canvas mark is tuned for legibility under displacement, and the CSS
+ * mark is tuned for how it looks sitting still. They share a generator because
+ * they are the same pigment; they do not have to converge pixel for pixel, and
+ * trying to make them was the mistake.
  */
 
 export interface WashCanvasOptions extends Omit<WashOptions, "size"> {
@@ -112,6 +141,32 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 	ctx.clearRect(0, 0, width, height);
 
 	const read = (name: string) => wash.style[name as keyof typeof wash.style] ?? "";
+
+	/*
+	 * The generator's overall transparency, and the reason the canvas mark used
+	 * to be forty times too dark.
+	 *
+	 * The stylesheet applies `--wash-opacity` to the mark element, so every layer
+	 * inside it is composited at that strength. This function read
+	 * `--wash-body` — whose stops are *opaque* colours like `rgb(231 204 255)` —
+	 * and drew them at full strength, because nothing here ever read the opacity
+	 * at all.
+	 *
+	 * Measured against the CSS mark as a target, radial pigment density (mean
+	 * RGB distance from paper, 0-255):
+	 *
+	 *     CSS      5.7  5.6  5.5  5.4  5.2  5.0  4.7  7.7 12.5  7.6
+	 *     canvas 255.0 255.0 255.0 255.0 249.9 191.3 99.4 38.5 45.3 32.0
+	 *
+	 * Same generator, same arcs, same silhouette — a 45x difference in strength
+	 * because one consumer honoured the opacity and the other did not.
+	 *
+	 * `globalAlpha` rather than baking it into the stop colours: the ring and the
+	 * body are separate layers, both scaled by this, and the fibre is deliberately
+	 * *not* (it has its own `--wash-grain-opacity`). Multiplying the colour stops
+	 * would have rescaled only the body.
+	 */
+	const globalWashAlpha = Number(read("--wash-opacity")) || 1;
 
 	/*
 	 * The body. The generator's value is a CSS radial-gradient string, so rather
@@ -167,21 +222,44 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 			gradient.addColorStop(Math.min(Math.max(offset, 0), 1), colour);
 		}
 
+		/*
+		 * The body is filled with **no context transform**, and that is the bug
+		 * this file spent three rounds chasing from the wrong end.
+		 *
+		 * The previous version made the ellipse by `translate(centre)`,
+		 * `scale(1, ry/rx)`, `clip()`, then filling a rect with the gradient. It
+		 * produced a mark whose centre measured at alpha 0 while its rim was full.
+		 * The measurement that settled the cause: the identical gradient with the
+		 * identical stops, filled with and without the transform, gives
+		 * `[231,204,255,255]` and `[0,0,0,0]`.
+		 *
+		 * **A canvas gradient's geometry is fixed in user space at creation time,
+		 * and is then re-transformed by whatever transform is active when it is
+		 * used as a fill.** `createRadialGradient(cx, cy, ...)` followed by
+		 * `translate(cx, cy)` puts the centre at `2*cx, 2*cy` — 186,173 on a 190px
+		 * canvas, off the edge — so the fill sampled the gradient's transparent
+		 * tail everywhere inside the mark. The rim survived because the separate
+		 * deposit ring, drawn without a transform, happened to sit there.
+		 *
+		 * Two earlier comments in this file blamed "unit confusion" for the same
+		 * symptom. Both were guesses and both were wrong; the transform was the
+		 * cause and it took a differential measurement to find.
+		 *
+		 * The fill also has no clip now. Clipping to `radiusX x radiusY` put a hard
+		 * edge at exactly the radius where the gradient is still faintly visible,
+		 * and the deposit's band starts at the same radius — so the two layers met
+		 * at a seam. The gradient's own `transparent` stop ends the mark, which is
+		 * what the stylesheet relies on too.
+		 */
 		ctx.save();
-		// Scale so the circular gradient fills the ellipse, then clip to it so
-		// the corners stay clean.
-		ctx.translate(centreX, centreY);
-		ctx.scale(1, Math.max(radiusY / Math.max(radiusX, 1e-6), 1e-6));
-		ctx.beginPath();
-		ctx.arc(0, 0, Math.max(radiusX, 1), 0, Math.PI * 2);
-		ctx.clip();
+		ctx.globalAlpha = globalWashAlpha;
 		ctx.fillStyle = gradient;
-		// Sized to the circle that was just clipped to, not to a guess. The
-		// first version filled a rectangle four times the canvas height and the
-		// corner of that rectangle showed through where the clip's arc and the
-		// fill's edge disagreed — a dark crescent in the lower right, which is
-		// the fill stopping rather than the mark ending.
-		ctx.fillRect(-radiusX * 1.05, -radiusX * 1.05, radiusX * 2.1, radiusX * 2.1);
+		ctx.fillRect(
+			centreX - radiusX * 1.05,
+			centreY - radiusY * 1.05,
+			radiusX * 2.1,
+			radiusY * 2.1,
+		);
 		ctx.restore();
 	}
 
@@ -209,30 +287,136 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 		 * ground it was supposed to sit on had different shapes, so where the
 		 * ground ended the ring did not. The two are one mark and have to agree.
 		 */
+		/*
+		 * The band is built the way the stylesheet builds it, and the first two
+		 * attempts here did not.
+		 *
+		 * The stylesheet's deposit mask is one line:
+		 *
+		 *     radial-gradient(closest-side,
+		 *       transparent 72%, rgb(0 0 0 / 1) 86%, rgb(0 0 0 / 1) 97%, transparent 100%)
+		 *
+		 * Note where the gradient *starts*: at the centre. The transparent part
+		 * is written as a **stop**, not expressed by moving the gradient's inner
+		 * radius. This function did the opposite — it moved `inner` outward to
+		 * 0.2x/0.34x/0.72x the radius and let the gradient ramp from there — and
+		 * the two are not the same shape. A radial gradient's `inner` radius is
+		 * the point where stop[0] begins; everything inside it is flat stop[0]
+		 * colour, so moving `inner` out shortens the ramp instead of describing
+		 * where the pigment sits.
+		 *
+		 * What that produced was a **target**: a disc, a pale gap, then a wide
+		 * ring, plus a square ghost at the outer corners from the fill rect. It
+		 * scored well on the radial profile — mean error 1.03 against the CSS
+		 * mark — because a radial average cannot see concentric structure. Every
+		 * band's mean sat on the target while the shape was wrong. Found by
+		 * looking at a 3x screenshot, not by any number.
+		 *
+		 * So: `inner` returns to 0, and the stops carry the shape. 72% is where
+		 * the deposit begins to appear, 86-97% is where it is solid, and 100% is
+		 * the mark's own edge.
+		 */
 		const ringX = width * 0.5;
 		const ringY = height * 0.5;
-		const inner = Math.min(ringX, ringY) * 0.72;
 		const outer = Math.max(ringX, ringY);
+		const inner = 0;
 
-		ctx.save();
-		ctx.translate(width / 2, height / 2);
-		ctx.scale(1, Math.max(ringY / Math.max(ringX, 1e-6), 1e-6));
-		const band = ctx.createRadialGradient(0, 0, inner, 0, 0, outer);
-		band.addColorStop(0, "rgba(0,0,0,0)");
-		band.addColorStop(0.55, rim);
-		band.addColorStop(1, "rgba(0,0,0,0)");
+		/*
+		 * The deposit is drawn on its own layer.
+		 *
+		 * The stylesheet gets the uneven rim by masking **one element**:
+		 * `--wash-deposit-mask` is applied as `mask-image` on
+		 * `.ui-lib-wash__deposit`, which is an empty span that carries nothing but
+		 * the ring. The body is a sibling and the mask cannot reach it.
+		 *
+		 * This function applied the same conic with `destination-in` on the **main
+		 * canvas**, which multiplies *everything already drawn* by the conic's
+		 * alpha. The conic's alpha is not 1: `deriveArcs` produces five values
+		 * between 0.12 and 1.0, so the body was scaled down to as little as 12% in
+		 * the weakest sector and left alone in the strongest.
+		 *
+		 * **This was a real defect and it was not the ring.** It was fixed, and the
+		 * measurement did not move: the radial profile before and after the fix
+		 * were the same numbers to one decimal place. The ring's actual cause is
+		 * documented above, at the body: a gradient's geometry is fixed at creation
+		 * and re-transformed at use, so the body's fill was sampling the gradient's
+		 * transparent tail. Two "fixes" were aimed at this conic before the real
+		 * cause was measured. It is left fixed because cutting the disc into wedges
+		 * is wrong regardless of whether it was visible through the other bug.
+		 *
+		 * So: same band, same conic, same strengths, on a scratch the size of the
+		 * mark, composited in once. The stylesheet's structure, in canvas terms.
+		 */
+		const ringCanvas = document.createElement("canvas");
+		ringCanvas.width = canvas.width;
+		ringCanvas.height = canvas.height;
+		const ring = ringCanvas.getContext("2d");
+		if (ring) {
+			ring.scale(scale, scale);
+			/*
+			 * Translate first, then build the gradient at the origin. The order is
+			 * load-bearing for the same reason the body's was not: a gradient
+			 * created at `(w/2, h/2)` and *then* translated lands at `(w, h)`,
+			 * off the canvas. Creating it at `(0, 0)` after the translate puts it
+			 * where the transform says. One of these two orderings works and the
+			 * other silently draws nothing, which is exactly the trap the body
+			 * fell into.
+			 */
+			ring.save();
+			ring.translate(width / 2, height / 2);
+			ring.scale(1, Math.max(ringY / Math.max(ringX, 1e-6), 1e-6));
+			const band = ring.createRadialGradient(0, 0, inner, 0, 0, outer);
+			/*
+			 * The stops are the stylesheet's, transcribed.
+			 *
+			 * Earlier versions of this function tuned them by hand against a radial
+			 * profile and produced increasingly specific wrong answers: first a hard
+			 * edge, then a stroke, then a target with concentric rings. Each one
+			 * scored acceptably on the metric and looked worse than the last. The
+			 * stylesheet's numbers are already correct and there was never a reason
+			 * to re-derive them — the two consumers share one generator, so the
+			 * shape should be copied, not searched for.
+			 */
+			band.addColorStop(0, "rgba(0,0,0,0)");
+			band.addColorStop(0.72, "rgba(0,0,0,0)");
+			band.addColorStop(0.86, rim);
+			band.addColorStop(0.97, rim);
+			band.addColorStop(1, "rgba(0,0,0,0)");
 
-		ctx.fillStyle = band;
-		ctx.globalAlpha = 0.2;
-		ctx.beginPath();
-		ctx.arc(0, 0, outer, 0, Math.PI * 2);
-		ctx.fill();
+			ring.fillStyle = band;
+			/*
+			 * The ring's own strength, and it is 1 rather than the 0.2 the
+			 * stylesheet's element uses.
+			 *
+			 * The deposit is composited a second time by `globalWashAlpha` below,
+			 * which is 0.24 for a dry mark at weight 0.9. The stylesheet can write
+			 * 0.2 because its deposit span is inside an element whose opacity is
+			 * 0.24 and the mask multiplies once. Here the same number would be
+			 * multiplied twice — 0.2 x 0.24 = 0.048 — which measured as a ring of
+			 * 7.1 against a CSS target of 12.5, with the outer third of the mark
+			 * lighter than its centre.
+			 */
+			ring.globalAlpha = 1;
+			ring.beginPath();
+			ring.arc(0, 0, outer, 0, Math.PI * 2);
+			ring.fill();
 
-		ctx.globalCompositeOperation = "destination-in";
-		ctx.globalAlpha = 1;
-		ctx.fillStyle = conic;
-		ctx.fillRect(-outer, -outer, outer * 2, outer * 2);
-		ctx.restore();
+			// The conic varies the ring's *visibility* around the circumference.
+			// It is confined to this layer, so the body underneath is untouched.
+			ring.globalCompositeOperation = "destination-in";
+			ring.globalAlpha = 1;
+			ring.fillStyle = conic;
+			ring.fillRect(-outer, -outer, outer * 2, outer * 2);
+			ring.restore();
+
+			ctx.save();
+			// The ring is already scaled into output pixels; draw it 1:1, and at
+			// the mark's own strength so the two layers composite as one material.
+			ctx.setTransform(1, 0, 0, 1, 0, 0);
+			ctx.globalAlpha = globalWashAlpha;
+			ctx.drawImage(ringCanvas, 0, 0);
+			ctx.restore();
+		}
 	}
 
 	/*
