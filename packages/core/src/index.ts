@@ -56,6 +56,8 @@ export {
 	createSpring,
 	driveSpring,
 	MOTION_PRESETS,
+	overshoots,
+	SPEC_DAMPING_WINDOW,
 	settleTime,
 	specToSpring,
 	springToSpec,

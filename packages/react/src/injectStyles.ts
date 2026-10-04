@@ -848,7 +848,9 @@ const CSS = `
 	top: 3px;
 	display: grid;
 	place-items: center;
-	height: 24px;
+	/* 32 - 3 * 2, and the spec's number: a knob with slack around it reads as a
+	   ball rattling in a box rather than as one sliding in a groove. */
+	height: 26px;
 	border-radius: var(--moe-radius-full);
 	background: var(--moe-card);
 	box-shadow:

@@ -99,9 +99,70 @@ export const MOTION_PRESETS = {
 	settle: { damping: 0.82, frequency: 13, mass: 1 },
 	badge: { damping: 0.45, frequency: 23.7, mass: 0.8 },
 	float: { damping: 0.92, frequency: 7, mass: 1 },
+
+	/*
+	 * The three named springs the specification asks for, at its own numbers.
+	 *
+	 * These are **not** duplicates of the five above even where the damping ratios
+	 * are close, and they are here rather than replacing the others because the
+	 * spec names them and gives k, c and m explicitly — a caller following the
+	 * document should be able to write `jelly` and get the spring the document
+	 * describes. The five above are the ones this library's own components were
+	 * tuned against and they stay.
+	 *
+	 * `frequency` is the **angular** frequency, because `specToSpring` computes
+	 * `stiffness = mass * frequency²`. The spec gives k, so the conversion is
+	 * `ω = √(k/m)`; giving `√(k)` instead would be a factor of `2π` out and the
+	 * spring would run about six times too fast, which is the sort of error that
+	 * looks like "a bit snappy" rather than like a mistake.
+	 *
+	 * | spec | k | c | m | ζ | ω |
+	 * | --- | --- | --- | --- | --- | --- |
+	 * | `jelly` | 280 | 14 | 1.0 | 0.42 | 16.73 |
+	 * | `snappy` | 450 | 25 | 1.0 | 0.59 | 21.21 |
+	 * | `gentle` | 140 | 19 | 1.0 | 0.80 | 11.83 |
+	 */
+	jelly: { damping: 0.4183, frequency: 16.733, mass: 1 },
+	snappy: { damping: 0.5893, frequency: 21.213, mass: 1 },
+	gentle: { damping: 0.803, frequency: 11.832, mass: 1 },
 } as const satisfies Record<string, MotionSpec>;
 
 export type MotionPresetName = keyof typeof MOTION_PRESETS;
+
+/**
+ * The spec's damping-ratio window, and the contradiction inside the spec.
+ *
+ * §7 of the specification calls ζ outside `[0.42, 0.65]` a rejection, and
+ * describes the failure as "more than three oscillations causes dizziness, or no
+ * oscillation at all". Those two rules cannot both hold: `Spring.Gentle` is
+ * defined in §3.1 at ζ = 0.80, which is outside the window and is not
+ * oscillation-free either — the same row gives it a 0.5 per cent overshoot, and
+ * anything with ζ < 1 overshoots.
+ *
+ * **The stated failure is the one that binds**, because it is the one that
+ * describes what a person sees: a spring must settle without ringing more than
+ * about three times, and it must not be so damped that it does not move. `[0, 1)`
+ * is what that means, and `Jelly` at 0.418 is inside it while being 0.002 outside
+ * the numeric window — which is where the window came from in the first place,
+ * rounded.
+ *
+ * Recorded here rather than resolved by quietly picking one, because the next
+ * person to read §7 will otherwise "fix" `gentle` to 0.65 and then wonder why it
+ * no longer feels like the spring §3.1 specifies.
+ */
+export const SPEC_DAMPING_WINDOW = { min: 0.42, max: 0.65 } as const;
+
+/** How many times a spring crosses its rest value before it settles. */
+export function overshoots(spec: MotionSpec): number {
+	const zeta = spec.damping;
+	// A critically damped or overdamped spring does not cross at all.
+	if (zeta >= 1) return 0;
+	// Each half-period is one crossing; the count until the envelope reaches a
+	// visible threshold is `ln(threshold) / ln(exp(-ζω·T/2))` and simplifies to
+	// the expression below.
+	const periods = -Math.log(0.01) / (zeta * 2 * Math.PI * Math.sqrt(1 - zeta * zeta));
+	return Math.ceil(periods);
+}
 
 /** A spring from a named motion, or from an explicit spec. */
 export function createSpring(

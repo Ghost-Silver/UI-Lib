@@ -12,9 +12,21 @@ export interface SoftSwitchProps
 	label?: string;
 }
 
-/** Track 56 x 32, knob 24. The knob's travel is the difference. */
+/**
+ * Track 56 x 32, knob 26, inset 3 — the specification's numbers.
+ *
+ * The knob was 24, and the tell was that two comments disagreed: this file said
+ * 24 and the stylesheet's own note above the track said 26. The document says 26,
+ * and the arithmetic agrees with it — a 32px track with a 3px inset has exactly
+ * 26px of room, so 24 left 2px of slack that showed as a gap at the top and
+ * bottom of the knob.
+ *
+ * **The travel is derived rather than written down**, which is why fixing the
+ * knob fixed it too: `56 - 26 - 3 * 2 = 24`. The two numbers are a pair, and a
+ * literal `24` for the travel would have gone stale the moment the knob changed.
+ */
 const TRACK_WIDTH = 56;
-const KNOB = 24;
+const KNOB = 26;
 const INSET = 3;
 
 /**
