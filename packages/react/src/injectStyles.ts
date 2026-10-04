@@ -1139,9 +1139,65 @@ const CSS = `
  * with a number nobody can explain.
  */
 .ui-lib-soft-card--glass {
+	position: relative;
 	background: transparent;
-	border-color: rgb(255 255 255 / 0.45);
 	backdrop-filter: none;
+
+	/*
+	 * The surface of a slab, which the GPU refraction does not draw.
+	 *
+	 * The canvas gives this card its bend — the displacement of whatever is behind
+	 * it — and a bend on its own reads as a distortion rather than as an object,
+	 * because glass also has a **surface** and the surface is what tells the eye
+	 * how thick it is. Four things do that, and none of them is a shader:
+	 *
+	 * 1. **An uneven border.** Light comes from above, so the top edge catches more
+	 *    of it than the bottom. 2.5px on top against 1.5px below is the whole
+	 *    trick, and a uniform border is what makes a panel look like a rectangle
+	 *    with a line around it.
+	 * 2. **A specular streak along the top**, which is the reflection of a light
+	 *    source that is not in the scene. It is brightest at the middle and fades
+	 *    at both ends, because a flat reflection across the full width reads as a
+	 *    painted stripe.
+	 * 3. **Asymmetric inner shadows** — white at the top, a cool tint at the bottom,
+	 *    which is the colour a thick slab takes from the room it is in rather than
+	 *    from any light in it.
+	 * 4. **A chromatic rim**: a warm cast on one diagonal and a cool one on the
+	 *    other. That is dispersion, drawn rather than computed — the shader already
+	 *    does the real one, and the two agreeing is what makes it read as glass
+	 *    instead of as a filter.
+	 *
+	 * The reference this came from uses the same four and its glass is opaque,
+	 * because backdrop-filter cannot displace anything. These are the surface of
+	 * a real refraction rather than a substitute for it.
+	 */
+	border-width: 2.5px 1.5px 1.5px 2px;
+	border-color: rgb(255 255 255 / 0.92);
+	box-shadow:
+		inset 1.5px 1.5px 3px rgb(255 185 210 / 0.4),
+		inset -1.5px -1.5px 3px rgb(165 240 240 / 0.4),
+		inset 0 3px 6px rgb(255 255 255 / 0.92),
+		inset 0 -4px 10px rgb(198 172 212 / 0.22),
+		0 24px 48px -12px rgb(120 100 140 / 0.24);
+}
+
+/* The specular streak: a light source reflected in the top edge. */
+.ui-lib-soft-card--glass::before {
+	content: "";
+	position: absolute;
+	top: 4px;
+	left: 14%;
+	right: 14%;
+	height: 2.5px;
+	border-radius: var(--moe-radius-full);
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgb(255 255 255 / 0.95) 42%,
+		rgb(255 255 255 / 0.95) 58%,
+		transparent 100%
+	);
+	pointer-events: none;
 }
 
 .ui-lib-soft-card {
