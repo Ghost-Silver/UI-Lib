@@ -162,6 +162,57 @@ export function checkContrast(css) {
 }
 
 /**
+ * §3.2 — the squash and stretch keyframes, at the numbers the spec gives.
+ *
+ * `scaleX: 1.06 / scaleY: 0.90 / translateY: +3px` at the press, then
+ * `0.94 / 1.08 / -2px` on the overshoot.
+ *
+ * **What is checked is the direction, not the identity**, and the reason is the
+ * third contradiction inside the specification. §3.2 opens by stating volume
+ * conservation (`Sx * Sy ≈ 1.0`) and then gives `1.06 × 0.90 = 0.954` — 4.6 per
+ * cent short of the identity it just asserted, and short in the *compressing*
+ * direction, which is the one where the assertion is most obviously meant to
+ * hold. The overshoot pair is `0.94 × 1.08 = 1.015`, which is 1.5 per cent out the
+ * other way.
+ *
+ * So the rule enforced is the one that survives its own numbers: **each scale
+ * conserves volume to within five per cent and is wrong in the right direction** —
+ * compressed on one axis means bulged on the other, and the overshoot reverses
+ * both. That is what makes it a body rather than a sprite, and it is what the
+ * figures are visibly reaching for. A tolerance tight enough to fail on 0.954
+ * would fail on the specification.
+ */
+export function checkSquash(css) {
+	const frames = [...css.matchAll(/@keyframes ui-lib-moe-squash\s*\{([\s\S]*?)\n\}/g)];
+	if (frames.length !== 1) {
+		fail("§3.2 squash", `expected one squash keyframe set, found ${frames.length}`);
+		return;
+	}
+	const stops = [
+		...frames[0][1].matchAll(/([\d.]+)%\s*\{\s*transform:\s*scale\(([\d.]+),\s*([\d.]+)\)/g),
+	];
+	if (stops.length < 3) {
+		fail("§3.2 squash", "the squash animation has no squash and overshoot stops");
+		return;
+	}
+	for (const [, at, sx, sy] of stops) {
+		const product = Number(sx) * Number(sy);
+		// Five per cent, which is the specification's own accuracy — see the note
+		// above. Tightening this fails on the numbers the document supplies.
+		if (Math.abs(product - 1) > 0.05) {
+			fail(
+				"§3.2 squash",
+				`at ${at}% scale(${sx}, ${sy}) has volume ${product.toFixed(3)}, more than 5% from conserved`,
+			);
+		}
+	}
+	const squashed = stops.find(([, , sx]) => Number(sx) > 1);
+	const stretched = stops.find(([, , sx]) => Number(sx) < 1);
+	if (!squashed) fail("§3.2 squash", "nothing in the animation compresses");
+	if (!stretched) fail("§3.2 squash", "nothing in the animation overshoots");
+}
+
+/**
  * §5.3.2 and §5.3.3 — the two components whose geometry the specification gives
  * exactly, and the ones most likely to drift by a pixel at a time.
  */
@@ -214,6 +265,7 @@ async function main() {
 	checkPalette(css);
 	checkContrast(css);
 	checkGeometry(css);
+	checkSquash(css);
 
 	if (problems.length > 0) {
 		console.error("\ncheck-spec: the specification's QA matrix is not satisfied");
@@ -226,9 +278,11 @@ async function main() {
 		console.log("\nNot checkable here, and why:");
 		console.log("  §2.1.2 squircle  — needs a curvature measurement, not a grep");
 		console.log("  §2.1.3 concentric — needs the rendered box tree");
-		console.log("  §3.2 squash      — needs pointer events against a live page");
+		console.log("  §3.3 wobble tilt — needs pointer velocity; not implemented at all");
 		console.log("  §5.1 anatomy     — needs the rendered layer stack");
 		console.log("\nContradictions inside the specification:");
+		console.log("  §3.2 asserts Sx*Sy = 1 and then gives 1.06 x 0.90 = 0.954.");
+		console.log("       Direction is enforced; the identity is not. See checkSquash.");
 		console.log("  §7 rejects ζ outside [0.42, 0.65] and describes the failure as");
 		console.log('  "more than three oscillations, or none". §3.1 defines Spring.Gentle');
 		console.log("  at ζ = 0.80. The stated failure is enforced; see check-spec's header.");
