@@ -30,6 +30,8 @@
 		"check:templates:self-test": "node scripts/check-templates.mjs --self-test",
 		"check:api": "node scripts/check-api.mjs",
 		"check:api:self-test": "node scripts/check-api.mjs --self-test",
+		"check:spec": "node scripts/check-spec.mjs",
+		"check:spec:self-test": "node scripts/check-spec.mjs --self-test",
 		"build:font-atlas": "node scripts/build-font-atlas.mjs",
 		"verify": "pnpm lint && pnpm test && pnpm typecheck && pnpm size && pnpm check:api && pnpm check:templates",
 		"verify:device": "pnpm verify && pnpm check:shaders",
