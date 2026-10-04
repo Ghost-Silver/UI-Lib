@@ -1370,6 +1370,40 @@ export class GlassLayer implements Disposable {
 		this.dirty = true;
 	}
 
+	/**
+	 * Whether anything the panels are positioned against has moved since the last
+	 * frame. See the call site for why this exists rather than a listener.
+	 *
+	 * `scrollX`/`scrollY` alone would miss a panel moving inside a scrolling
+	 * container, so the check also walks the panels and compares their viewport
+	 * boxes. It is a few `getBoundingClientRect` calls per frame, all of which force
+	 * a style read the renderer is doing anyway.
+	 */
+	private lastScroll = { x: 0, y: 0, boxes: [] as number[] };
+
+	private scrollChanged(): boolean {
+		const boxes: number[] = [];
+		let moved = window.scrollX !== this.lastScroll.x || window.scrollY !== this.lastScroll.y;
+		let i = 0;
+		for (const panel of this.panels) {
+			const rect = panel.element.getBoundingClientRect();
+			boxes.push(rect.top, rect.left);
+			if (
+				!moved &&
+				(Math.abs((this.lastScroll.boxes[i] ?? rect.top) - rect.top) > 0.5 ||
+					Math.abs((this.lastScroll.boxes[i + 1] ?? rect.left) - rect.left) > 0.5)
+			) {
+				moved = true;
+			}
+			i += 2;
+		}
+		// A panel added or removed changes the array length, which is itself a
+		// reason to relayout.
+		if (boxes.length !== this.lastScroll.boxes.length) moved = true;
+		this.lastScroll = { x: window.scrollX, y: window.scrollY, boxes };
+		return moved;
+	}
+
 	private syncLayout(): void {
 		const { dpr, bounds, glassCamera } = this;
 		const vw = bounds.width;
@@ -1478,6 +1512,30 @@ export class GlassLayer implements Disposable {
 		// Same smoothed pointer the highlight just wrote. Before the skip, so a
 		// trail mesh is current if we draw, and before late particle steps.
 		this.syncPointerFollowers(info.dt);
+		/*
+		 * **Scrolling does not mark the layout dirty, and that was a real bug.**
+		 *
+		 * `syncLayout` reads every panel's `getBoundingClientRect()` and writes it
+		 * into the shader, so it is always *correct when it runs*. The problem was
+		 * that nothing made it run: the two signals that set `dirty` are a
+		 * `ResizeObserver` on the document and an explicit `markDirty`, and **a
+		 * scroll changes position without changing size**, so neither fired.
+		 *
+		 * The symptom, reported from a real session: *"scrolling to the bottom and
+		 * past it shows a beautiful piece of glass for a moment, and when the
+		 * rubber-band snaps back it is gone."* That is exactly what a stale panel
+		 * box looks like — the shader draws the glass where the element used to be,
+		 * so it only crosses the element's real position while the page is moving
+		 * under it, and disappears the moment the scroll settles.
+		 *
+		 * Checked every frame rather than listened for, because the events that move
+		 * a panel without resizing it are many — scroll, a transform on an ancestor,
+		 * a `sticky` crossing its threshold, an accordion above it opening,
+		 * `field-sizing` growing a textarea above it — and a listener list is a list
+		 * of the ones somebody thought of. A comparison is one number.
+		 */
+		if (this.scrollChanged()) this.dirty = true;
+
 		const layoutWasDirty = this.dirty;
 		if (this.dirty) {
 			this.syncLayout();

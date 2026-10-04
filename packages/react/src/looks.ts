@@ -369,10 +369,24 @@ export const GLASS_LOOKS = {
 	 * `frost` is low on purpose. Thick glass is not frosted glass: a frosted slab
 	 * hides what is behind it, and the whole point of a slab is that you can see
 	 * through two centimetres of it and watch the edges bend.
+	 *
+	 * ## The bevel came down and the radius went up, and that is a correction
+	 *
+	 * The three were first built by making each one "more" than the last, which is
+	 * the wrong axis. The brief describes three *shapes* rather than three amounts:
+	 * a **plump spherical bubble**, a **flatter but still heavy pane**, and the
+	 * **most substantial block with the most complex refraction**. Those order by
+	 * radius — 96, 20, 34 — not by bevel.
+	 *
+	 * `bevel: 78` on the slab was also rejected on sight: **"方一点，不要太立体"**,
+	 * and a bevel that wide is exactly what makes a panel look moulded rather than
+	 * cut. Thickness is carried by `refraction` and `dispersion` — how far the
+	 * image behind moves and how far it separates into colour — and those are
+	 * unchanged at 96 and 0.34.
 	 */
 	slab: {
-		radius: 30,
-		bevel: 78,
+		radius: 34,
+		bevel: 46,
 		refraction: 96,
 		dispersion: 0.34,
 		roughness: 0.08,
@@ -382,24 +396,24 @@ export const GLASS_LOOKS = {
 	/* A pane: real refraction, a modest edge, and a flat interior. The everyday
 	   glass for a card that has to stay readable. */
 	pane: {
-		radius: 26,
-		bevel: 34,
-		refraction: 44,
-		dispersion: 0.2,
-		roughness: 0.14,
-		frost: 12,
-		specular: 0.5,
+		radius: 20,
+		bevel: 30,
+		refraction: 52,
+		dispersion: 0.24,
+		roughness: 0.12,
+		frost: 10,
+		specular: 0.55,
 	},
 	/* Droplets: a wide soft edge and a heavy blur, as if the surface were beaded
 	   with condensation. For a hero panel, not for a form. */
 	dew: {
-		radius: 40,
-		bevel: 56,
-		refraction: 30,
-		dispersion: 0.12,
-		roughness: 0.42,
-		frost: 40,
-		specular: 0.6,
+		radius: 96,
+		bevel: 40,
+		refraction: 38,
+		dispersion: 0.16,
+		roughness: 0.3,
+		frost: 30,
+		specular: 0.66,
 	},
 	product: {
 		radius: 28,
