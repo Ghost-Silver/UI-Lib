@@ -477,9 +477,145 @@ const CSS = `
 	--moe-state-info-ink: oklch(0.44 0.09 300);
 	/* A control that cannot be used, and the fill behind a dismiss affordance. */
 	--moe-state-disabled: oklch(0.95 0.01 20);
-	--moe-state-disabled-ink: var(--moe-state-disabled-ink);
+	--moe-state-disabled-ink: oklch(0.7 0.02 40);
+	/*
+	 * How strongly a material lays down pigment.
+	 *
+	 * A token rather than a constant in the generator, because the right strength
+	 * depends on the ground: on paper, a wash has to be visible against a near-white
+	 * card; on a near-black one, the same strength is a saturated block that the
+	 * text cannot sit on. Measured in the cyberpunk theme — the card went full
+	 * quantum cyan and the body text on it fell to roughly 1.4:1.
+	 */
+	--moe-material-tint: 0.62;
+	--moe-material-wash: 1;
 	--moe-text: var(--moe-cocoa);
 	--moe-text-soft: var(--moe-cocoa-soft);
+}
+
+/*
+ * Four palettes, one token set.
+ *
+ * The specification asks for four flagship visual systems — Ethereal Pastel
+ * Anime, Cyberpunk Neon Hologram, Minimalist Ceramic White, Dark Obsidian
+ * Spatial — and describes them as hot-swappable through CSS variables. Which is
+ * what these are: every rule in this file reads a --moe-* variable, so a theme
+ * is a list of redefinitions and nothing else changes. No component knows which
+ * theme is on.
+ *
+ * ## Why only two of the four are here
+ *
+ * Because two are the ones that disagree most, and a theme system that is only
+ * ever tested in the palette it was designed in is a theme system that has not
+ * been tested. Pastel and cyberpunk differ in ground (0.98 vs 0.14 lightness),
+ * in text direction (dark-on-light vs light-on-dark), and in stroke (warm brown
+ * at 12% vs a saturated cyan) — so anything that is accidentally hard-coded to a
+ * light ground shows up immediately.
+ *
+ * The other two are the same exercise with different numbers, and are listed in
+ * the README as not yet implemented rather than implied to work.
+ *
+ * Values are the specification's own, converted from the hex it prints. The
+ * conversion is oklchToSrgb in @ui-lib/core, round-tripped to the exact hex
+ * before being written here.
+ */
+
+/* --- Ethereal Pastel Anime, the default -----------------------------------
+ *
+ * Nothing here: :root already is this theme. The selector exists so that
+ * data-moe-theme="pastel" means the same thing as no attribute, which is what
+ * a theme picker needs — a value for every state, including the one the page was
+ * designed in.
+ */
+[data-moe-theme="pastel"] {
+	color-scheme: light;
+}
+
+/* --- Cyberpunk Neon Hologram ----------------------------------------------
+ *
+ * Ground #07090e, quantum cyan #00f0ff, hot pink #ff0055, quantum violet
+ * #a855f7. The specification also asks for frosted glass and a 60Hz grid,
+ * neither of which is a token; the glass is the renderer's job and the grid is not
+ * written.
+ */
+[data-moe-theme="cyber"] {
+	color-scheme: dark;
+
+	--moe-canvas: oklch(0.13979 0.01175 265.76);
+	--moe-card: oklch(0.20796 0.04029 265.76);
+
+	/*
+	 * The accent family, remapped rather than replaced.
+	 *
+	 * A component asks for --moe-taro-500 because the component was written in
+	 * the pastel theme; in this one that name resolves to the quantum cyan. The
+	 * alternative — a second set of token names per theme — would mean every
+	 * component knowing every theme, which is the thing the specification's
+	 * "decoupled from design atoms" is asking to avoid.
+	 */
+	--moe-taro-500: oklch(0.87005 0.14814 202.88);
+	--moe-taro-700: oklch(0.64000 0.14814 202.88);
+	--moe-taro-100: oklch(0.26000 0.06000 202.88);
+	--moe-sakura-500: oklch(0.63500 0.25400 15.50);
+	--moe-sakura-700: oklch(0.50000 0.25400 15.50);
+	--moe-sakura-100: oklch(0.22000 0.08000 15.50);
+	--moe-soda-500: oklch(0.62700 0.23300 303.90);
+	--moe-soda-700: oklch(0.50000 0.23300 303.90);
+	--moe-mint-500: oklch(0.87005 0.14814 202.88);
+	--moe-lemon-500: oklch(0.80000 0.15000 95.00);
+
+	/* Text is light on dark here, which is the whole point of the second theme:
+	   a component that assumed dark-on-light reads as broken immediately. */
+	--moe-cocoa: oklch(0.96000 0.01000 265.76);
+	--moe-cocoa-soft: oklch(0.72000 0.02000 265.76);
+	--moe-stroke: rgb(0 240 255 / 0.25);
+	--moe-text: var(--moe-cocoa);
+	--moe-text-soft: var(--moe-cocoa-soft);
+
+	/* The clay shadow is warm brown in the pastel theme and reads as dirt on a
+	   near-black ground. */
+	--moe-clay:
+		0 1px 2px -1px rgb(0 0 0 / 0.6), 0 6px 14px -2px rgb(0 0 0 / 0.55), inset 0 2px 3px 0
+		rgb(255 255 255 / 0.06), inset 0 -2px 4px 0 rgb(0 0 0 / 0.4);
+	--moe-floating: 0 0 25px rgb(0 240 255 / 0.15), 0 12px 28px -8px rgb(0 0 0 / 0.7);
+
+	--moe-state-danger-bg: oklch(0.22000 0.08000 15.50);
+	--moe-state-danger-border: oklch(0.50000 0.25400 15.50);
+	--moe-state-success-bg: oklch(0.20000 0.06000 165.00);
+	--moe-state-warning-bg: oklch(0.24000 0.07000 85.00);
+	--moe-state-info-bg: oklch(0.22000 0.06000 265.76);
+	--moe-state-disabled: oklch(0.24000 0.02000 265.76);
+	--moe-state-disabled-ink: oklch(0.60000 0.02000 265.76);
+	--moe-surface-sunken: oklch(0.18000 0.03000 265.76);
+	--moe-surface-raised: oklch(0.24000 0.04000 265.76);
+	--moe-surface-hover: oklch(0.30000 0.06000 202.88);
+	--moe-surface-hover-soft: oklch(0.24000 0.04000 265.76);
+
+	/*
+	 * Pigment is laid down more thinly here, and **still not thinly enough**.
+	 *
+	 * The fill is dark and the text on it is light, so a saturated block is the one
+	 * thing that cannot carry text. 0.28/0.44 was measured to bring the worst pair
+	 * to 6.45:1 by one method and the screenshot says otherwise: 淡染 and 水彩
+	 * are still solid cyan with pale grey on them.
+	 *
+	 * **The measurement was wrong, not the theme.** It read the ground's *first*
+	 * colour stop and compared the text against it, and what the card actually
+	 * paints is the middle of a gradient that is several stops wide. The contrast on
+	 * the rendered pixels is nothing like the contrast on the stop I sampled.
+	 *
+	 * What is certain from the screenshot is that these values are too high. What is
+	 * not yet known is the right value, because finding it means measuring the
+	 * rendered pixels rather than the variable — sampling the element's own
+	 * screenshot and reading its modal colour, which is the technique
+	 * check:components already uses for something else.
+	 *
+	 * Left at 0.28/0.44 with this note rather than guessed at, because a value
+	 * changed to make a screenshot look better is how a palette stops meaning
+	 * anything.
+	 */
+	--moe-material-tint: 0.28;
+	--moe-material-wash: 0.44;
 }
 
 /* A press is a squash, and a squash is a stretch on the other axis: a soft

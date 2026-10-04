@@ -1,5 +1,5 @@
-import { createWash, type IrisTone, type WashResult } from "@ui-lib/core";
-import { useMemo } from "react";
+import { createWash, type IrisTone, parseColour, type WashResult } from "@ui-lib/core";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * Surfaces a component can be made of.
@@ -40,11 +40,65 @@ export interface MaterialOptions {
 }
 
 /** The pigment per tone, so every material asks the palette the same way. */
-const TONE_HUE: Record<IrisTone, string> = {
+/**
+ * Which token carries each tone's pigment.
+ *
+ * The hue used to be three hex strings written here, which meant a wash was the
+ * same colour in every theme — the one part of the library a palette could not
+ * reach. Measured in the cyberpunk theme: every surface followed, and the material
+ * stayed pastel.
+ *
+ * The generator needs a colour value, not a CSS variable name, so the variable is
+ * read at render time and its OKLCH value converted. That is the whole reason
+ * `oklchToSrgb` exists outside of the contrast checker.
+ */
+const TONE_TOKEN: Record<IrisTone, string> = {
+	iris: "--moe-taro-500",
+	blossom: "--moe-sakura-500",
+	mist: "--moe-soda-500",
+};
+
+/** The fallbacks, for a server render or a document with no stylesheet yet. */
+const TONE_FALLBACK: Record<IrisTone, string> = {
 	iris: "#b79cf5",
 	blossom: "#ffb7c5",
 	mist: "#9ad9ff",
 };
+
+/**
+ * Resolve a tone to a colour the generator can use.
+ *
+ * `getComputedStyle` is only available in a browser; on the server the fallback is
+ * used, and the wash is regenerated on the client once the stylesheet exists —
+ * the same value the fallback produces in the default theme, so nothing flickers.
+ */
+/**
+ * The weight a theme asks for, or the default when there is no stylesheet yet.
+ *
+ * Returns `undefined` rather than the default when a token is present but
+ * unparseable, so the caller can fall back — a `NaN` weight would generate a wash
+ * with no deposit at all and look like a rendering bug.
+ */
+function resolveWeight(material: SoftMaterial, fallback: number): number {
+	if (typeof window === "undefined" || material === "plain") return fallback;
+	const raw = getComputedStyle(document.documentElement)
+		.getPropertyValue(MATERIAL_WEIGHT_TOKEN[material])
+		.trim();
+	if (!raw) return fallback;
+	const value = Number(raw);
+	return Number.isFinite(value) ? value : fallback;
+}
+
+function resolveTone(tone: IrisTone, element?: HTMLElement | null): string {
+	if (typeof window === "undefined") return TONE_FALLBACK[tone];
+	const host = element ?? document.documentElement;
+	const raw = getComputedStyle(host).getPropertyValue(TONE_TOKEN[tone]).trim();
+	if (!raw) return TONE_FALLBACK[tone];
+	const parsed = parseColour(raw);
+	if (!parsed) return TONE_FALLBACK[tone];
+	const hex = (v: number) => v.toString(16).padStart(2, "0");
+	return `#${hex(parsed.r)}${hex(parsed.g)}${hex(parsed.b)}`;
+}
 
 /**
  * How strong each material is. `plain` has none.
@@ -65,6 +119,19 @@ const MATERIAL_WEIGHT: Record<SoftMaterial, number> = {
 	plain: 0,
 	tint: 0.62,
 	wash: 1,
+};
+
+/**
+ * The same weights, read from tokens when a theme wants to differ.
+ *
+ * The defaults above are the pastel theme's; a theme may lay pigment down more
+ * thinly. Read at the same moment the pigment is, so a theme change re-reads both
+ * rather than one of them.
+ */
+const MATERIAL_WEIGHT_TOKEN: Record<SoftMaterial, string> = {
+	plain: "",
+	tint: "--moe-material-tint",
+	wash: "--moe-material-wash",
 };
 
 /**
@@ -119,6 +186,50 @@ export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 	const { material = "plain", tone = "iris", weight, seed, name } = options;
 
 	/*
+	 * The pigment, read from the token rather than written here.
+	 *
+	 * Two states rather than one, and it is not decoration: `getComputedStyle`
+	 * does not exist on the server, so the first render uses the palette's own
+	 * fallback and the client re-reads the token afterwards. In the default theme
+	 * the two are the same value, so nothing moves; in another theme the first
+	 * paint is the old colour for one frame.
+	 *
+	 * The alternative — reading during render — is a hydration mismatch, and this
+	 * library has already paid for one of those: a module-level counter in
+	 * `SoftInput` that produced a different id on each side.
+	 */
+	const [pigment, setPigment] = useState(() => TONE_FALLBACK[tone]);
+	const [resolvedWeight, setResolvedWeight] = useState(() => MATERIAL_WEIGHT[material]);
+	useEffect(() => {
+		setPigment(resolveTone(tone));
+		setResolvedWeight(resolveWeight(material, MATERIAL_WEIGHT[material]));
+		/*
+		 * And again whenever the theme changes, which the `tone` dependency above
+		 * cannot see.
+		 *
+		 * A theme is an attribute on `<html>` and the palette is read out of CSS, so
+		 * from React's point of view nothing happened when the theme changed — the
+		 * prop is the same, the component is the same, and the wash kept the colour
+		 * it was generated with. Measured: switching to the cyberpunk theme moved
+		 * `--moe-taro-500` from `oklch(0.82 0.12 305)` to `oklch(0.87 0.148 202.88)`
+		 * and left every card's `--wash-ground` at the pastel value.
+		 *
+		 * An observer rather than a context, because the theme is deliberately not a
+		 * React concept: the specification calls it hot-swappable through CSS
+		 * variables, and a page that sets the attribute from a `<script>` or from
+		 * devtools should work the same as one that sets it from a provider.
+		 */
+		if (typeof MutationObserver === "undefined") return;
+		const read = () => setPigment(resolveTone(tone));
+		const observer = new MutationObserver(read);
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["data-moe-theme", "class", "style"],
+		});
+		return () => observer.disconnect();
+	}, [tone, material]);
+
+	/*
 	 * The wash is memoised on its inputs, because it is not cheap: it generates
 	 * two SVG turbulence layers and a five-stop conic gradient as strings, and
 	 * redoing that on every render of a list of cards is real work for a value
@@ -127,15 +238,17 @@ export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 	const wash = useMemo(() => {
 		if (material === "plain") return null;
 		return createWash({
-			hue: TONE_HUE[tone],
-			weight: weight ?? MATERIAL_WEIGHT[material],
+			hue: pigment,
+			weight: weight ?? resolvedWeight,
 			seed: name !== undefined ? seedFromName(name) : (seed ?? 1),
 			// A surface is never wet. The wet states describe a *stroke* — pigment
 			// still moving — and a card that looked like it was still spreading
 			// would read as unfinished rather than as soft.
 			state: "dry",
 		});
-	}, [material, tone, weight, seed, name]);
+		// `tone` is not a dependency: it is what `pigment` was resolved from, and the
+		// effect above re-resolves it. Listing both makes the memo run twice per change.
+	}, [material, weight, seed, name, pigment, resolvedWeight]);
 
 	return useMemo(() => {
 		if (!wash) return { className: "", style: {}, wash };
