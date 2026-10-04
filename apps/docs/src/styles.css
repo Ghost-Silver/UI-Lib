@@ -3782,3 +3782,129 @@ input[type="range"]::-moz-range-thumb {
 .stack__notes strong {
 	color: var(--moe-cocoa);
 }
+
+/* --- glass lab -------------------------------------------------------------
+ *
+ * The subject is thickness, so nothing here competes with it: no pigment on the
+ * DOM, no shadows of its own, and the cards are as plain as they can be while
+ * still being cards. Whatever looks like depth on this page is the glass.
+ */
+
+.glasslab-stage {
+	min-height: 100vh;
+}
+
+.glasslab {
+	max-width: 1000px;
+	margin: 0 auto;
+	padding: 72px 32px 96px;
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.glasslab__kicker {
+	margin: 0 0 12px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--moe-cocoa-soft);
+}
+
+.glasslab__title {
+	margin: 0 0 20px;
+	font-size: clamp(30px, 4.4vw, 46px);
+	font-weight: 800;
+	line-height: 1.12;
+}
+
+.glasslab__lede {
+	max-width: 640px;
+	margin: 0 0 26px;
+	font-size: 15px;
+	line-height: 1.85;
+	color: var(--moe-cocoa-soft);
+}
+
+.glasslab__picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 52px;
+}
+
+.glasslab__row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+	gap: 20px;
+	margin-bottom: 32px;
+}
+
+.glasslab__slab {
+	min-height: 210px;
+}
+
+.glasslab__slabbody {
+	padding: 22px 24px;
+}
+
+.glasslab__slabbody h2 {
+	margin: 0 0 6px;
+	font-size: 19px;
+	font-weight: 800;
+}
+
+.glasslab__slabbody p {
+	margin: 0 0 14px;
+	font-size: 13px;
+	line-height: 1.7;
+	color: var(--moe-cocoa-soft);
+}
+
+.glasslab__big {
+	min-height: 300px;
+}
+
+.glasslab__bigbody {
+	padding: 38px 42px;
+	max-width: 560px;
+}
+
+.glasslab__bigbody h2 {
+	margin: 0 0 12px;
+	font-size: 26px;
+	font-weight: 800;
+}
+
+.glasslab__bigbody p {
+	margin: 0 0 22px;
+	font-size: 14px;
+	line-height: 1.85;
+	color: var(--moe-cocoa-soft);
+}
+
+.glasslab__bigbody strong {
+	color: var(--moe-cocoa);
+}
+
+.glasslab__controls {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.glasslab__foot {
+	margin-top: 40px;
+	font-size: 13px;
+	line-height: 1.8;
+	color: var(--moe-cocoa-soft);
+}
+
+.glasslab__foot code {
+	padding: 1px 6px;
+	border-radius: var(--moe-radius-xs);
+	background: rgb(255 255 255 / 0.5);
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-size: 12px;
+}

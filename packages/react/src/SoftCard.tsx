@@ -1,5 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useRef } from "react";
+import { GlassPanel } from "./GlassPanel.js";
+import { GLASS_LOOKS, type GlassLookName } from "./looks.js";
 import { type SoftMaterial, useMaterial } from "./material.js";
 import { useTilt } from "./tilt.js";
 import { useStyles } from "./useStyles.js";
@@ -42,6 +44,20 @@ export interface SoftCardProps extends React.HTMLAttributes<HTMLDivElement> {
 	material?: SoftMaterial;
 	/** Which family the pigment comes from. Ignored by `plain`. */
 	tone?: IrisTone;
+	/**
+	 * Render through a real `GlassPanel`, so the card refracts what is behind it.
+	 *
+	 * **Off by default**, and the reason is architectural rather than aesthetic: a
+	 * `GlassPanel` only refracts things the canvas draws. A card in the DOM is
+	 * above that canvas, so a glass card needs a `GlassStage` on the page and needs
+	 * the pigment behind it to be canvas pigment. Pass one of `GLASS_LOOKS` —
+	 * `slab` is the thick one.
+	 *
+	 * This is what makes a card's *material* mean something different from its
+	 * finish. `material="wash"` is pigment printed on a card; `look="slab"` is a
+	 * card made of two centimetres of glass with the pigment behind it.
+	 */
+	look?: GlassLookName;
 	/**
 	 * Give the paper a grain direction, for a surface that is a specific kind of
 	 * paper rather than paper in general. See `MaterialOptions.fibre`.
@@ -91,6 +107,7 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 		material,
 		tone,
 		seedName,
+		look,
 		fibre,
 		fibreAngle,
 		className,
@@ -101,34 +118,84 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 ) {
 	// The stylesheet is not injected by the GPU components alone; see useStyles.
 	useStyles();
+	/** A glass card takes no pigment; see the note on `useMaterial` below. */
+	const pigment = look === undefined;
 	const host = useRef<HTMLDivElement | null>(null);
 	useTilt(host, { enabled: tilt });
 
+	/*
+	 * **A glass card does not get a paper ground**, and that is the whole reason
+	 * this is conditional.
+	 *
+	 * Measured on the first version of the glass-lab page: four cards with
+	 * `look="dew" | "pane" | "product" | "slab"` rendered **identically**, because
+	 * each was also carrying `ui-lib-material--ground` and its computed background
+	 * was `radial-gradient(... rgb(250 233 255) ...)` — an opaque paper fill sitting
+	 * on top of the glass, hiding every pixel of refraction underneath it.
+	 *
+	 * So the surface and the glass are alternatives rather than layers. A card is
+	 * either pigment printed on paper or a piece of glass; asking for both gets the
+	 * pigment, because that is what "material" has always meant and silently
+	 * ignoring it would be worse.
+	 */
 	const surface = useMaterial(
-		material === undefined && tone === undefined && seedName === undefined && !fibre
-			? {}
-			: { material, tone, name: seedName, fibre, fibreAngle },
+		pigment && (material !== undefined || tone !== undefined || seedName !== undefined || fibre)
+			? { material, tone, name: seedName, fibre, fibreAngle }
+			: {},
 	);
 
+	const setHost = (node: HTMLDivElement | null) => {
+		host.current = node;
+		if (typeof ref === "function") ref(node);
+		else if (ref) ref.current = node;
+	};
+
+	const classes = [
+		className ? `ui-lib-soft-card ${className}` : "ui-lib-soft-card",
+		surface.className,
+	]
+		.filter((c) => !(look && c === "ui-lib-material--ground"))
+		.filter(Boolean)
+		.join(" ");
+
+	const shared = {
+		className: classes,
+		style: surface.className && pigment ? { ...props.style, ...surface.style } : props.style,
+		"data-ui-lib-interactive": interactive ? "" : undefined,
+		"data-ui-lib-glossy": glossy ? "" : undefined,
+		"data-ui-lib-material": material && material !== "plain" ? material : undefined,
+	};
+
+	/*
+	 * A glass card is a `GlassPanel` and a paper card is a `div`, and the tag is the
+	 * only thing that differs.
+	 *
+	 * `GlassPanel` is what registers with the stage, so a card that has to refract
+	 * has to *be* one — a `div` with a glass class on it would be a card that claims
+	 * to be glass and is not, which is the failure this library has already made
+	 * once with `role="button"` on a span.
+	 *
+	 * The material class is kept on the glass path too, because the ink tokens a
+	 * ground sets (`--moe-on-material`) are what keep text readable on it, and a
+	 * glass card needs them exactly as much as a washed one.
+	 */
+	if (look) {
+		const glassLook = typeof look === "string" ? GLASS_LOOKS[look] : look;
+		return (
+			<GlassPanel
+				{...props}
+				{...shared}
+				{...glassLook}
+				ref={setHost}
+				className={`${classes} ui-lib-soft-card--glass`}
+			>
+				{children}
+			</GlassPanel>
+		);
+	}
+
 	return (
-		<div
-			ref={(node) => {
-				host.current = node;
-				if (typeof ref === "function") ref(node);
-				else if (ref) ref.current = node;
-			}}
-			className={[
-				className ? `ui-lib-soft-card ${className}` : "ui-lib-soft-card",
-				surface.className,
-			]
-				.filter(Boolean)
-				.join(" ")}
-			style={surface.className ? { ...props.style, ...surface.style } : props.style}
-			data-ui-lib-interactive={interactive ? "" : undefined}
-			data-ui-lib-glossy={glossy ? "" : undefined}
-			data-ui-lib-material={material && material !== "plain" ? material : undefined}
-			{...props}
-		>
+		<div ref={setHost} {...shared} {...props}>
 			{children}
 		</div>
 	);

@@ -25,6 +25,7 @@ import { AuroraFlowPage } from "./AuroraFlow.js";
 import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
+import { GlassLabPage } from "./GlassLab.js";
 import { IrisKitPage, isKitComponent } from "./IrisKit.js";
 import { IrisShowcasePage } from "./IrisShowcase.js";
 import { KitIndexPage } from "./KitIndex.js";
@@ -634,6 +635,7 @@ export default function App() {
 		if (demo === "kit-index") return <KitIndexPage />;
 		if (demo === "third-party") return <ThirdPartyPage />;
 		if (demo === "stacking") return <StackingPage />;
+		if (demo === "glass-lab") return <GlassLabPage />;
 		if (demo === "studio") return <StudioPage />;
 		if (demo === "iris") return <IrisShowcasePage />;
 		if (demo === "paper") return <WetPaperPage />;

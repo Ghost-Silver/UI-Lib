@@ -1106,6 +1106,44 @@ const CSS = `
  * under the reader's eye.
  */
 
+/*
+ * The glass variant drops its own fill, and this is the third time in this file
+ * that an opaque background has hidden something.
+ *
+ * .ui-lib-soft-card sets background: var(--moe-card), which is a near-white
+ * sheet — correct for a card made of paper and fatal for one made of glass, because
+ * the refraction is painted by the canvas *underneath* this element. Measured with
+ * it in place: four cards at four very different thicknesses rendered identically,
+ * which is what sent me looking.
+ *
+ * Only the fill is dropped. The border stays, because a pane of glass has an edge
+ * and the outline is what tells the reader where the glass ends — without it the
+ * refraction reads as a rendering artefact rather than as an object.
+ *
+ * ## Known: the glass still does not read as thick, and the fill was only half of it
+ *
+ * After dropping both opaque fills — the card's own and the material's — four cards
+ * at bevel 56, 34, 22 and 78 still rendered **identically**, and with a particle
+ * field behind them the particles **vanished inside the cards** rather than being
+ * bent by them.
+ *
+ * So the thickness parameters are not reaching the screen at all, and the fill was
+ * a symptom rather than the cause. The next places to look are the order in which
+ * the panel and the particle field are drawn into the shared target — a panel that
+ * samples before the field is painted gets nothing to refract — and whether
+ * GLASS_LOOKS spread onto GlassPanel actually lands on the uniforms it names,
+ * which is a claim no test has ever checked.
+ *
+ * Recorded rather than tuned, because four identical renders mean the parameter is
+ * not connected, and adjusting a value that does not arrive is how a page ends up
+ * with a number nobody can explain.
+ */
+.ui-lib-soft-card--glass {
+	background: transparent;
+	border-color: rgb(255 255 255 / 0.45);
+	backdrop-filter: none;
+}
+
 .ui-lib-soft-card {
 	border-radius: var(--moe-radius-lg);
 	border: 1.5px solid var(--moe-stroke);

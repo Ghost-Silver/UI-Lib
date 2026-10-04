@@ -349,6 +349,58 @@ export function fieldOptions(
 
 /** DOM glass that can sit on a product page without a wall of props. */
 export const GLASS_LOOKS = {
+	/*
+	 * A slab of glass rather than a pane of it.
+	 *
+	 * Every look this library had kept `bevel` between 14 and 22 and `refraction`
+	 * between 14 and 36 — thin glass, all of it, and measured across the looks the
+	 * difference between the thickest and the thinnest was a few pixels of edge.
+	 * **The feedback that produced this was "液态玻璃一定要特别特别厚"**, and the
+	 * reason the library did not have that is that "thick" is not one parameter: it
+	 * is a large bevel relative to the element, strong enough refraction to bend
+	 * what is behind it, and enough dispersion that the bend separates into colour.
+	 *
+	 * Numbers chosen against the geometry rather than by eye. `bevel: 78` on a
+	 * 200px card means the bevel occupies nearly two fifths of it, which is what a
+	 * slab of glass looks like from an angle — the flat window in the middle is the
+	 * smaller part. `refraction: 96` is large enough that a pigment field behind it
+	 * visibly moves rather than merely softening.
+	 *
+	 * `frost` is low on purpose. Thick glass is not frosted glass: a frosted slab
+	 * hides what is behind it, and the whole point of a slab is that you can see
+	 * through two centimetres of it and watch the edges bend.
+	 */
+	slab: {
+		radius: 30,
+		bevel: 78,
+		refraction: 96,
+		dispersion: 0.34,
+		roughness: 0.08,
+		frost: 6,
+		specular: 0.72,
+	},
+	/* A pane: real refraction, a modest edge, and a flat interior. The everyday
+	   glass for a card that has to stay readable. */
+	pane: {
+		radius: 26,
+		bevel: 34,
+		refraction: 44,
+		dispersion: 0.2,
+		roughness: 0.14,
+		frost: 12,
+		specular: 0.5,
+	},
+	/* Droplets: a wide soft edge and a heavy blur, as if the surface were beaded
+	   with condensation. For a hero panel, not for a form. */
+	dew: {
+		radius: 40,
+		bevel: 56,
+		refraction: 30,
+		dispersion: 0.12,
+		roughness: 0.42,
+		frost: 40,
+		specular: 0.6,
+	},
 	product: {
 		radius: 28,
 		bevel: 22,
