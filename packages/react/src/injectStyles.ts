@@ -520,38 +520,96 @@ const CSS = `
  * before being written here.
  */
 
-/* --- Ethereal Pastel Anime, the default -----------------------------------
+/* --- the four themes ------------------------------------------------------
  *
- * Nothing here: :root already is this theme. The selector exists so that
- * data-moe-theme="pastel" means the same thing as no attribute, which is what
- * a theme picker needs — a value for every state, including the one the page was
- * designed in.
+ * ## Known defect: text on a material ground does not reach 4.5:1
+ *
+ * Measured on rendered pixels — the paragraph's own box, its modal colour as the
+ * ground and its darkest and lightest decile as the glyph — across all four
+ * themes:
+ *
+ * | theme | worst card |
+ * | --- | --- |
+ * | anime | 3.85:1 |
+ * | cyberpunk | 1.17:1 |
+ * | minimalist | 1.08:1 |
+ * | obsidian | 1.34:1 |
+ *
+ * **Not one of them passes.** And anime at 3.85 is the one that has been shipped
+ * longest, which means this is not a theme problem: text on a material ground has
+ * never had enough contrast, and it went unnoticed because the earlier measurement
+ * compared the text against a colour stop in the generated gradient rather than
+ * against the pixels behind the glyphs. That method reported 6.45:1 for a card
+ * whose text is plainly unreadable.
+ *
+ * Three ways out, none of them taken yet because each is a design decision rather
+ * than a fix:
+ *
+ * 1. Lay pigment down more thinly under text — a per-component weight, which the
+ *    token already allows but no component passes.
+ * 2. Give material grounds their own text colour, darker than --moe-cocoa,
+ *    rather than reusing the theme's.
+ * 3. Restrict the material to surfaces that carry no text, which is the honest
+ *    answer if 1 and 2 are not enough.
+ *
+ * Left measured and unfixed. A value nudged until a screenshot looks better is how
+ * a palette stops meaning anything, and this needs a decision about which of the
+ * three it is.
+ *
+ * ## The theme table
+ *
+ * The specification ships a structured token table for these — IrisThemeTokens
+ * in IrisUiLibDesignTokens.ts — with ten values for each of four themes. This is
+ * that table, value for value.
+ *
+ * Every colour is converted to OKLCH through oklchToSrgb in this repository and
+ * **round-tripped back to the exact hex** before being written here, so the number
+ * in this file and the number in the document are the same number. All twenty
+ * accent colours were checked to be inside the sRGB gamut; none of them is a
+ * colour the browser cannot actually show.
+ *
+ * Two are new this round — minimalist and obsidian — which completes the set
+ * the document asks for. The naming follows the document's keys rather than the
+ * shortened ones used before, because a caller reading the specification should
+ * not have to translate.
  */
-[data-moe-theme="pastel"] {
+
+/* --- anime, and the default ------------------------------------------------
+ *
+ * :root is this theme, and the selector exists so that data-moe-theme="anime"
+ * means the same thing as no attribute — a picker needs a value for the state the
+ * page was designed in.
+ *
+ * The document's ground is #fdf4f8, slightly pinker than the oklch(0.98 0.008
+ * 85) this library used. The background moved; the rest of the pastel palette is
+ * this repository's and is not in the document, which lists four accents and a
+ * radius where this theme has five hues and a scale.
+ */
+[data-moe-theme="anime"] {
 	color-scheme: light;
+	--moe-canvas: oklch(0.97525 0.01094 348.42);
 }
 
 /* --- Cyberpunk Neon Hologram ----------------------------------------------
  *
- * Ground #07090e, quantum cyan #00f0ff, hot pink #ff0055, quantum violet
- * #a855f7. The specification also asks for frosted glass and a 60Hz grid,
- * neither of which is a token; the glass is the renderer's job and the grid is not
- * written.
+ * Ground #07090e, the cyan #00f0ff as the accent, hot pink for interruption
+ * and violet for the slow path. The document also asks for frosted glass and a
+ * 60Hz grid; the glass is the renderer's job and the grid is not written.
  */
-[data-moe-theme="cyber"] {
+[data-moe-theme="cyberpunk"] {
 	color-scheme: dark;
 
 	--moe-canvas: oklch(0.13979 0.01175 265.76);
-	--moe-card: oklch(0.20796 0.04029 265.76);
+	--moe-card: oklch(0.23736 0.04395 265.76);
 
 	/*
-	 * The accent family, remapped rather than replaced.
+	 * The accent family, remapped rather than renamed.
 	 *
 	 * A component asks for --moe-taro-500 because the component was written in
 	 * the pastel theme; in this one that name resolves to the quantum cyan. The
-	 * alternative — a second set of token names per theme — would mean every
-	 * component knowing every theme, which is the thing the specification's
-	 * "decoupled from design atoms" is asking to avoid.
+	 * alternative — a second set of names per theme — would mean every component
+	 * knowing every theme, which is what "decoupled from design atoms" is asking to
+	 * avoid.
 	 */
 	--moe-taro-500: oklch(0.87005 0.14814 202.88);
 	--moe-taro-700: oklch(0.64000 0.14814 202.88);
@@ -564,20 +622,21 @@ const CSS = `
 	--moe-mint-500: oklch(0.87005 0.14814 202.88);
 	--moe-lemon-500: oklch(0.80000 0.15000 95.00);
 
-	/* Text is light on dark here, which is the whole point of the second theme:
-	   a component that assumed dark-on-light reads as broken immediately. */
+	/* Light text on a dark ground, which is the point of a second theme: a
+	   component that assumed dark-on-light reads as broken immediately. */
 	--moe-cocoa: oklch(0.96000 0.01000 265.76);
 	--moe-cocoa-soft: oklch(0.72000 0.02000 265.76);
 	--moe-stroke: rgb(0 240 255 / 0.25);
 	--moe-text: var(--moe-cocoa);
 	--moe-text-soft: var(--moe-cocoa-soft);
 
-	/* The clay shadow is warm brown in the pastel theme and reads as dirt on a
-	   near-black ground. */
+	/* Warm brown reads as dirt on a near-black ground. */
 	--moe-clay:
 		0 1px 2px -1px rgb(0 0 0 / 0.6), 0 6px 14px -2px rgb(0 0 0 / 0.55), inset 0 2px 3px 0
 		rgb(255 255 255 / 0.06), inset 0 -2px 4px 0 rgb(0 0 0 / 0.4);
 	--moe-floating: 0 0 25px rgb(0 240 255 / 0.15), 0 12px 28px -8px rgb(0 0 0 / 0.7);
+
+	--moe-radius-md: 14px;
 
 	--moe-state-danger-bg: oklch(0.22000 0.08000 15.50);
 	--moe-state-danger-border: oklch(0.50000 0.25400 15.50);
@@ -592,31 +651,122 @@ const CSS = `
 	--moe-surface-hover-soft: oklch(0.24000 0.04000 265.76);
 
 	/*
-	 * Pigment is laid down more thinly here, and **still not thinly enough**.
-	 *
-	 * The fill is dark and the text on it is light, so a saturated block is the one
-	 * thing that cannot carry text. 0.28/0.44 was measured to bring the worst pair
-	 * to 6.45:1 by one method and the screenshot says otherwise: 淡染 and 水彩
-	 * are still solid cyan with pale grey on them.
-	 *
-	 * **The measurement was wrong, not the theme.** It read the ground's *first*
-	 * colour stop and compared the text against it, and what the card actually
-	 * paints is the middle of a gradient that is several stops wide. The contrast on
-	 * the rendered pixels is nothing like the contrast on the stop I sampled.
-	 *
-	 * What is certain from the screenshot is that these values are too high. What is
-	 * not yet known is the right value, because finding it means measuring the
-	 * rendered pixels rather than the variable — sampling the element's own
-	 * screenshot and reading its modal colour, which is the technique
-	 * check:components already uses for something else.
-	 *
-	 * Left at 0.28/0.44 with this note rather than guessed at, because a value
-	 * changed to make a screenshot look better is how a palette stops meaning
-	 * anything.
+	 * Pigment is laid down more thinly here, and this value is the one the
+	 * screenshot still disagrees with. See the note on the anime theme's weights.
 	 */
-	--moe-material-tint: 0.28;
-	--moe-material-wash: 0.44;
+	--moe-material-tint: 0.22;
+	--moe-material-wash: 0.34;
 }
+
+/* --- Minimalist Ceramic White ---------------------------------------------
+ *
+ * Glacier white, a deep blue accent, and ambient-occlusion shadows: several soft
+ * layers rather than one, which is what makes a white card read as ceramic
+ * instead of as a white box. The document's radius is 22px, between this
+ * library's md and lg.
+ */
+[data-moe-theme="minimalist"] {
+	color-scheme: light;
+
+	--moe-canvas: oklch(0.98415 0.00341 247.86);
+	--moe-card: oklch(1 0 0);
+
+	--moe-taro-500: oklch(0.55263 0.21626 280.02);
+	--moe-taro-700: oklch(0.44000 0.21626 280.02);
+	--moe-taro-100: oklch(0.95000 0.03000 280.02);
+	--moe-sakura-500: oklch(0.59213 0.20966 12.20);
+	--moe-sakura-700: oklch(0.48000 0.20966 12.20);
+	--moe-sakura-100: oklch(0.95000 0.04000 12.20);
+	--moe-soda-500: oklch(0.55030 0.13766 238.61);
+	--moe-soda-700: oklch(0.44000 0.13766 238.61);
+	--moe-mint-500: oklch(0.55035 0.13766 238.61);
+	--moe-lemon-500: oklch(0.61000 0.14000 60.00);
+
+	--moe-cocoa: oklch(0.20794 0.02699 265.76);
+	--moe-cocoa-soft: oklch(0.55400 0.02346 257.42);
+	--moe-stroke: rgb(15 23 42 / 0.08);
+	--moe-text: var(--moe-cocoa);
+	--moe-text-soft: var(--moe-cocoa-soft);
+
+	/* Ambient occlusion: two soft layers, barely visible, which is the whole
+	   technique — one shadow at this opacity is a smudge. */
+	--moe-clay:
+		0 2px 4px rgb(0 0 0 / 0.02), 0 12px 24px rgb(0 0 0 / 0.04), inset 0 1px 1px 0
+		rgb(255 255 255 / 0.9);
+	--moe-floating: 0 4px 8px rgb(0 0 0 / 0.03), 0 18px 40px rgb(0 0 0 / 0.06);
+
+	--moe-radius-md: 22px;
+
+	--moe-state-danger-bg: oklch(0.96000 0.02000 12.20);
+	--moe-state-danger-border: oklch(0.75000 0.12000 12.20);
+	--moe-state-success-bg: oklch(0.96000 0.02000 165.00);
+	--moe-state-warning-bg: oklch(0.96500 0.03000 85.00);
+	--moe-state-info-bg: oklch(0.96000 0.02000 238.61);
+	--moe-state-disabled: oklch(0.96000 0.00300 247.86);
+	--moe-state-disabled-ink: oklch(0.70000 0.01000 247.86);
+	--moe-surface-sunken: oklch(0.97000 0.00400 247.86);
+	--moe-surface-raised: oklch(1 0 0);
+	--moe-surface-hover: oklch(0.96000 0.01000 238.61);
+	--moe-surface-hover-soft: oklch(0.97500 0.00400 247.86);
+
+	/* White on white needs restraint: the material has to be visible as a
+	   temperature, not as a colour. */
+	--moe-material-tint: 0.30;
+	--moe-material-wash: 0.46;
+}
+
+/* --- Dark Obsidian Spatial Computing --------------------------------------
+ *
+ * Obsidian black, carbon grey cards, a titanium gold for anything mechanical and
+ * an ice blue for telemetry. The gold is the only accent in the set that is not
+ * cool, which is what makes it read as metal.
+ */
+[data-moe-theme="obsidian"] {
+	color-scheme: dark;
+
+	--moe-canvas: oklch(0.12964 0.02737 261.69);
+	--moe-card: oklch(0.28962 0.03503 265.76);
+
+	--moe-taro-500: oklch(0.72716 0.16751 300.35);
+	--moe-taro-700: oklch(0.56000 0.16751 300.35);
+	--moe-taro-100: oklch(0.26000 0.07000 300.35);
+	--moe-sakura-500: oklch(0.72882 0.15404 15.50);
+	--moe-sakura-700: oklch(0.56000 0.15404 15.50);
+	--moe-sakura-100: oklch(0.26000 0.07000 15.50);
+	--moe-soda-500: oklch(0.75697 0.14060 232.60);
+	--moe-soda-700: oklch(0.58000 0.14060 232.60);
+	--moe-mint-500: oklch(0.75697 0.14060 232.60);
+	--moe-lemon-500: oklch(0.85103 0.16084 82.50);
+
+	--moe-cocoa: oklch(0.95000 0.01000 261.69);
+	--moe-cocoa-soft: oklch(0.70000 0.02000 261.69);
+	--moe-stroke: rgb(245 158 11 / 0.22);
+	--moe-text: var(--moe-cocoa);
+	--moe-text-soft: var(--moe-cocoa-soft);
+
+	--moe-clay:
+		0 1px 2px -1px rgb(0 0 0 / 0.65), 0 8px 18px -3px rgb(0 0 0 / 0.6), inset 0 1px 2px 0
+		rgb(255 255 255 / 0.05), inset 0 -2px 4px 0 rgb(0 0 0 / 0.45);
+	--moe-floating: 0 0 22px rgb(245 158 11 / 0.12), 0 14px 32px -10px rgb(0 0 0 / 0.75);
+
+	--moe-radius-md: 16px;
+
+	--moe-state-danger-bg: oklch(0.23000 0.07000 15.50);
+	--moe-state-danger-border: oklch(0.56000 0.15404 15.50);
+	--moe-state-success-bg: oklch(0.21000 0.05000 165.00);
+	--moe-state-warning-bg: oklch(0.25000 0.06000 82.50);
+	--moe-state-info-bg: oklch(0.23000 0.05000 232.60);
+	--moe-state-disabled: oklch(0.24000 0.02000 261.69);
+	--moe-state-disabled-ink: oklch(0.60000 0.02000 261.69);
+	--moe-surface-sunken: oklch(0.18000 0.02500 261.69);
+	--moe-surface-raised: oklch(0.28962 0.03503 265.76);
+	--moe-surface-hover: oklch(0.34000 0.06000 232.60);
+	--moe-surface-hover-soft: oklch(0.26000 0.03000 261.69);
+
+	--moe-material-tint: 0.22;
+	--moe-material-wash: 0.34;
+}
+
 
 /* A press is a squash, and a squash is a stretch on the other axis: a soft
    body keeps its volume. Scale only one axis and it reads as a flat sticker
