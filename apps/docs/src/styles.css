@@ -3107,18 +3107,27 @@ input[type="range"]::-moz-range-thumb {
 	gap: 14px;
 }
 
+/*
+ * These inherited nothing until now: both named a token, so a material ground
+ * could set its own ink and the text would ignore it.
+ *
+ * That is the fixture's fault rather than the library's, and it is worth naming
+ * because it is the shape this bug takes everywhere — a component provides a
+ * colour for its contents, a page states a colour anyway, and the component looks
+ * broken. `inherit` is what makes the ground's `color` reach the text.
+ */
 .kit__material-title {
 	margin: 0 0 4px;
 	font-size: 15px;
 	font-weight: 700;
-	color: var(--moe-cocoa);
+	color: inherit;
 }
 
 .kit__material-body {
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.6;
-	color: var(--moe-cocoa-soft);
+	color: var(--moe-on-material-soft, inherit);
 }
 
 /* A page rather than a fixture: real density, real hierarchy. */

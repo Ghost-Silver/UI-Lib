@@ -487,6 +487,37 @@ const CSS = `
 	 * text cannot sit on. Measured in the cyberpunk theme — the card went full
 	 * quantum cyan and the body text on it fell to roughly 1.4:1.
 	 */
+	/*
+	 * The text colour for a surface that has pigment on it.
+	 *
+	 * A material ground is darker and more saturated than the card it sits on, so
+	 * the theme's text colour is measured against the wrong thing. Measured from
+	 * rendered pixels, before this token existed: anime 3.85:1, cyberpunk 1.17:1,
+	 * minimalist 1.08:1, obsidian 1.34:1 — **none of them reach the 4.5 the standard
+	 * asks for**, including the one that had been shipped longest.
+	 *
+	 * The fix is not a darker text colour, because a palette where the pigment is
+	 * deep needs a light one — cyberpunk's ground is near-black and its material is
+	 * pure cyan. What every theme has in common is that a material is *pigment*, so
+	 * the text on it is the same hue at the opposite end: the theme sets this to its
+	 * ink colour, and a theme whose pigment is dark sets it to its paper instead.
+	 *
+	 * Default is the cocoa this library has always used, because the default theme
+	 * is the one where pigment is light.
+	 */
+	--moe-on-material: var(--moe-cocoa);
+	/*
+	 * The softer ink, and it is **not** the theme's soft text colour.
+	 *
+	 * --moe-cocoa-soft is 0.55 lightness, which is measured against paper at
+	 * 0.98 — and a material ground is at 0.93, so the same colour loses about a
+	 * fifth of its contrast. Measured on the rendered film, 0.55 comes to 3.65:1
+	 * where the standard asks for 4.5.
+	 *
+	 * 0.45 leaves margin rather than landing on the threshold, because the film's
+	 * depth varies with the material's weight and with the seed.
+	 */
+	--moe-on-material-soft: oklch(0.45 0.03 35);
 	--moe-material-tint: 0.62;
 	--moe-material-wash: 1;
 	--moe-text: var(--moe-cocoa);
@@ -656,6 +687,11 @@ const CSS = `
 	 */
 	--moe-material-tint: 0.22;
 	--moe-material-wash: 0.34;
+
+	/* Pure cyan pigment, so the ink on it is the theme's own black rather than its
+	   near-white text. */
+	--moe-on-material: oklch(0.13979 0.01175 265.76);
+	--moe-on-material-soft: oklch(0.28000 0.03000 265.76);
 }
 
 /* --- Minimalist Ceramic White ---------------------------------------------
@@ -713,6 +749,21 @@ const CSS = `
 	   temperature, not as a colour. */
 	--moe-material-tint: 0.30;
 	--moe-material-wash: 0.46;
+
+	/*
+	 * Deep ink, not white.
+	 *
+	 * The reasoning that chose white was that the pigment is a deep blue — true of
+	 * the accent, and not true of what the card paints: a material on a white page
+	 * lays down a thin film, and the film is pale. Measured, white on it came to
+	 * 1.08:1 and this comes to 12.7:1.
+	 *
+	 * The general rule this settles: the ink is chosen against the *rendered*
+	 * film, not against the accent the film was mixed from. Those differ by the
+	 * material weight, and getting it wrong is invisible until it is measured.
+	 */
+	--moe-on-material: oklch(0.20000 0.02000 247.86);
+	--moe-on-material-soft: oklch(0.35000 0.02000 247.86);
 }
 
 /* --- Dark Obsidian Spatial Computing --------------------------------------
@@ -765,6 +816,10 @@ const CSS = `
 
 	--moe-material-tint: 0.22;
 	--moe-material-wash: 0.34;
+
+	/* Violet pigment on obsidian, so the ink is the ground's own black. */
+	--moe-on-material: oklch(0.12964 0.02737 261.69);
+	--moe-on-material-soft: oklch(0.26000 0.03000 261.69);
 }
 
 
@@ -3922,6 +3977,9 @@ const CSS = `
 .ui-lib-material--ground.ui-lib-material--ground {
 	position: relative;
 	isolation: isolate;
+	/* The ink for a surface with pigment on it, which is not the theme's text
+	   colour — see --moe-on-material. */
+	color: var(--moe-on-material);
 	/* Paper, before pigment. A material surface is a sheet with pigment on it, and
 	   the pigment is painted over whatever is behind the card without this. */
 	background-color: var(--moe-card);
