@@ -90,6 +90,14 @@ export type {
 export { getResourceSnapshot, ResourceRegistry, resourceRegistry } from "./resource.js";
 export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
 export { disposeScheduler, FrameScheduler, getScheduler, TASK_PRIORITY } from "./scheduler.js";
+export type { ThemeMode, ThemeTokens } from "./themes.js";
+export {
+	isThemeMode,
+	THEME_MODES,
+	THEMES,
+	themeToCustomProperties,
+	themeVariable,
+} from "./themes.js";
 export type { TiltOptions } from "./tilt.js";
 export { TILT_LIMIT_DEGREES, Tilt } from "./tilt.js";
 export type { WashOptions, WashResult, WashState } from "./wash.js";

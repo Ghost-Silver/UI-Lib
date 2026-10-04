@@ -104,8 +104,10 @@ describe("paperNoise", () => {
 		const fibre = paperNoise(7, { fibre: true });
 		expect(fibre.sizes.split(", ").length).toBe(plain.sizes.split(", ").length + 1);
 
+		// The two capture groups are guaranteed by the pattern; the non-null
+		// assertions are for the type checker rather than for runtime safety.
 		const frequencies = [...fibre.image.matchAll(/baseFrequency='([\d.]+) ([\d.]+)'/g)].map(
-			(m) => [Number(m[1]), Number(m[2])],
+			(m) => [Number(m[1]!), Number(m[2]!)] as [number, number],
 		);
 		const fibrePass = frequencies.find(([a, b]) => Math.max(a, b) / Math.min(a, b) > 5);
 		expect(fibrePass, "no pass is anisotropic enough to be a fibre").toBeDefined();

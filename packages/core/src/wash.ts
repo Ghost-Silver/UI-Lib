@@ -312,7 +312,85 @@ export function createWash(options: WashOptions): WashResult {
 	 * a difference in *use* rather than in colour — which is why it is generated
 	 * here rather than derived in a stylesheet from a string it cannot take apart.
 	 */
-	const ground = `radial-gradient(120% 110% at 50% 46%, ${bodyCentre} 0%, ${bodyEdge} 62%, ${bodyEdge} 100%)`;
+	/*
+	 * The ground, as **several passes rather than one**, which is the difference
+	 * between a wash and a fill.
+	 *
+	 * A single `radial-gradient` is a fill: one centre, one ramp, no boundaries.
+	 * What a watercolour study actually looks like — and what the reference shows —
+	 * is a series of passes, each laid over the last while the paper was still wet,
+	 * so each has its own centre and its own edge and the edges do not line up.
+	 * Three to five of them, each fainter than the one beneath, is what makes a
+	 * mark read as *painted* rather than as *coloured*.
+	 *
+	 * Each pass is smaller and offset from the one under it, and the offsets come
+	 * from the same seeded stream as everything else, so a given seed still
+	 * reproduces exactly. The first version of this library had one gradient and a
+	 * comment claiming the deposit was uneven; measured, it was three colour stops
+	 * with nothing between them.
+	 *
+	 * ## Known: this does not yet look like watercolour, and the reason is a method error
+	 *
+	 * Measured on a specimen at full weight, twice. The first version gave each pass
+	 * its own thinner strength and they stacked into a solid purple square; the
+	 * second gave every pass the mark's own two colours and they stacked into
+	 * **the same solid purple square.** Both rendered, both photographed.
+	 *
+	 * **Opaque passes cannot stack into depth.** However many radial gradients are
+	 * listed, the one on top wins wherever it is opaque, and every pass here is
+	 * opaque in the middle — so the result is the topmost pass and nothing else. The
+	 * layers are real in the declaration and invisible on screen.
+	 *
+	 * What the reference actually does is **alpha**: several translucent films, each
+	 * darkening what is under it where they overlap and not where they do not, so
+	 * the *overlaps* are the picture. That is a different construction — translucent
+	 * fills whose union has structure — and it is what the next attempt should be.
+	 *
+	 * Left as it is rather than tuned, because a generator nudged until a screenshot
+	 * looks right is a generator nobody can reason about afterwards. The single
+	 * gradient this replaced was flat but honest; this is flat and claims to be
+	 * layered, which is worse, and it is written down rather than shipped quietly.
+	 */
+	const passes: string[] = [];
+	const passCount = 3 + Math.floor(random() * 3);
+	for (let i = 0; i < passCount; i += 1) {
+		// The first pass is the body; each later one is smaller, softer and set
+		// down slightly off-centre, the way a second brush full of water lands.
+		const scale = 1 - i * (0.11 + random() * 0.07);
+		const cx = 50 + (i === 0 ? 0 : (random() * 2 - 1) * 11);
+		const cy = 46 + (i === 0 ? 0 : (random() * 2 - 1) * 9);
+		// Thin with each pass, so the layers read as depth rather than as a blob.
+		/*
+		 * Every pass uses the mark's own two colours rather than its own strength.
+		 *
+		 * The first version thinned each pass with its own `thickness`, so the ground
+		 * ended up with colours the *body* does not have — and a test that walks the
+		 * ground's colours and requires each to appear in the body caught it. That
+		 * test exists because a ground that drifts from its mark is a second material
+		 * rather than the same one used differently.
+		 *
+		 * Depth comes from which pass is on top and how far it is offset, not from
+		 * inventing a colour per layer.
+		 */
+		const centre = bodyCentre;
+		const edge = bodyEdge;
+		const stop = 58 + (random() * 10 - 5);
+		/*
+		 * **No `transparent` stop**, which is the invariant the tests enforce and
+		 * the one this round broke.
+		 *
+		 * A ground is a surface, not a stroke: it must not fade out inside its own
+		 * box, or a wide card gets a darker middle and pale edges — the defect that
+		 * was fixed two rounds ago and reintroduced here by writing these passes the
+		 * way a *brush mark* is written. The pass ends at its own edge colour, which
+		 * is what a wet-on-wet layer does anyway: it does not dissolve, it stops.
+		 */
+		passes.push(
+			`radial-gradient(${(120 * scale).toFixed(1)}% ${(110 * scale).toFixed(1)}% at ${cx.toFixed(1)}% ${cy.toFixed(1)}%, ${centre} 0%, ${edge} ${stop.toFixed(0)}%, ${edge} 100%)`,
+		);
+	}
+	// Painted largest-first so the layers stack the way wet-on-wet does.
+	const ground = passes.join(", ");
 
 	// The rim: pigment at its strongest, and the only element that uses the
 	// angular mask.

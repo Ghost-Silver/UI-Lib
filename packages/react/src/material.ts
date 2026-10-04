@@ -128,8 +128,20 @@ function resolveTone(tone: IrisTone, element?: HTMLElement | null): string {
  */
 const MATERIAL_WEIGHT: Record<SoftMaterial, number> = {
 	plain: 0,
-	tint: 0.62,
-	wash: 1,
+	/*
+	 * The gap between these two was 0.62 to 1.0, and measured that is the difference
+	 * between `rgb(238 218 255)` and `rgb(228 200 255)` — ten, eighteen and zero on
+	 * the three channels. **A user cannot tell those apart**, which makes a
+	 * three-value prop that only really has two.
+	 *
+	 * `tint` is now a whisper and `wash` is a wash: the first is for grouping
+	 * without drawing attention, the second is the surface being a colour. The
+	 * earlier numbers came from measuring contrast and lowering until it passed,
+	 * which is how a distinction gets lost — the fix for contrast is the ink on the
+	 * material, not the amount of material.
+	 */
+	tint: 0.34,
+	wash: 1.35,
 };
 
 /**
