@@ -1,4 +1,5 @@
 import { forwardRef, useId } from "react";
+import { useStyles } from "./useStyles.js";
 
 /* ------------------------------------------------------------------ progress -- */
 
@@ -45,6 +46,8 @@ export const SoftProgress = forwardRef<HTMLDivElement, SoftProgressProps>(functi
 	{ value, max = 100, label, ariaLabel, size = "md", showValue = false, className, ...props },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const generated = useId();
 	const labelId = `${generated}-label`;
 	const indeterminate = value === undefined;

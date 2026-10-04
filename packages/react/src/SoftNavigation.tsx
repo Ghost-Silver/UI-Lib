@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { pageRange } from "./softNavigationRange.js";
+import { useStyles } from "./useStyles.js";
 
 /* --------------------------------------------------------------- pagination -- */
 
@@ -61,6 +62,8 @@ export const SoftPagination = forwardRef<HTMLElement, SoftPaginationProps>(
 		},
 		ref,
 	) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const items = pageRange(page, count, siblingCount, boundaryCount);
 
 		/**

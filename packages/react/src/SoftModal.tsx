@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftModalProps {
 	open: boolean;
@@ -74,6 +75,8 @@ export const SoftModal = forwardRef<HTMLDialogElement, SoftModalProps>(function 
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const dialogRef = useRef<HTMLDialogElement | null>(null);
 	const titleId = useId();

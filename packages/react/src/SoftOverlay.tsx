@@ -8,6 +8,7 @@ import {
 	useState,
 } from "react";
 import { anchorNameFrom, usePopover } from "./overlay.js";
+import { useStyles } from "./useStyles.js";
 
 /* ------------------------------------------------------------------ tooltip -- */
 
@@ -63,6 +64,8 @@ export const SoftTooltip = forwardRef<HTMLDivElement, SoftTooltipProps>(function
 	{ content, children, side = "top", delay = 420 },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [open, setOpen] = useState(false);
 	const generated = useId();
 	const tipId = `${generated}-tip`;

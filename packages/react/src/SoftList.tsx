@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useId, useMemo, useRef, useState } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftListItem {
 	id: string;
@@ -99,6 +100,8 @@ export const SoftList = forwardRef<HTMLDivElement, SoftListProps>(function SoftL
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const generated = useId();
 	const listId = `${generated}-list`;

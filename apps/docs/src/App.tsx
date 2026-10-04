@@ -27,6 +27,7 @@ import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
 import { IrisKitPage, isKitComponent } from "./IrisKit.js";
 import { IrisShowcasePage } from "./IrisShowcase.js";
+import { KitIndexPage } from "./KitIndex.js";
 import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
@@ -290,6 +291,21 @@ function Scene(props: SceneProps) {
 					<Magnetic strength={0.4} radius={90}>
 						<a className="navlink" href="/?demo=wake">
 							Wake
+						</a>
+					</Magnetic>
+					{/*
+					 * The second line of this library, and it needs its own door.
+					 *
+					 * Everything in the nav above is a GPU surface: one canvas, one
+					 * renderer, and a page that is mostly shader. The component layer is
+					 * the other half — thirty-five accessible components, a watercolour
+					 * generator, spring physics that runs in CSS custom properties — and
+					 * none of it was reachable from here at all. A reader who landed on
+					 * this page concluded the library was six demos.
+					 */}
+					<Magnetic strength={0.4} radius={90}>
+						<a className="navlink navlink--moe" href="/?demo=kit-index">
+							Moe
 						</a>
 					</Magnetic>
 				</nav>
@@ -613,6 +629,7 @@ export default function App() {
 		if (demo === "aurora-flow") return <AuroraFlowPage />;
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
+		if (demo === "kit-index") return <KitIndexPage />;
 		if (demo === "studio") return <StudioPage />;
 		if (demo === "iris") return <IrisShowcasePage />;
 		if (demo === "paper") return <WetPaperPage />;

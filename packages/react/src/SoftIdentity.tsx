@@ -1,5 +1,6 @@
 import { createWash, type IrisTone } from "@ui-lib/core";
 import { forwardRef, useState } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftAvatarProps extends React.HTMLAttributes<HTMLSpanElement> {
 	/** An image URL. Falls back to initials when absent or when it fails. */
@@ -44,6 +45,8 @@ export const SoftAvatar = forwardRef<HTMLSpanElement, SoftAvatarProps>(function 
 	{ src, name = "", size = 40, tone = "iris", seed, ring = false, className, style, ...props },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [failed, setFailed] = useState(false);
 	const showImage = src !== undefined && !failed;
 

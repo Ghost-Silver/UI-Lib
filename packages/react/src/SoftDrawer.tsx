@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useRef } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftDrawerProps {
 	open: boolean;
@@ -76,6 +77,8 @@ export const SoftDrawer = forwardRef<HTMLDialogElement, SoftDrawerProps>(functio
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const dialog = useRef<HTMLDialogElement | null>(null);
 	const headingId = `${useId()}-title`;

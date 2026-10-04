@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useId, useState } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftAccordionItem {
 	/** Stable identity. Used for the ids that wire the button to its panel. */
@@ -79,6 +80,8 @@ export interface SoftAccordionProps {
  */
 export const SoftAccordion = forwardRef<HTMLDivElement, SoftAccordionProps>(
 	function SoftAccordion({ items, mode = "single", open, onChange, className }, ref) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const generated = useId();
 		const [uncontrolled, setUncontrolled] = useState<string[]>(() =>
 			items.filter((item) => item.defaultOpen).map((item) => item.id),

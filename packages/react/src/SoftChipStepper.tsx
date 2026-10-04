@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import { useStyles } from "./useStyles.js";
 
 /* ------------------------------------------------------------------ chip -- */
 
@@ -63,6 +64,8 @@ export const SoftChip = forwardRef<HTMLButtonElement, SoftChipProps>(function So
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const toggle = selected !== undefined;
 	return (
 		<span className="ui-lib-soft-chip-wrap" data-ui-lib-variant={variant}>

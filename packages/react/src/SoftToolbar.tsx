@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useRef } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftToolbarItem {
 	id: string;
@@ -66,6 +67,8 @@ export const SoftToolbar = forwardRef<HTMLDivElement, SoftToolbarProps>(function
 	{ items, label, orientation = "horizontal", size = "md", material, tone, className },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});
 	const buttons = useRef<(HTMLButtonElement | null)[]>([]);
 

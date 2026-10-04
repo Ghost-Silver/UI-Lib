@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { fieldMessage, useField } from "./field.js";
 import { anchorNameFrom, usePopover } from "./overlay.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftComboboxOption {
 	value: string;
@@ -98,6 +99,8 @@ export const SoftCombobox = forwardRef<HTMLInputElement, SoftComboboxProps>(
 		},
 		ref,
 	) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const generated = useId();
 		const wiring = useField({ id, hasHint: Boolean(hint), hasError: Boolean(error) });
 		const message = fieldMessage(wiring, { hint, error });

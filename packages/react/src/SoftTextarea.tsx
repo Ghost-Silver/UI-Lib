@@ -2,6 +2,7 @@ import type { IrisTone } from "@ui-lib/core";
 import { forwardRef } from "react";
 import { fieldMessage, useField } from "./field.js";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftTextareaProps
 	extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "rows"> {
@@ -70,6 +71,8 @@ export const SoftTextarea = forwardRef<HTMLTextAreaElement, SoftTextareaProps>(
 		},
 		ref,
 	) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const wiring = useField({ id, hasHint: Boolean(hint), hasError: Boolean(error) });
 		const message = fieldMessage(wiring, { hint, error });
 		const surface = useMaterial(material ? { material, tone } : {});

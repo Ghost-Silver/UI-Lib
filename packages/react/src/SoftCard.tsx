@@ -2,6 +2,7 @@ import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useRef } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
 import { useTilt } from "./tilt.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftCardProps extends React.HTMLAttributes<HTMLDivElement> {
 	/**
@@ -89,6 +90,8 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const host = useRef<HTMLDivElement | null>(null);
 	useTilt(host, { enabled: tilt });
 

@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
 import { useId, useMemo, useState } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftTableColumn<T> {
 	/** Stable identity, used for the sort key and the header ids. */
@@ -105,6 +106,8 @@ export function SoftTable<T>({
 	tone,
 	className,
 }: SoftTableProps<T>) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	// Called unconditionally, and only asked for a surface when one was requested —
 	// a hook cannot be skipped, but it can be told there is nothing to make.
 	const surface = useMaterial(material && material !== "plain" ? { material, tone } : {});

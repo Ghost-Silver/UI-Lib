@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
 import { anchorNameFrom, usePopover } from "./overlay.js";
+import { useStyles } from "./useStyles.js";
 
 /** A command, a separator, or a heading inside a menu. */
 export type SoftMenuItem =
@@ -78,6 +79,8 @@ export const SoftMenu = forwardRef<HTMLDivElement, SoftMenuProps>(function SoftM
 	{ trigger, items, align = "start", label, disabled, className },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [open, setOpen] = useState(false);
 	const [active, setActive] = useState(-1);
 	const generated = useId();

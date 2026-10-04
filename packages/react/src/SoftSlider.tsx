@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftSliderProps
 	extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange" | "defaultValue"> {
@@ -59,6 +60,8 @@ export const SoftSlider = forwardRef<HTMLDivElement, SoftSliderProps>(function S
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [own, setOwn] = useState(defaultValue);
 	const current = value ?? own;
 	const isControlled = value !== undefined;

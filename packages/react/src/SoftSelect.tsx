@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftSelectOption {
 	value: string;
@@ -79,6 +80,8 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [open, setOpen] = useState(false);
 	const generated = useId();
 	const labelId = `${generated}-label`;

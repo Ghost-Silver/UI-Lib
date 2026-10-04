@@ -1,4 +1,5 @@
 import { forwardRef, useId } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftAlertProps extends React.HTMLAttributes<HTMLDivElement> {
 	/**
@@ -62,6 +63,8 @@ export const SoftAlert = forwardRef<HTMLDivElement, SoftAlertProps>(function Sof
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const generated = useId();
 	const titleId = title ? `${generated}-title` : undefined;
 

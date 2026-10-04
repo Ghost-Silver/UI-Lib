@@ -4,6 +4,7 @@ import { GlassPanel } from "./GlassPanel.js";
 import { irisClass, splitGlassProps } from "./irisPanel.js";
 import type { IrisPanelProps } from "./irisTypes.js";
 import { GLASS_LOOKS } from "./looks.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftLightPanelProps
 	extends IrisPanelProps,
@@ -25,6 +26,8 @@ export interface SoftLightPanelProps
  */
 export const SoftLightPanel = forwardRef<HTMLDivElement, SoftLightPanelProps>(
 	function SoftLightPanel({ tone = "iris", className, style, children, ...props }, ref) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const { options, rest } = splitGlassProps(props, {
 			...GLASS_LOOKS.glow,
 			tint: IRIS[tone][100],

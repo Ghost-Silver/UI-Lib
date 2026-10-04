@@ -1,4 +1,5 @@
 import { forwardRef, useId } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftSegmentOption {
 	value: string;
@@ -64,6 +65,8 @@ export const SoftSegmentedControl = forwardRef<HTMLDivElement, SoftSegmentedCont
 		{ options, value, onChange, label, ariaLabelledBy, variant = "solid", className, ...props },
 		ref,
 	) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const generated = useId();
 		const labelId = `${generated}-label`;
 

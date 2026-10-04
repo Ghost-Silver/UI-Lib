@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftSwitchProps
 	extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onChange" | "type"> {
@@ -56,6 +57,8 @@ export const SoftSwitch = forwardRef<HTMLButtonElement, SoftSwitchProps>(functio
 	{ checked, onChange, softDisabled = false, label, className, onClick, ...props },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [own, setOwn] = useState(false);
 	const isControlled = checked !== undefined;
 	const on = isControlled ? checked : own;

@@ -1,4 +1,5 @@
 import { forwardRef, useId, useRef } from "react";
+import { useStyles } from "./useStyles.js";
 
 /** Shared by both controls; the difference is the mark and the corner radius. */
 interface SoftChoiceBase
@@ -49,6 +50,8 @@ export interface SoftRadioProps extends SoftChoiceBase {}
  */
 export const SoftCheckbox = forwardRef<HTMLInputElement, SoftCheckboxProps>(
 	function SoftCheckbox({ label, note, indeterminate = false, className, id, ...props }, ref) {
+		// The stylesheet is not injected by the GPU components alone; see useStyles.
+		useStyles();
 		const generated = useId();
 		const fieldId = id ?? generated;
 		const input = useRef<HTMLInputElement | null>(null);

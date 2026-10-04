@@ -3395,3 +3395,198 @@ input[type="range"]::-moz-range-thumb {
 .studio__progress > *:first-child {
 	flex: 1;
 }
+
+/* --- kit index ------------------------------------------------------------
+ *
+ * The component layer's front door, and it is deliberately not the same page as
+ * the GPU demos. Those are saturated violet on near-black; this is paper, pigment
+ * and cocoa. A visitor who only sees one of the two has seen half the library,
+ * and a visitor who sees both should be able to tell they are different things
+ * without reading a sentence.
+ *
+ * So nothing here borrows from the other palette, and the only shared thing is
+ * that both use the same tokens.
+ */
+
+.kitindex {
+	min-height: 100vh;
+	padding: 72px 32px 96px;
+	background: var(--moe-canvas);
+	color: var(--moe-cocoa);
+	font-family: var(--moe-font-rounded);
+	/* Paper, then pigment — the same construction the material layer uses, and
+	   the reason it is a `background-image` rather than a pseudo-element is
+	   written in the stylesheet that owns it. */
+	background-image:
+		radial-gradient(120% 60% at 12% 0%, oklch(0.96 0.03 300) 0%, transparent 62%),
+		radial-gradient(90% 50% at 92% 8%, oklch(0.97 0.025 15) 0%, transparent 60%);
+	background-repeat: no-repeat;
+}
+
+.kitindex--blossom {
+	background-color: oklch(0.985 0.012 15);
+}
+
+.kitindex--mist {
+	background-color: oklch(0.985 0.012 235);
+}
+
+.kitindex__head {
+	max-width: 720px;
+	margin: 0 auto 56px;
+}
+
+.kitindex__eyebrow {
+	margin: 0 0 14px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--moe-cocoa-soft);
+}
+
+.kitindex__title {
+	margin: 0 0 24px;
+	font-size: clamp(38px, 6vw, 62px);
+	font-weight: 800;
+	line-height: 1.08;
+	letter-spacing: -0.01em;
+}
+
+.kitindex__title em {
+	font-style: normal;
+	color: var(--moe-taro-500);
+}
+
+.kitindex__lede {
+	margin: 0 0 32px;
+	font-size: 15.5px;
+	line-height: 1.85;
+	color: var(--moe-cocoa-soft);
+}
+
+.kitindex__lede strong {
+	color: var(--moe-cocoa);
+	font-weight: 700;
+}
+
+.kitindex__controls {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	flex-wrap: wrap;
+}
+
+.kitindex__tones {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+.kitindex__tones legend {
+	padding: 0 10px 0 0;
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--moe-cocoa-soft);
+	float: left;
+}
+
+.kitindex__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(276px, 1fr));
+	gap: 20px;
+	max-width: 1120px;
+	margin: 0 auto 72px;
+}
+
+.kitindex__card {
+	/* The card owns its own motion, so nothing here may set `transform`. */
+	will-change: transform;
+}
+
+.kitindex__link {
+	display: block;
+	padding: 22px 24px 24px;
+	color: inherit;
+	text-decoration: none;
+}
+
+.kitindex__link:focus-visible {
+	outline: 3px solid var(--moe-taro-500);
+	outline-offset: 3px;
+	border-radius: var(--moe-radius-md);
+}
+
+.kitindex__cardtitle {
+	margin: 0 0 9px;
+	font-size: 20px;
+	font-weight: 800;
+}
+
+.kitindex__body {
+	margin: 0 0 15px;
+	font-size: 13.5px;
+	line-height: 1.75;
+	color: var(--moe-cocoa-soft);
+}
+
+.kitindex__look {
+	margin: 0;
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--moe-taro-500);
+}
+
+.kitindex__proof {
+	max-width: 720px;
+	margin: 0 auto 72px;
+}
+
+.kitindex__prooftitle {
+	margin: 0 0 12px;
+	font-size: 26px;
+	font-weight: 800;
+}
+
+.kitindex__prose {
+	margin: 0 0 30px;
+	font-size: 14px;
+	line-height: 1.8;
+	color: var(--moe-cocoa-soft);
+}
+
+.kitindex__samples {
+	display: grid;
+	gap: 20px;
+}
+
+.kitindex__foot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	flex-wrap: wrap;
+	max-width: 720px;
+	margin: 0 auto;
+	padding-top: 32px;
+	border-top: 1px solid var(--moe-stroke);
+	font-size: 12.5px;
+	line-height: 1.7;
+	color: var(--moe-cocoa-soft);
+	text-align: center;
+}
+
+.kitindex__foot p {
+	margin: 0;
+}
+
+.kitindex__foot code {
+	padding: 1px 6px;
+	border-radius: var(--moe-radius-xs);
+	background: oklch(0.95 0.01 60);
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-size: 11.5px;
+}

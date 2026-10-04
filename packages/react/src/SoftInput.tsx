@@ -1,6 +1,7 @@
 import { createSpring } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { fieldMessage, useField } from "./field.js";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftInputProps
 	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> {
@@ -63,6 +64,8 @@ export const SoftInput = forwardRef<HTMLInputElement, SoftInputProps>(function S
 	},
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [focused, setFocused] = useState(false);
 	const inner = useRef<HTMLInputElement | null>(null);
 	const ring = useRef<HTMLSpanElement | null>(null);

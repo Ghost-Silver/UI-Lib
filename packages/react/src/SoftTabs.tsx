@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
+import { useStyles } from "./useStyles.js";
 
 export interface SoftTabsProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange"> {
 	/** Tab labels, in order. */
@@ -41,6 +42,8 @@ export const SoftTabs = forwardRef<HTMLDivElement, SoftTabsProps>(function SoftT
 	{ items, value, onChange, size = "md", label, className, ...props },
 	ref,
 ) {
+	// The stylesheet is not injected by the GPU components alone; see useStyles.
+	useStyles();
 	const [own, setOwn] = useState(0);
 	const active = value ?? own;
 	const isControlled = value !== undefined;
