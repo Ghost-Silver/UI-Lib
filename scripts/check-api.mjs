@@ -184,7 +184,7 @@ async function main() {
 		"shaders",
 	];
 	for (const pkg of PACKAGES) {
-		const path = join(ROOT, "packages/" + pkg + "/dist/index.d.ts");
+		const path = join(ROOT, `packages/${pkg}/dist/index.d.ts`);
 		if (!existsSync(path)) continue;
 		const text = readFileSync(path, "utf8");
 
@@ -222,7 +222,7 @@ async function main() {
 
 	if (problems.length > 0) {
 		console.error("\ncheck-api: the naming rule is broken");
-		for (const p of problems) console.error("  " + p);
+		for (const p of problems) console.error(`  ${p}`);
 		console.error("");
 		return 1;
 	}

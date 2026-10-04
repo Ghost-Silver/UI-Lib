@@ -250,6 +250,9 @@ function ChipStepperKit() {
 /** Two toolbars: a horizontal one and a vertical one. */
 function ToolbarKit({ tone }: { tone: IrisTone }) {
 	const [tool, setTool] = useState("brush");
+	// The menu really sets something, so the composition is exercised rather than
+	// merely rendered — a menu whose items do nothing proves the slot but not the wiring.
+	const [brush, setBrush] = useState("m");
 	const [grid, setGrid] = useState(true);
 	const [snap, setSnap] = useState(false);
 	const icon = (d: string) => (
@@ -276,6 +279,33 @@ function ToolbarKit({ tone }: { tone: IrisTone }) {
 						icon: icon("M2.5 13.5 L5 12.5 L13 4.5 L11.5 3 L3.5 11 Z"),
 						pressed: tool === "brush",
 						onSelect: () => setTool("brush"),
+					},
+					{
+						id: "size",
+						label: "笔刷大小",
+						icon: icon("M4 8 H12"),
+						// The composition the anatomy asks for: a toolbar that contains
+						// another widget. The menu keeps its own name and its own keys,
+						// and the toolbar's walk reaches it.
+						content: (
+							<SoftMenu
+								trigger="大小"
+								label="笔刷大小"
+								align="end"
+								items={[
+									{ id: "s", label: "细", shortcut: "1", onSelect: () => setBrush("s") },
+									{
+										id: "m",
+										label: "中",
+										shortcut: "2",
+										checked: brush === "m",
+										onSelect: () => setBrush("m"),
+									},
+									{ id: "l", label: "粗", shortcut: "3", onSelect: () => setBrush("l") },
+								]}
+							/>
+						),
+						onSelect: () => undefined,
 					},
 					{
 						id: "fill",

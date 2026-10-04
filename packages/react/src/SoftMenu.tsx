@@ -334,41 +334,93 @@ export const SoftMenu = forwardRef<HTMLDivElement, SoftMenuProps>(function SoftM
 						);
 					}
 					const entry = item as Extract<SoftMenuItem, { kind?: "item" }>;
+
+					/*
+					 * A menu item that carries a state is a checkbox, and saying so is the
+					 * difference between a reader that hears the label and its shortcut and
+					 * one that also hears whether it is on.
+					 *
+					 * It was `menuitem` for every entry, with the tick drawn and
+					 * `aria-hidden` — so the selected item and the two beside it were
+					 * announced identically. Measured: `aria-checked` was null on all three,
+					 * which is the same as not having the state at all.
+					 *
+					 * The role follows whether the caller *declared* a state, not whether it
+					 * happens to be true: `checked: undefined` is a plain command, and
+					 * announcing it as an unchecked checkbox promises a toggle that does
+					 * nothing. The ternary is hoisted out of the JSX because a
+					 * `biome-ignore` has to sit on the line above the element and a JSX
+					 * child position admits no line comment — the rule is right about the
+					 * syntax and blind to the conditional that makes it wrong here.
+					 */
+					const checked = entry.checked;
+
+					/*
+					 * The shared half of the item, so the two branches below differ only in
+					 * the attribute that decides their role.
+					 */
+					const contents = (
+						<>
+							<span className="ui-lib-soft-menu__tick" aria-hidden="true">
+								{checked ? "\u2713" : ""}
+							</span>
+							<span className="ui-lib-soft-menu__text">{entry.label}</span>
+							{entry.shortcut && (
+								<span className="ui-lib-soft-menu__shortcut" aria-hidden="true">
+									{entry.shortcut}
+								</span>
+							)}
+						</>
+					);
+					const shared = {
+						ref: (node: HTMLButtonElement | null) => {
+							itemRefs.current[index] = node;
+						},
+						type: "button" as const,
+						disabled: entry.disabled,
+						// The shortcut is not decoration: a reader that only hears the label
+						// learns the command exists but not that it can be run without
+						// opening the menu.
+						"aria-keyshortcuts": entry.shortcut,
+						className: "ui-lib-soft-menu__item",
+						"data-ui-lib-checked": checked ? "" : undefined,
+						onPointerEnter: () => setActive(index),
+						onClick: () => {
+							entry.onSelect();
+							close(true);
+						},
+					};
+
 					return (
 						<div key={item.id} role="presentation">
 							{entry.dividerBefore && (
 								// biome-ignore lint/a11y/useSemanticElements: the separator groups commands inside the menu, which hr does not express there
 								<div role="separator" className="ui-lib-soft-menu__sep" />
 							)}
-							<button
-								ref={(node) => {
-									itemRefs.current[index] = node;
-								}}
-								type="button"
-								role="menuitem"
-								disabled={entry.disabled}
-								// The shortcut is not decoration: a reader that only hears the
-								// label learns the command exists but not that it can be run
-								// without opening the menu.
-								aria-keyshortcuts={entry.shortcut}
-								className="ui-lib-soft-menu__item"
-								data-ui-lib-checked={entry.checked ? "" : undefined}
-								onPointerEnter={() => setActive(index)}
-								onClick={() => {
-									entry.onSelect();
-									close(true);
-								}}
-							>
-								<span className="ui-lib-soft-menu__tick" aria-hidden="true">
-									{entry.checked ? "✓" : ""}
-								</span>
-								<span className="ui-lib-soft-menu__text">{entry.label}</span>
-								{entry.shortcut && (
-									<span className="ui-lib-soft-menu__shortcut" aria-hidden="true">
-										{entry.shortcut}
-									</span>
-								)}
-							</button>
+							{/*
+							 * Two branches, and the duplication is the fix rather than a
+							 * smell.
+							 *
+							 * A menu item that carries a state is a checkbox, and saying so is
+							 * the difference between a reader that hears the label and one that
+							 * also hears whether it is on. The role cannot be a ternary: the
+							 * a11y rule for `aria-checked` reads the literal `role` on the
+							 * element and is right to, and a role it cannot resolve is a role
+							 * it cannot check. Written this way the rule can see both, and a
+							 * reader gets `menuitemcheckbox` with its state on the items that
+							 * declared one and a plain `menuitem` on the ones that did not —
+							 * which matters, because announcing a plain command as an
+							 * unchecked checkbox promises a toggle that does nothing.
+							 */}
+							{checked === undefined ? (
+								<button {...shared} role="menuitem">
+									{contents}
+								</button>
+							) : (
+								<button {...shared} role="menuitemcheckbox" aria-checked={checked}>
+									{contents}
+								</button>
+							)}
 						</div>
 					);
 				})}

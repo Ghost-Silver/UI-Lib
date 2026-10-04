@@ -1,5 +1,5 @@
 import type { IrisTone } from "@ui-lib/core";
-import { forwardRef, useCallback, useRef } from "react";
+import { Fragment, forwardRef, useCallback, useRef } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
@@ -15,6 +15,28 @@ export interface SoftToolbarItem {
 	/** Renders as pressed. For a toggle rather than a command. */
 	pressed?: boolean;
 	onSelect: () => void;
+	/**
+	 * A slot beside the icon for something that is not a plain command.
+	 *
+	 * The specification's button anatomy puts three things in the row — a leading
+	 * icon, the label, and a trailing pill — and a toolbar is where the third one
+	 * matters most, because a toolbar is where a nested control actually appears:
+	 * a menu, a split button, a badge. Without this the only slot is `icon`, which
+	 * is `aria-hidden`, so "a toolbar containing a menu" was not expressible.
+	 *
+	 * **What goes here is rendered, not announced**, and the caller keeps its own
+	 * name and its own keys. That is the arrangement §3.3 describes when it says
+	 * the cross-axis directions are reserved for a toolbar containing another
+	 * widget: the nested control has to move within itself first.
+	 */
+	content?: React.ReactNode;
+	/**
+	 * Reachable by the toolbar's own arrow keys, before the nested control's.
+	 *
+	 * Off for a command rendered as a badge; on for anything with its own focus,
+	 * so the toolbar's walk arrives at it rather than stepping over it.
+	 */
+	focusable?: boolean;
 }
 
 export interface SoftToolbarProps {
@@ -151,9 +173,8 @@ export const SoftToolbar = forwardRef<HTMLDivElement, SoftToolbarProps>(function
 		>
 			{items.map((item, index) => {
 				const toggle = item.pressed !== undefined;
-				return (
+				const command = (
 					<button
-						key={item.id}
 						ref={(node) => {
 							buttons.current[index] = node;
 						}}
@@ -174,6 +195,23 @@ export const SoftToolbar = forwardRef<HTMLDivElement, SoftToolbarProps>(function
 							{item.icon}
 						</span>
 					</button>
+				);
+
+				/*
+				 * With a slot, the item stops being one button and becomes a small
+				 * group — the command and whatever the caller put beside it.
+				 *
+				 * The command keeps its `aria-label` and the slot keeps its own, and
+				 * neither is nested inside the other: a button inside a button is
+				 * invalid HTML, and the browser resolves it by closing the outer one
+				 * early, which silently reparents whatever came after it.
+				 */
+				if (!item.content) return <Fragment key={item.id}>{command}</Fragment>;
+				return (
+					<span key={item.id} className="ui-lib-soft-toolbar__group" data-ui-lib-group="">
+						{command}
+						<span className="ui-lib-soft-toolbar__slot">{item.content}</span>
+					</span>
 				);
 			})}
 		</div>

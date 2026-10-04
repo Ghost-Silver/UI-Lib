@@ -269,7 +269,7 @@ async function main() {
 
 	if (problems.length > 0) {
 		console.error("\ncheck-spec: the specification's QA matrix is not satisfied");
-		for (const p of problems) console.error("  " + p);
+		for (const p of problems) console.error(`  ${p}`);
 		console.error("");
 		return 1;
 	}

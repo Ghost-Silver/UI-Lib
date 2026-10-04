@@ -4718,6 +4718,57 @@ const CSS = `
 	cursor: not-allowed;
 }
 
+/*
+ * A toolbar item that carries a slot is a small group, not a button.
+ *
+ * The command and whatever is beside it sit in the same recess and read as one
+ * control, which is what makes a menu inside a toolbar look like part of the
+ * toolbar rather than like a menu that landed there.
+ */
+.ui-lib-soft-toolbar__group {
+	display: inline-flex;
+	align-items: center;
+	gap: 1px;
+	border-radius: var(--moe-radius-full);
+}
+
+/* The slot's own control has to lose its own chrome, or the toolbar reads as two
+   recesses inside a recess. */
+.ui-lib-soft-toolbar__slot {
+	display: inline-flex;
+	align-items: center;
+}
+
+.ui-lib-soft-toolbar__slot > button {
+	height: 34px;
+	padding: 0 10px 0 6px;
+	border: none;
+	border-radius: var(--moe-radius-full);
+	background: transparent;
+	font-family: var(--moe-font-rounded);
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--moe-cocoa-soft);
+	cursor: pointer;
+	transition: background 160ms ease-out, color 160ms ease-out;
+}
+
+.ui-lib-soft-toolbar[data-ui-lib-size="sm"] .ui-lib-soft-toolbar__slot > button {
+	height: 28px;
+	padding: 0 8px 0 5px;
+	font-size: 12px;
+}
+
+.ui-lib-soft-toolbar__slot > button:hover {
+	background: oklch(0.92 0.02 310);
+	color: var(--moe-cocoa);
+}
+
+.ui-lib-soft-toolbar__slot > button:focus-visible {
+	outline: 2px solid var(--moe-taro-500);
+	outline-offset: 1px;
+}
+
 .ui-lib-soft-toolbar__icon {
 	display: grid;
 	place-items: center;
