@@ -1106,37 +1106,80 @@ const CSS = `
  * under the reader's eye.
  */
 
+.ui-lib-soft-card {
+	border-radius: var(--moe-radius-lg);
+	border: 1.5px solid var(--moe-stroke);
+	background: var(--moe-card);
+	color: var(--moe-text);
+	font-family: var(--moe-font-rounded);
+	box-shadow: var(--moe-clay);
+	/*
+	 * A default inset, which the card did not have.
+	 *
+	 * Measured on a card holding a form: padding: 0px, and the last control's
+	 * bottom edge sat 1px from the border — so a card was a box that put its
+	 * contents against the wall. The first version of this library's cards were
+	 * used with className and a grid gap from the caller, which worked, and is
+	 * exactly why nobody noticed: every existing page supplied the spacing.
+	 *
+	 * The measurement is what settled the value rather than taste. A card whose
+	 * contents touch the border at a 24px radius reads as an overflow rather than
+	 * as a design, because the corner curve cuts closer to the content than any
+	 * straight edge does. 22px is the radius minus the stroke, so the inset matches
+	 * the curve it sits inside.
+	 *
+	 * A caller who wants full-bleed content — a table, an image, a list that draws
+	 * its own rows to the edge — overrides it with padding: 0 on their own
+	 * className. What they cannot do is get spacing back that was never there.
+	 */
+	padding: 22px;
+	transition:
+		transform var(--moe-dur-base) var(--moe-ease-jelly),
+		box-shadow var(--moe-dur-base) var(--moe-ease-jelly);
+}
+
 /*
  * The glass variant drops its own fill, and this is the third time in this file
  * that an opaque background has hidden something.
  *
  * .ui-lib-soft-card sets background: var(--moe-card), which is a near-white
- * sheet — correct for a card made of paper and fatal for one made of glass, because
- * the refraction is painted by the canvas *underneath* this element. Measured with
- * it in place: four cards at four very different thicknesses rendered identically,
- * which is what sent me looking.
+ * sheet — correct for a card made of paper and fatal for one made of glass,
+ * because the refraction is painted by a canvas *underneath* this element.
  *
- * Only the fill is dropped. The border stays, because a pane of glass has an edge
- * and the outline is what tells the reader where the glass ends — without it the
- * refraction reads as a rendering artefact rather than as an object.
+ * Only the fill is dropped. The border stays, because a pane of glass has an
+ * edge and the outline is what tells the reader where the glass ends — without
+ * it the refraction reads as a rendering artefact rather than as an object.
+ * The border is also uneven — 2.5px on top against 1.5px below — because light
+ * comes from above, and a uniform border is what makes a panel look like a
+ * rectangle with a line drawn around it.
  *
- * ## Known: the glass still does not read as thick, and the fill was only half of it
+ * ## This rule did nothing for three rounds, and that is the part worth keeping
  *
- * After dropping both opaque fills — the card's own and the material's — four cards
- * at bevel 56, 34, 22 and 78 still rendered **identically**, and with a particle
- * field behind them the particles **vanished inside the cards** rather than being
- * bent by them.
+ * It was written correctly, saying background: transparent, and it was dead,
+ * because .ui-lib-soft-card was declared 62 lines *below* it. One class each, so
+ * both weigh (0,1,0), so the cascade fell through to source order and the base
+ * rule won on all four properties the two share: the fill, the border width, the
+ * border colour and the box-shadow. The card stayed a flat white sheet with a
+ * 1.5px outline and every one of these four declarations never ran.
  *
- * So the thickness parameters are not reaching the screen at all, and the fill was
- * a symptom rather than the cause. The next places to look are the order in which
- * the panel and the particle field are drawn into the shared target — a panel that
- * samples before the field is painted gets nothing to refract — and whether
- * GLASS_LOOKS spread onto GlassPanel actually lands on the uniforms it names,
- * which is a claim no test has ever checked.
+ * What that cost is not the CSS. It is the diagnosis that followed. With the fill
+ * still in place, four cards at bevel 56, 34, 22 and 78 rendered identically, and
+ * with a particle field behind them the particles vanished inside the cards — and
+ * both were read as evidence that the *shader's* parameters were not reaching the
+ * screen. Three rounds went into the order in which the renderer draws a panel
+ * and a particle field into the shared target, and into whether GLASS_LOOKS
+ * reaches the uniforms it names. Neither was the fault, and both were plausible,
+ * and a plausible wrong answer is worse than an open question because it arrives
+ * with a reason to stop looking.
  *
- * Recorded rather than tuned, because four identical renders mean the parameter is
- * not connected, and adjusting a value that does not arrive is how a page ends up
- * with a number nobody can explain.
+ * The observations were not wrong. The inference was. Four identical renders are
+ * exactly what four *opaque* cards should look like. A measurement taken on a
+ * page that is failing for some other reason measures that other reason.
+ *
+ * So the repair is this move, and the fix is scripts/check-cascade.mjs, which
+ * fails the build when a modifier precedes the rule it modifies at equal
+ * specificity with a property in common. It found this one — and only this one,
+ * in 501 rules.
  */
 .ui-lib-soft-card--glass {
 	position: relative;
@@ -1173,12 +1216,23 @@ const CSS = `
 	 */
 	border-width: 2.5px 1.5px 1.5px 2px;
 	border-color: rgb(255 255 255 / 0.92);
-	box-shadow:
+	/*
+	 * Held in a variable because the hover below has to *add* to this surface
+	 * rather than replace it.
+	 *
+	 * The clay hover shadow is the paper card's lift and it is the right answer
+	 * for paper. A glass card that swapped its four insets for it would go flat
+	 * at the exact moment the pointer arrived — and the pointer arriving is when
+	 * a thick surface should read as thickest, because that is when the reader is
+	 * looking at it.
+	 */
+	--ui-lib-glass-shadow:
 		inset 1.5px 1.5px 3px rgb(255 185 210 / 0.4),
 		inset -1.5px -1.5px 3px rgb(165 240 240 / 0.4),
 		inset 0 3px 6px rgb(255 255 255 / 0.92),
 		inset 0 -4px 10px rgb(198 172 212 / 0.22),
 		0 24px 48px -12px rgb(120 100 140 / 0.24);
+	box-shadow: var(--ui-lib-glass-shadow);
 }
 
 /* The specular streak: a light source reflected in the top edge. */
@@ -1200,43 +1254,27 @@ const CSS = `
 	pointer-events: none;
 }
 
-.ui-lib-soft-card {
-	border-radius: var(--moe-radius-lg);
-	border: 1.5px solid var(--moe-stroke);
-	background: var(--moe-card);
-	color: var(--moe-text);
-	font-family: var(--moe-font-rounded);
-	box-shadow: var(--moe-clay);
-	/*
-	 * A default inset, which the card did not have.
-	 *
-	 * Measured on a card holding a form: padding: 0px, and the last control's
-	 * bottom edge sat 1px from the border — so a card was a box that put its
-	 * contents against the wall. The first version of this library's cards were
-	 * used with className and a grid gap from the caller, which worked, and is
-	 * exactly why nobody noticed: every existing page supplied the spacing.
-	 *
-	 * The measurement is what settled the value rather than taste. A card whose
-	 * contents touch the border at a 24px radius reads as an overflow rather than
-	 * as a design, because the corner curve cuts closer to the content than any
-	 * straight edge does. 22px is the radius minus the stroke, so the inset matches
-	 * the curve it sits inside.
-	 *
-	 * A caller who wants full-bleed content — a table, an image, a list that draws
-	 * its own rows to the edge — overrides it with padding: 0 on their own
-	 * className. What they cannot do is get spacing back that was never there.
-	 */
-	padding: 22px;
-	transition:
-		transform var(--moe-dur-base) var(--moe-ease-jelly),
-		box-shadow var(--moe-dur-base) var(--moe-ease-jelly);
-}
-
 .ui-lib-soft-card[data-ui-lib-interactive]:hover {
 	transform: translateY(-4px) rotate(-1.5deg) scale(1.01);
 	box-shadow:
 		0 16px 32px -4px rgb(77 60 56 / 0.12),
 		inset 0 4px 6px 0 rgb(255 255 255 / 0.9);
+}
+
+/*
+ * The glass card lifts like any other and keeps its surface while it does.
+ *
+ * Equal specificity to the hover above, so this has to come after it — and the
+ * cascade gate would have caught it if it had not, which is the only reason the
+ * ordering is worth a comment at all.
+ *
+ * The lift is deepened here rather than inherited, because a slab that rises
+ * without its shadow spreading is a slab that slid sideways.
+ */
+.ui-lib-soft-card--glass[data-ui-lib-interactive]:hover {
+	box-shadow:
+		var(--ui-lib-glass-shadow),
+		0 32px 56px -16px rgb(120 100 140 / 0.32);
 }
 
 /*
