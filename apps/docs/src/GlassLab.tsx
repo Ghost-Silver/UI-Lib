@@ -9,7 +9,8 @@ import {
 	SoftTag,
 } from "@ui-lib/react";
 import type { BackdropSpec } from "@ui-lib/renderer";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { createProbeBackdrop } from "./probeBackdrop.js";
 
 /**
  * The three layers, laid out so the thickness is the subject.
@@ -33,12 +34,31 @@ import { useState } from "react";
  * displace, and flat colour gives the eye nothing to measure the bend against.
  */
 
-/** Pigment on paper, drawn by the canvas so the glass has something to bend. */
-const BACKDROP: BackdropSpec = {
-	type: "gradient",
-	colors: ["#fdf6f0", "#f3e3f5", "#e6ecf7", "#fbf0e8"],
-	speed: 0.02,
-};
+/**
+ * The measurement field, not a mood.
+ *
+ * The previous version of this page was a four-stop gradient in near-identical
+ * pale tints. The comment above it already said that flat colour gives the eye
+ * nothing to measure a bend against, and then the code supplied exactly that.
+ * It cost two rounds: every `refraction` from 42 to 96 rendered the same, so the
+ * page reported "the glass is opaque" when what it actually reported was "this
+ * page cannot see displacement".
+ *
+ * A probe field fixes the apparatus rather than the glass. Hard edges at three
+ * spatial scales — 8px hairlines, 64px blocks, a 320px frame and crosshair —
+ * plus wordmarks. The frame is the important one: a large displacement at the
+ * rim has to have a large mark to drag, or a strong refraction only shuffles
+ * hairlines within their own neighbourhood and still reads as static.
+ *
+ * Built once and held. `GlassStage` keys the backdrop by texture uuid, so a
+ * texture rebuilt per render would re-upload the field every frame.
+ */
+function useProbeBackdrop(): BackdropSpec {
+	return useMemo<BackdropSpec>(() => {
+		const build = createProbeBackdrop({ size: 1024, repeat: [0.42, 0.42] });
+		return { type: "texture", texture: build() };
+	}, []);
+}
 
 const TIERS: { id: string; label: string; look: keyof typeof GLASS_LOOKS; note: string }[] = [
 	{ id: "dew", label: "水珠", look: "dew", note: "毛面、厚边，雾气感" },
@@ -50,9 +70,10 @@ const TIERS: { id: string; label: string; look: keyof typeof GLASS_LOOKS; note: 
 export function GlassLabPage() {
 	const [look, setLook] = useState<keyof typeof GLASS_LOOKS>("slab");
 	const [dense, setDense] = useState(false);
+	const backdrop = useProbeBackdrop();
 
 	return (
-		<GlassStage backdrop={BACKDROP} className="glasslab-stage">
+		<GlassStage backdrop={backdrop} className="glasslab-stage">
 			{/*
 			 * **Structure behind the glass, and this is not decoration.**
 			 *
@@ -62,9 +83,13 @@ export function GlassLabPage() {
 			 * displacement of six, which is the measurement that sent me here —
 			 * four cards at `bevel` 56, 34, 22 and 78 rendered identically.
 			 *
-			 * Particles are the cheapest structure the canvas can draw, and they are
-			 * what makes the aurora page read. They are also behind the cards rather
-			 * than in front, so every panel on this page is bending them.
+			 * The field above supplies that structure now. The particles are the
+			 * *moving* part, not the measuring part: they are soft glowing motes
+			 * with no edge to compare against, so they prove the glass is live
+			 * without ever proving how far it bent something. Both layers are the
+			 * point — a still hard-edged field to measure against, and a drifting
+			 * soft one so a page that is not being scrolled still has motion
+			 * behind the rim.
 			 */}
 			<ParticleField
 				pointer
