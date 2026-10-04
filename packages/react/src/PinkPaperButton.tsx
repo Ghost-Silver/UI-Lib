@@ -111,6 +111,7 @@ export const PinkPaperButton = forwardRef<HTMLButtonElement, PinkPaperButtonProp
 		return (
 			<GlassPanel
 				as="button"
+				plain
 				ref={ref}
 				type="button"
 				className={irisClass("paper-button", tone, className)}

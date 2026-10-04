@@ -31,6 +31,7 @@ import { KitIndexPage } from "./KitIndex.js";
 import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
+import { StackingPage } from "./Stacking.js";
 import { StudioPage } from "./Studio.js";
 import { ThirdPartySettings } from "./ThirdPartySettings.js";
 import { WakePage } from "./Wake.js";
@@ -632,6 +633,7 @@ export default function App() {
 		if (demo === "wake") return <WakePage />;
 		if (demo === "kit-index") return <KitIndexPage />;
 		if (demo === "third-party") return <ThirdPartyPage />;
+		if (demo === "stacking") return <StackingPage />;
 		if (demo === "studio") return <StudioPage />;
 		if (demo === "iris") return <IrisShowcasePage />;
 		if (demo === "paper") return <WetPaperPage />;

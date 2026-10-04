@@ -3657,3 +3657,119 @@ input[type="range"]::-moz-range-thumb {
 	display: grid;
 	gap: 22px;
 }
+
+/* --- stacking -------------------------------------------------------------
+ *
+ * A page whose subject is where the seam between the two halves is. It has to
+ * look like both halves at once, or the reader cannot see which one a given
+ * panel belongs to.
+ */
+
+.stack-stage {
+	min-height: 100vh;
+}
+
+.stack__row {
+	display: grid;
+	grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.1fr);
+	gap: 32px;
+	align-items: center;
+	max-width: 980px;
+	margin: 0 auto 48px;
+	padding: 32px 28px;
+	border-radius: var(--moe-radius-lg);
+	background: color-mix(in oklch, var(--moe-card) 88%, transparent);
+	border: 1.5px solid var(--moe-stroke);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.stack__label h2 {
+	margin: 0 0 10px;
+	font-size: 19px;
+	font-weight: 800;
+}
+
+.stack__label p {
+	margin: 0 0 14px;
+	font-size: 13.5px;
+	line-height: 1.75;
+	color: var(--moe-cocoa-soft);
+}
+
+.stack__label code {
+	padding: 1px 6px;
+	border-radius: var(--moe-radius-xs);
+	background: oklch(0.95 0.01 60);
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-size: 12px;
+}
+
+.stack__glass {
+	display: grid;
+	place-items: center;
+	min-height: 132px;
+	border-radius: var(--moe-radius-md);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+/* The two stacked in one box, so the reader sees the seam rather than reading
+   about it. */
+.stack__overlap {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: 150px;
+}
+
+.stack__under {
+	width: 78%;
+}
+
+.stack__under span {
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.stack__glass--over {
+	position: absolute;
+	inset: 18% 8%;
+	font-size: 13px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+}
+
+.stack__notes {
+	max-width: 980px;
+	margin: 0 auto;
+	padding: 28px 30px;
+	border-radius: var(--moe-radius-lg);
+	background: color-mix(in oklch, var(--moe-card) 92%, transparent);
+	border: 1.5px solid var(--moe-stroke);
+	font-family: var(--moe-font-rounded);
+	color: var(--moe-cocoa);
+}
+
+.stack__notes h2 {
+	margin: 0 0 14px;
+	font-size: 19px;
+	font-weight: 800;
+}
+
+.stack__notes ul {
+	margin: 0;
+	padding-left: 20px;
+	display: grid;
+	gap: 10px;
+}
+
+.stack__notes li {
+	font-size: 13.5px;
+	line-height: 1.8;
+	color: var(--moe-cocoa-soft);
+}
+
+.stack__notes strong {
+	color: var(--moe-cocoa);
+}
