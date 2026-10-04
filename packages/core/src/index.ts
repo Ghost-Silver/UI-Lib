@@ -80,6 +80,8 @@ export type {
 export { getResourceSnapshot, ResourceRegistry, resourceRegistry } from "./resource.js";
 export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
 export { disposeScheduler, FrameScheduler, getScheduler, TASK_PRIORITY } from "./scheduler.js";
+export type { TiltOptions } from "./tilt.js";
+export { TILT_LIMIT_DEGREES, Tilt } from "./tilt.js";
 export type { WashOptions, WashResult, WashState } from "./wash.js";
 export { createWash, describeWash, paperNoise } from "./wash.js";
 export type { WashCanvasOptions } from "./washCanvas.js";

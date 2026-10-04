@@ -634,7 +634,7 @@ function MaterialKit() {
 	return (
 		<div className="kit__material">
 			{notes.map((n) => (
-				<SoftCard key={n.id} material={n.id} tone="iris" seedName={n.id}>
+				<SoftCard key={n.id} material={n.id} tone="iris" seedName={n.id} tilt>
 					<h3 className="kit__material-title">{n.title}</h3>
 					<p className="kit__material-body">{n.body}</p>
 				</SoftCard>

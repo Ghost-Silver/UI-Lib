@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
-import { forwardRef } from "react";
+import { forwardRef, useRef } from "react";
 import { type SoftMaterial, useMaterial } from "./material.js";
+import { useTilt } from "./tilt.js";
 
 export interface SoftCardProps extends React.HTMLAttributes<HTMLDivElement> {
 	/**
@@ -20,6 +21,18 @@ export interface SoftCardProps extends React.HTMLAttributes<HTMLDivElement> {
 	interactive?: boolean;
 	/** A sheen across the top-left corner. Reads as a glass edge, not a line. */
 	glossy?: boolean;
+	/**
+	 * Lean into horizontal pointer speed, and straighten when it stops.
+	 *
+	 * The specification's §3.3 wobble, for the case it names first: a card being
+	 * moved quickly across the viewport. Off by default, and it is the one
+	 * interaction in this library that costs a frame loop — an interface where
+	 * every card leans as the pointer crosses it is also an interface that is
+	 * moving when the user is not asking it to.
+	 *
+	 * Under `prefers-reduced-motion` it attaches nothing at all; see `useTilt`.
+	 */
+	tilt?: boolean;
 	/**
 	 * What the card is made of. `plain` is paper and is the default, because
 	 * most of an interface should be paper and the material should be the
@@ -66,6 +79,7 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 	{
 		interactive = false,
 		glossy = false,
+		tilt = false,
 		material,
 		tone,
 		seedName,
@@ -75,6 +89,9 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 	},
 	ref,
 ) {
+	const host = useRef<HTMLDivElement | null>(null);
+	useTilt(host, { enabled: tilt });
+
 	const surface = useMaterial(
 		material === undefined && tone === undefined && seedName === undefined
 			? {}
@@ -83,7 +100,11 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 
 	return (
 		<div
-			ref={ref}
+			ref={(node) => {
+				host.current = node;
+				if (typeof ref === "function") ref(node);
+				else if (ref) ref.current = node;
+			}}
 			className={[
 				className ? `ui-lib-soft-card ${className}` : "ui-lib-soft-card",
 				surface.className,
