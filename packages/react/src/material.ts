@@ -31,6 +31,17 @@ export interface MaterialOptions {
 	 */
 	weight?: number;
 	/**
+	 * Give the paper a grain direction.
+	 *
+	 * Off by default and it should stay off for most surfaces: two isotropic noise
+	 * passes read as *a sheet of paper*, and a directional one reads as a specific
+	 * kind of paper — xuan, laid, watercolour cold-press. That is a decision about
+	 * what the surface is, not a quality setting.
+	 */
+	fibre?: boolean;
+	/** Which way the grain runs, in degrees. Ignored when `fibre` is false. */
+	fibreAngle?: number;
+	/**
 	 * Makes this instance's mark different from another's. Omit to get one from
 	 * the component's own position in the tree, which is stable but arbitrary.
 	 */
@@ -183,7 +194,7 @@ export interface MaterialResult {
 export const MATERIAL_GROUND_CLASS = "ui-lib-material--ground";
 
 export function useMaterial(options: MaterialOptions = {}): MaterialResult {
-	const { material = "plain", tone = "iris", weight, seed, name } = options;
+	const { material = "plain", tone = "iris", weight, seed, name, fibre, fibreAngle } = options;
 
 	/*
 	 * The pigment, read from the token rather than written here.
@@ -240,6 +251,8 @@ export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 		return createWash({
 			hue: pigment,
 			weight: weight ?? resolvedWeight,
+			fibre,
+			fibreAngle,
 			seed: name !== undefined ? seedFromName(name) : (seed ?? 1),
 			// A surface is never wet. The wet states describe a *stroke* — pigment
 			// still moving — and a card that looked like it was still spreading
@@ -248,7 +261,7 @@ export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 		});
 		// `tone` is not a dependency: it is what `pigment` was resolved from, and the
 		// effect above re-resolves it. Listing both makes the memo run twice per change.
-	}, [material, weight, seed, name, pigment, resolvedWeight]);
+	}, [material, weight, seed, name, pigment, resolvedWeight, fibre, fibreAngle]);
 
 	return useMemo(() => {
 		if (!wash) return { className: "", style: {}, wash };

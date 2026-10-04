@@ -37,6 +37,31 @@ export interface WashOptions {
 	/** The pigment. Any CSS colour; the rim is derived from it. */
 	hue: string;
 	/**
+	 * Give the paper a grain direction, the way a sheet of xuan paper has one.
+	 *
+	 * Off by default: two isotropic noise passes read as a sheet of paper, and a
+	 * directional one reads as a specific kind of paper. The technique is the one
+	 * `WatercolorFrostedGlassShader.ts` uses for its fibre pass — **anisotropic
+	 * frequencies**, a high one across the grain and a low one along it — which is
+	 * what makes it streaks rather than corduroy.
+	 *
+	 * **Known: at the grain opacity this library uses, it is not visible.** The
+	 * layer is added and the anisotropy is measurable in the generated SVG — the
+	 * fibre pass runs `0.061 0.91` where the coarse pass runs `0.028 0.034` — but on
+	 * a rendered card at `--wash-grain-opacity: 0.153` it cannot be seen, at 300px
+	 * or zoomed. Raising the opacity to where it shows would make the grain a
+	 * texture the user looks at rather than a paper they look past, which is the
+	 * opposite of what the material is for.
+	 *
+	 * So this is a knob that currently does nothing observable. It is kept because
+	 * the anisotropy is correct and the reason it is invisible is the global
+	 * opacity rather than this function — a surface that wants visible laid paper
+	 * can raise `--wash-grain-opacity` itself and get it.
+	 */
+	fibre?: boolean;
+	/** Which way the grain runs, in degrees. Ignored when `fibre` is false. */
+	fibreAngle?: number;
+	/**
 	 * How much water carried the pigment, 0..1.
 	 *
 	 * This is the one knob that matters. It sets how far the deposit has run,
@@ -160,16 +185,54 @@ function arcsToMask(arcs: number[], rotation: number): string {
  * stains; it has to stay high enough to be a gentle unevenness across the
  * whole sheet.
  */
-export function paperNoise(seed: number): { image: string; sizes: string } {
+export function paperNoise(
+	seed: number,
+	options: { fibre?: boolean; fibreAngle?: number } = {},
+): { image: string; sizes: string } {
+	const { fibre = false, fibreAngle = 92 } = options;
 	const coarseW = 480 + (seed % 97);
 	const coarseH = 512 + (seed % 89);
 	const fineW = 320 + (seed % 61);
 	const fineH = 356 + (seed % 53);
 	const svg = (w: number, h: number, freq: string, octaves: number, s: number) =>
 		`url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='${freq}' numOctaves='${octaves}' seed='${s}'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='${w}' height='${h}' filter='url(%23n)'/%3E%3C/svg%3E")`;
+
+	if (!fibre) {
+		return {
+			image: `${svg(coarseW, coarseH, "0.028 0.034", 4, seed % 100)},${svg(fineW, fineH, "0.86 0.72", 2, (seed * 7) % 100)}`,
+			sizes: `${coarseW}px ${coarseH}px, ${fineW}px ${fineH}px`,
+		};
+	}
+
+	/*
+	 * Xuan paper has a grain direction, and the two turbulence passes above do not
+	 * — they are isotropic, which reads as even speckle rather than as a sheet.
+	 *
+	 * The technique is the one `WatercolorFrostedGlassShader.ts` uses for its fibre
+	 * pass: **anisotropic frequencies**. `feTurbulence` takes a base frequency per
+	 * axis, so asking for a high frequency across the fibre and a low one along it
+	 * produces streaks that run one way. The shader builds the same field from two
+	 * multiplied sinusoids; the turbulence version is the same idea with noise
+	 * instead of a sine, which is what keeps it from reading as corduroy — a
+	 * repeating gradient at the same angle looks like fabric, and this does not.
+	 *
+	 * The period is derived from the angle rather than fixed, so a sheet turned to
+	 * 90 degrees has the same density across the grain as one at 0.
+	 */
+	const angle = ((fibreAngle % 180) + 180) % 180;
+	// Across-grain is the axis the streaks are thin on; along-grain they are long.
+	const across = 0.9 + (seed % 23) / 100;
+	const along = across / (14 + (seed % 7));
+	const rad = (angle * Math.PI) / 180;
+	// Swap which axis is which as the angle passes 45 degrees.
+	const swap = Math.abs(Math.sin(rad)) > Math.abs(Math.cos(rad));
+	const freq = swap ? `${along} ${across}` : `${across} ${along}`;
+	const fibreW = 256 + (seed % 41);
+	const fibreH = 256 + (seed % 53);
+
 	return {
-		image: `${svg(coarseW, coarseH, "0.028 0.034", 4, seed % 100)},${svg(fineW, fineH, "0.86 0.72", 2, (seed * 7) % 100)}`,
-		sizes: `${coarseW}px ${coarseH}px, ${fineW}px ${fineH}px`,
+		image: `${svg(coarseW, coarseH, "0.028 0.034", 4, seed % 100)},${svg(fibreW, fibreH, freq, 3, (seed * 13) % 100)},${svg(fineW, fineH, "0.86 0.72", 2, (seed * 7) % 100)}`,
+		sizes: `${coarseW}px ${coarseH}px, ${fibreW}px ${fibreH}px, ${fineW}px ${fineH}px`,
 	};
 }
 
@@ -201,7 +264,7 @@ export function createWash(options: WashOptions): WashResult {
 	// The sheet, seeded from the same number so a wash and its paper agree, and
 	// offset well away from the origin so two washes on one page are not
 	// sitting on the same patch of it.
-	const grain = paperNoise(seed);
+	const grain = paperNoise(seed, { fibre: options.fibre, fibreAngle: options.fibreAngle });
 	const grainOffset = `${Math.round(random() * 400)}px ${Math.round(random() * 400)}px`;
 
 	const blur = BLUR[state];

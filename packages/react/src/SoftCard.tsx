@@ -43,6 +43,13 @@ export interface SoftCardProps extends React.HTMLAttributes<HTMLDivElement> {
 	/** Which family the pigment comes from. Ignored by `plain`. */
 	tone?: IrisTone;
 	/**
+	 * Give the paper a grain direction, for a surface that is a specific kind of
+	 * paper rather than paper in general. See `MaterialOptions.fibre`.
+	 */
+	fibre?: boolean;
+	/** Which way the grain runs, in degrees. */
+	fibreAngle?: number;
+	/**
 	 * A name to hash into this card's mark, so the same card keeps its own
 	 * ground across renders and two cards differ. Without one they differ by
 	 * position, which is stable but arbitrary.
@@ -84,6 +91,8 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 		material,
 		tone,
 		seedName,
+		fibre,
+		fibreAngle,
 		className,
 		children,
 		...props
@@ -96,9 +105,9 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 	useTilt(host, { enabled: tilt });
 
 	const surface = useMaterial(
-		material === undefined && tone === undefined && seedName === undefined
+		material === undefined && tone === undefined && seedName === undefined && !fibre
 			? {}
-			: { material, tone, name: seedName },
+			: { material, tone, name: seedName, fibre, fibreAngle },
 	);
 
 	return (

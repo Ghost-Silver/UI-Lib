@@ -87,6 +87,39 @@ describe("paperNoise", () => {
 		expect(paperNoise(1).image).not.toBe(paperNoise(2).image);
 	});
 
+	/**
+	 * The fibre pass, and what it is for.
+	 *
+	 * Anisotropy is the whole technique — the shader this is taken from builds its
+	 * fibre from two multiplied sinusoids, and the turbulence equivalent is a base
+	 * frequency that is high across the grain and low along it. A pass with two
+	 * similar frequencies would be a third isotropic layer, which is not fibre.
+	 *
+	 * **It is not visible at the opacity this library renders grain at, and that is
+	 * asserted elsewhere in prose rather than here** — a test can check that the
+	 * frequencies differ, and cannot check that a human notices.
+	 */
+	it("gives the fibre pass anisotropic frequencies", () => {
+		const plain = paperNoise(7);
+		const fibre = paperNoise(7, { fibre: true });
+		expect(fibre.sizes.split(", ").length).toBe(plain.sizes.split(", ").length + 1);
+
+		const frequencies = [...fibre.image.matchAll(/baseFrequency='([\d.]+) ([\d.]+)'/g)].map(
+			(m) => [Number(m[1]), Number(m[2])],
+		);
+		const fibrePass = frequencies.find(([a, b]) => Math.max(a, b) / Math.min(a, b) > 5);
+		expect(fibrePass, "no pass is anisotropic enough to be a fibre").toBeDefined();
+		// And the isotropic passes are still there.
+		expect(frequencies.filter(([a, b]) => Math.max(a, b) / Math.min(a, b) <= 5).length).toBe(2);
+	});
+
+	it("turns the grain to the angle it is given", () => {
+		const along = paperNoise(7, { fibre: true, fibreAngle: 0 });
+		const across = paperNoise(7, { fibre: true, fibreAngle: 90 });
+		// The two are the same noise with the axes swapped, so the strings differ.
+		expect(along.image).not.toBe(across.image);
+	});
+
 	it("emits real turbulence rather than a gradient", () => {
 		expect(paperNoise(1).image).toContain("feTurbulence");
 		expect(paperNoise(1).image.match(/feTurbulence/g)?.length).toBe(2);
