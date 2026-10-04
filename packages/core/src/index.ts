@@ -6,6 +6,16 @@
  * deterministic lifecycle.
  */
 
+export type { Srgb } from "./colour.js";
+export {
+	inSrgbGamut,
+	linearToSrgb255,
+	oklabToLinearSrgb,
+	oklchToOklab,
+	oklchToSrgb,
+	parseColour,
+	parseOklch,
+} from "./colour.js";
 export type { DeviceCapabilities, GpuBackend } from "./device.js";
 export {
 	detectCapabilities,

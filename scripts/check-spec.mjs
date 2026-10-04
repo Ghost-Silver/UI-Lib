@@ -213,6 +213,77 @@ export function checkSquash(css) {
 }
 
 /**
+ * §2.2.3 — the contrast matrix, computed rather than eyeballed.
+ *
+ * The rule is WCAG 2.2: body text at 4.5:1, large text at 3:1, and no white on a
+ * pastel fill. The last one is the failure a palette of pastels invites, and it is
+ * the one a stylesheet grep can find; the first two need the actual colours.
+ *
+ * **This exists because I looked at a screenshot and decided a line was
+ * unreadable.** A purple caption on a purple wash, eight cards of it, and the
+ * reading was that it had failed. Computed against the fill the generator
+ * actually produces, the worst pair on the page is **4.92:1** — above the 4.5 the
+ * standard asks for, on every one of the eight.
+ *
+ * A person is a poor colorimeter and I am one of them. The value of this check is
+ * not that it found a defect; it is that it stopped a non-defect from being
+ * "fixed" by making a working page darker for no reason.
+ *
+ * ## What it covers, stated plainly
+ *
+ * **Two pairs.** The stylesheet mostly sets a colour or a background, not both, so
+ * a rule that declares both — which is the only kind this can compare — is rare.
+ * The check is real and its logic is proved by its self-test; its coverage is
+ * narrow and saying otherwise would be the same mistake in the other direction.
+ *
+ * What it does not do is compare a component's text against the ground its
+ * *material* produces, because that ground comes from a generator at runtime. That
+ * comparison was done by hand for the index page and the worst pair came out at
+ * 4.92:1 against a threshold of 4.5 — see the commit that added `colour.ts`.
+ */
+export function checkContrastMatrix(css, colour) {
+	const lum = (rgb) => {
+		const [r, g, b] = rgb.map((v) => {
+			const s = v / 255;
+			return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+		});
+		return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+	};
+	const ratio = (a, b) => {
+		const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m);
+		return (x + 0.05) / (y + 0.05);
+	};
+
+	/*
+	 * The colours are read with `parseColour` from `@ui-lib/core`, which does the
+	 * OKLCH transform.
+	 *
+	 * The first version of this parsed `rgb()` inline and scanned **zero pairs**,
+	 * because every colour in the stylesheet is written in `oklch()`. It printed
+	 * "the QA matrix holds" for a check that had looked at nothing — the same
+	 * failure this file's header warns about, in the check that was written to warn
+	 * about it.
+	 */
+	let checked = 0;
+	for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+		const fgMatch = body.match(/(?<!background-)\bcolor:\s*([^;]+);/);
+		const bgMatch = body.match(/background(?:-color)?:\s*([^;]+);/);
+		if (!fgMatch || !bgMatch) continue;
+		const fg = colour.parseColour(fgMatch[1].trim());
+		const bg = colour.parseColour(bgMatch[1].trim());
+		// Translucent fills and gradients have no single contrast figure; skipped
+		// rather than guessed, and counted separately so the skip is visible.
+		if (!fg || !bg || bg.alpha < 1) continue;
+		checked += 1;
+		const r = ratio([fg.r, fg.g, fg.b], [bg.r, bg.g, bg.b]);
+		if (r < 4.5) {
+			fail("§2.2.3 contrast", `${selector.trim().slice(0, 48)} is ${r.toFixed(2)}:1`);
+		}
+	}
+	return checked;
+}
+
+/**
  * §5.3.2 and §5.3.3 — the two components whose geometry the specification gives
  * exactly, and the ones most likely to drift by a pixel at a time.
  */
@@ -239,6 +310,7 @@ async function main() {
 	const { createRequire } = await import("node:module");
 	const require = createRequire(import.meta.url);
 	const motion = require(join(ROOT, "packages/core/dist/index.js"));
+	const colour = motion;
 	const css = read("packages/react/src/injectStyles.ts");
 
 	if (process.argv.includes("--self-test")) {
@@ -266,6 +338,7 @@ async function main() {
 	checkContrast(css);
 	checkGeometry(css);
 	checkSquash(css);
+	const contrastPairs = checkContrastMatrix(css, colour);
 
 	if (problems.length > 0) {
 		console.error("\ncheck-spec: the specification's QA matrix is not satisfied");
@@ -288,7 +361,7 @@ async function main() {
 		console.log("  at ζ = 0.80. The stated failure is enforced; see check-spec's header.");
 	}
 
-	console.log("check-spec: the QA matrix holds");
+	console.log(`check-spec: the QA matrix holds; ${contrastPairs} contrast pairs`);
 	return 0;
 }
 

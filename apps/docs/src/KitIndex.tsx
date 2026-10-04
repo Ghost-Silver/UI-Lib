@@ -49,6 +49,22 @@ const SURFACES: Surface[] = [
 		material: "wash",
 	},
 	{
+		href: "/?demo=stacking",
+		title: "叠加",
+		body: "玻璃能弯 canvas 里的颜料，弯不到 DOM 里的。两种情况并排放着，看第二行的玻璃是平的。",
+		look: "对比两行 —— 第一行有位移，第二行没有。",
+		tone: "iris",
+		material: "wash",
+	},
+	{
+		href: "/?demo=third-party",
+		title: "第三方",
+		body: "一页只从公开入口导入的用法。写它的过程撞出五个摩擦，其中一个是类型允许调用会崩溃。",
+		look: "看页脚那行说明里的清单。",
+		tone: "blossom",
+		material: "wash",
+	},
+	{
 		href: "/?demo=iris-kit&component=combobox&tone=iris",
 		title: "字段",
 		body: "输入、下拉、多选、组合框。焦点留在控件上，列表用 aria-activedescendant。",

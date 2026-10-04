@@ -4,8 +4,8 @@
 	"$measuredOn": "tsup 8.5.1, es2022, esm, no minify",
 	"packages": {
 		"core": {
-			"maxJsBytes": 44000,
-			"maxDtsBytes": 53000
+			"maxJsBytes": 46000,
+			"maxDtsBytes": 55000
 		},
 		"shaders": {
 			"maxJsBytes": 34500,
