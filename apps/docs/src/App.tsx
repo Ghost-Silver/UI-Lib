@@ -32,6 +32,7 @@ import { LiquidGlassProPage } from "./LiquidGlassPro.js";
 import { ProductHeroPage } from "./ProductHero.js";
 import { ScrollCinemaPage } from "./ScrollCinema.js";
 import { StudioPage } from "./Studio.js";
+import { ThirdPartySettings } from "./ThirdPartySettings.js";
 import { WakePage } from "./Wake.js";
 import { WetPaperPage } from "./WetPaper.js";
 
@@ -630,6 +631,7 @@ export default function App() {
 		if (demo === "liquid-glass") return <LiquidGlassProPage />;
 		if (demo === "wake") return <WakePage />;
 		if (demo === "kit-index") return <KitIndexPage />;
+		if (demo === "third-party") return <ThirdPartyPage />;
 		if (demo === "studio") return <StudioPage />;
 		if (demo === "iris") return <IrisShowcasePage />;
 		if (demo === "paper") return <WetPaperPage />;
@@ -644,4 +646,19 @@ export default function App() {
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
 	return <Playground />;
+}
+
+/**
+ * The third-party page, wrapped so it gets the library's own background.
+ *
+ * The page itself is written as an outsider would write it — one import from the
+ * package entry point and nothing else — so this wrapper is deliberately the only
+ * thing here that knows about the application it is being shown in.
+ */
+function ThirdPartyPage() {
+	return (
+		<div className="tp-page">
+			<ThirdPartySettings />
+		</div>
+	);
 }

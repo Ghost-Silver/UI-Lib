@@ -734,6 +734,26 @@ const CSS = `
 	color: var(--moe-text);
 	font-family: var(--moe-font-rounded);
 	box-shadow: var(--moe-clay);
+	/*
+	 * A default inset, which the card did not have.
+	 *
+	 * Measured on a card holding a form: padding: 0px, and the last control's
+	 * bottom edge sat 1px from the border — so a card was a box that put its
+	 * contents against the wall. The first version of this library's cards were
+	 * used with className and a grid gap from the caller, which worked, and is
+	 * exactly why nobody noticed: every existing page supplied the spacing.
+	 *
+	 * The measurement is what settled the value rather than taste. A card whose
+	 * contents touch the border at a 24px radius reads as an overflow rather than
+	 * as a design, because the corner curve cuts closer to the content than any
+	 * straight edge does. 22px is the radius minus the stroke, so the inset matches
+	 * the curve it sits inside.
+	 *
+	 * A caller who wants full-bleed content — a table, an image, a list that draws
+	 * its own rows to the edge — overrides it with padding: 0 on their own
+	 * className. What they cannot do is get spacing back that was never there.
+	 */
+	padding: 22px;
 	transition:
 		transform var(--moe-dur-base) var(--moe-ease-jelly),
 		box-shadow var(--moe-dur-base) var(--moe-ease-jelly);
@@ -880,9 +900,8 @@ const CSS = `
 /* The stretch is the whole point, so it is the one thing reduced motion keeps
    down to a no-op rather than merely shortening. */
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-switch__knob {
+	.ui-lib-soft-switch__knob 
 		transition: none;
-	}
 }
 
 
@@ -1002,15 +1021,13 @@ const CSS = `
 
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-soft-tabs__pill,
-	.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__pill {
+	.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__pill 
 		transition: none;
 		transform: none;
-	}
 
 	.ui-lib-soft-tabs__neck,
-	.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__neck {
+	.ui-lib-soft-tabs[data-ui-lib-travelling] .ui-lib-soft-tabs__neck 
 		display: none;
-	}
 }
 
 
@@ -1069,12 +1086,10 @@ const CSS = `
 }
 
 @keyframes ui-lib-moe-flow {
-	from {
+	from 
 		background-position: 0% 50%;
-	}
-	to {
+	to 
 		background-position: 180% 50%;
-	}
 }
 
 .ui-lib-soft-slider__thumb {
@@ -1165,14 +1180,12 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-slider__fill {
+	.ui-lib-soft-slider__fill 
 		animation: none;
-	}
 
 	.ui-lib-soft-slider__thumb,
-	.ui-lib-soft-slider__bubble {
+	.ui-lib-soft-slider__bubble 
 		transition: none;
-	}
 }
 
 
@@ -1408,17 +1421,14 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-modal__panel {
+	.ui-lib-soft-modal__panel 
 		animation: none;
-	}
 
-	.ui-lib-soft-modal__spark {
+	.ui-lib-soft-modal__spark 
 		display: none;
-	}
 
-	.ui-lib-soft-modal__dismiss:hover {
+	.ui-lib-soft-modal__dismiss:hover 
 		transform: none;
-	}
 }
 
 
@@ -1623,14 +1633,14 @@ const CSS = `
 }
 
 @keyframes ui-lib-wash-spread {
-	from { transform: scale(0.82); opacity: 0.72; filter: blur(9px); }
+	from transform: scale(0.82); opacity: 0.72; filter: blur(9px); 
 	62% { transform: scale(1.06); opacity: 1; }
 	to { transform: scale(1); opacity: 1; filter: blur(0); }
 }
 
 @keyframes ui-lib-wash-settle {
-	from { opacity: 0; filter: blur(9px); }
-	to { opacity: 1; filter: blur(1.8px); }
+	from opacity: 0; filter: blur(9px); 
+	to opacity: 1; filter: blur(1.8px); 
 }
 
 .ui-lib-wash--living {
@@ -1872,11 +1882,10 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-input__ring {
+	.ui-lib-soft-input__ring 
 		/* No spring: the ring appears at its final size. The value still comes
 		   from the spring, so nothing has to know it is being suppressed. */
 		transform: scale(1);
-	}
 }
 
 
@@ -2008,14 +2017,12 @@ const CSS = `
 }
 
 @keyframes ui-lib-select-row {
-	from {
+	from 
 		opacity: 0;
 		transform: translateY(-4px);
-	}
-	to {
+	to 
 		opacity: 1;
 		transform: none;
-	}
 }
 
 .ui-lib-soft-select__option {
@@ -2062,13 +2069,11 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-select__option {
+	.ui-lib-soft-select__option 
 		animation: none;
-	}
 
-	.ui-lib-soft-select__chevron {
+	.ui-lib-soft-select__chevron 
 		transition: none;
-	}
 }
 
 
@@ -2294,31 +2299,26 @@ const CSS = `
 	.ui-lib-soft-choice__box,
 	.ui-lib-soft-choice__tick,
 	.ui-lib-soft-choice__dash,
-	.ui-lib-soft-choice__dot {
+	.ui-lib-soft-choice__dot 
 		transition: none;
-	}
 
 	.ui-lib-soft-choice__tick,
-	.ui-lib-soft-choice__dash {
+	.ui-lib-soft-choice__dash 
 		/* Land at the final state rather than at the start of an animation that
 		   will never run. */
 		stroke-dashoffset: 0;
-	}
 
-	.ui-lib-soft-choice__input:indeterminate ~ .ui-lib-soft-choice__box .ui-lib-soft-choice__tick {
+	.ui-lib-soft-choice__input:indeterminate ~ .ui-lib-soft-choice__box .ui-lib-soft-choice__tick 
 		stroke-dashoffset: 17;
-	}
 
-	.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__box .ui-lib-soft-choice__dot {
+	.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__box .ui-lib-soft-choice__dot 
 		transform: scale(0);
-	}
 
 	.ui-lib-soft-choice[data-ui-lib-kind="radio"]
 		.ui-lib-soft-choice__input:checked
 		~ .ui-lib-soft-choice__box
-		.ui-lib-soft-choice__dot {
+		.ui-lib-soft-choice__dot 
 		transform: scale(1);
-	}
 }
 
 
@@ -2408,12 +2408,10 @@ const CSS = `
 }
 
 @keyframes ui-lib-moe-travel {
-	from {
+	from 
 		transform: translateX(-100%);
-	}
-	to {
+	to 
 		transform: translateX(264%);
-	}
 }
 
 /* --- spinner -------------------------------------------------------------
@@ -2546,37 +2544,31 @@ const CSS = `
 }
 
 @keyframes ui-lib-moe-drift {
-	from {
+	from 
 		background-position: 140% 0;
-	}
-	to {
+	to 
 		background-position: -140% 0;
-	}
 }
 
 @media (prefers-reduced-motion: reduce) {
 	/* Progress keeps its travel, because a bar that does not move is a bar that
 	   looks finished. It slows down instead. */
 	.ui-lib-soft-progress__fill,
-	.ui-lib-soft-progress[data-ui-lib-indeterminate] .ui-lib-soft-progress__fill {
+	.ui-lib-soft-progress[data-ui-lib-indeterminate] .ui-lib-soft-progress__fill 
 		animation-duration: 6s;
 		transition-duration: 0s;
-	}
 
-	.ui-lib-soft-spinner__ring {
+	.ui-lib-soft-spinner__ring 
 		animation: none;
 		transform: scale(1);
 		opacity: 0.4;
-	}
 
-	.ui-lib-soft-spinner__ring:first-child {
+	.ui-lib-soft-spinner__ring:first-child 
 		opacity: 0.85;
-	}
 
-	.ui-lib-soft-skeleton__shape::after {
+	.ui-lib-soft-skeleton__shape::after 
 		animation: none;
 		background: none;
-	}
 }
 
 
@@ -2798,17 +2790,14 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-toast {
+	.ui-lib-soft-toast 
 		animation: none;
-	}
 
-	.ui-lib-soft-toast__close {
+	.ui-lib-soft-toast__close 
 		transition: none;
-	}
 
-	.ui-lib-soft-toast__close:hover {
+	.ui-lib-soft-toast__close:hover 
 		transform: none;
-	}
 }
 
 
@@ -3191,9 +3180,8 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-soft-accordion__panel,
 	.ui-lib-soft-accordion__mark,
-	.ui-lib-soft-accordion__item {
+	.ui-lib-soft-accordion__item 
 		transition: none;
-	}
 }
 
 
@@ -3344,9 +3332,8 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-soft-table__arrow,
 	.ui-lib-soft-table__row,
-	.ui-lib-soft-table__sort {
+	.ui-lib-soft-table__sort 
 		transition: none;
-	}
 }
 
 
@@ -3416,21 +3403,17 @@ const CSS = `
 }
 
 @keyframes ui-lib-moe-drawer-right {
-	from {
+	from 
 		transform: translateX(102%);
-	}
-	to {
+	to 
 		transform: translateX(0);
-	}
 }
 
 @keyframes ui-lib-moe-drawer-left {
-	from {
+	from 
 		transform: translateX(-102%);
-	}
-	to {
+	to 
 		transform: translateX(0);
-	}
 }
 
 @keyframes ui-lib-moe-drawer-in {
@@ -3588,17 +3571,14 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-drawer__panel {
+	.ui-lib-soft-drawer__panel 
 		animation: none;
-	}
 
-	.ui-lib-soft-drawer__close {
+	.ui-lib-soft-drawer__close 
 		transition: none;
-	}
 
-	.ui-lib-soft-drawer__close:hover {
+	.ui-lib-soft-drawer__close:hover 
 		transform: none;
-	}
 }
 
 
@@ -3754,9 +3734,8 @@ const CSS = `
 	   fill. The block exists so the omission is a decision rather than an
 	   oversight. */
 	.ui-lib-material--ground::before,
-	.ui-lib-material--ground::after {
+	.ui-lib-material--ground::after 
 		animation: none;
-	}
 }
 
 
@@ -3891,9 +3870,8 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-segments__segment {
+	.ui-lib-soft-segments__segment 
 		transition: none;
-	}
 }
 
 
@@ -4075,13 +4053,11 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-alert__dismiss {
+	.ui-lib-soft-alert__dismiss 
 		transition: none;
-	}
 
-	.ui-lib-soft-alert__dismiss:hover {
+	.ui-lib-soft-alert__dismiss:hover 
 		transform: none;
-	}
 }
 
 
@@ -4224,9 +4200,8 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-soft-pagination__page,
 	.ui-lib-soft-breadcrumb__link,
-	.ui-lib-soft-breadcrumb__button {
+	.ui-lib-soft-breadcrumb__button 
 		transition: none;
-	}
 }
 
 
@@ -4400,9 +4375,8 @@ const CSS = `
 
 @media (prefers-reduced-motion: reduce) {
 	.ui-lib-soft-menu__trigger,
-	.ui-lib-soft-menu__chevron {
+	.ui-lib-soft-menu__chevron 
 		transition: none;
-	}
 }
 
 
@@ -4521,9 +4495,8 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-list__item {
+	.ui-lib-soft-list__item 
 		transition: none;
-	}
 }
 
 
@@ -4561,14 +4534,12 @@ const CSS = `
 }
 
 @keyframes ui-lib-moe-combo-row {
-	from {
+	from 
 		opacity: 0;
 		transform: translateY(-3px);
-	}
-	to {
+	to 
 		opacity: 1;
 		transform: none;
-	}
 }
 
 .ui-lib-soft-combobox__option {
@@ -4622,9 +4593,8 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-combobox__option {
+	.ui-lib-soft-combobox__option 
 		animation: none;
-	}
 }
 
 
@@ -4776,13 +4746,11 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-toolbar__item {
+	.ui-lib-soft-toolbar__item 
 		transition: none;
-	}
 
-	.ui-lib-soft-toolbar__item:active:not(:disabled) {
+	.ui-lib-soft-toolbar__item:active:not(:disabled) 
 		transform: none;
-	}
 }
 
 
@@ -5052,13 +5020,11 @@ const CSS = `
 	.ui-lib-soft-chip,
 	.ui-lib-soft-chip__remove,
 	.ui-lib-soft-stepper__mark,
-	.ui-lib-soft-chip-wrap {
+	.ui-lib-soft-chip-wrap 
 		transition: none;
-	}
 
-	.ui-lib-soft-chip__remove:hover {
+	.ui-lib-soft-chip__remove:hover 
 		transform: none;
-	}
 }
 
 /* --- reduced motion -------------------------------------------------------

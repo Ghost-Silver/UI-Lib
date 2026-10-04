@@ -3,7 +3,21 @@ import { useStyles } from "./useStyles.js";
 
 /** Shared by both controls; the difference is the mark and the corner radius. */
 interface SoftChoiceBase
-	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size"> {
+	/*
+	 * `children` is omitted, and it is omitted because the type said it was allowed
+	 * and the runtime disagreed.
+	 *
+	 * `InputHTMLAttributes` carries `children`, so `<SoftRadio>{text}</SoftRadio>`
+	 * type-checked and then threw — the rest object is spread onto a real
+	 * `<input>`, and React refuses to put children on a void element. A type that
+	 * permits a call that crashes is worse than a type that is missing: the missing
+	 * one makes you look, and the permissive one makes you trust it.
+	 *
+	 * Found by writing a page from the published types alone. The label goes in
+	 * `label`; there is no way to put it anywhere else, so there is no reason for
+	 * the type to offer one.
+	 */
+	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "size" | "children"> {
 	label?: React.ReactNode;
 	/** A line under the label. Also matched by nothing — it is not a hint for search. */
 	note?: string;
@@ -182,15 +196,25 @@ export const SoftRadio = forwardRef<HTMLInputElement, SoftRadioProps>(function S
  * between a screen reader announcing "水彩纸, radio, 1 of 3" and announcing
  * three unrelated radios with no idea they belong together.
  */
-export function SoftRadioGroup({
-	legend,
-	children,
-	className,
-}: {
+/**
+ * The group's props, named so they can be exported.
+ *
+ * They were written inline, which is why this component was public with half its
+ * interface unreachable: a caller wrapping it, or forwarding its props, had
+ * nothing to `import type`. Found by writing a page from the published types
+ * alone — the component is exported, the type was not, and the only way to learn
+ * that the prop is `legend` rather than `label` was to make the mistake and read
+ * the compiler's complaint.
+ */
+export interface SoftRadioGroupProps {
+	/** The label above the group. Required: a radio group without one is a set of
+	 * unrelated radios as far as a reader is concerned. */
 	legend: string;
 	children: React.ReactNode;
 	className?: string;
-}) {
+}
+
+export function SoftRadioGroup({ legend, children, className }: SoftRadioGroupProps) {
 	return (
 		<fieldset
 			className={className ? `ui-lib-soft-radio-group ${className}` : "ui-lib-soft-radio-group"}
