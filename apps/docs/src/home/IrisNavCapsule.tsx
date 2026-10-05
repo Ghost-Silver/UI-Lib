@@ -1,6 +1,7 @@
 import type { IrisTone } from "@ui-lib/core";
-import { GlassPanel, Magnetic } from "@ui-lib/react";
+import { Magnetic } from "@ui-lib/react";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
+import { LiquidGlassPill } from "./LiquidGlass.js";
 import { PALETTE_OPTIONS, type PaletteId } from "./useIrisSynthesizer.js";
 
 export interface IrisNavCapsuleProps {
@@ -27,7 +28,7 @@ export function IrisNavCapsule({
 	return (
 		<header className="iris-nav-wrapper">
 			<Magnetic strength={0.2} radius={80}>
-				<GlassPanel className="iris-nav-capsule" {...pillProps}>
+				<LiquidGlassPill className="iris-nav-capsule" glassOptions={pillProps}>
 					<a className="iris-nav-left" href="/" title="UI-Lib 官方主页">
 						<span className="iris-brand-mark" aria-hidden="true" />
 						<span className="iris-brand-name">UI·LIB</span>
@@ -96,7 +97,7 @@ export function IrisNavCapsule({
 							{forceFallback ? "CSS" : "GPU"}
 						</button>
 					</div>
-				</GlassPanel>
+				</LiquidGlassPill>
 			</Magnetic>
 		</header>
 	);

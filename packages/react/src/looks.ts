@@ -553,9 +553,137 @@ export const GLASS_LOOKS = {
 		pointerRadius: 200,
 		environment: 0.22,
 	},
+	/* Apple visionOS Signature Liquid Glass Presets */
+	/** Crystal: thick Apple visionOS liquid glass card with dual-lobe specular & C2 continuous capsule. */
+	"apple-crystal": {
+		radius: 40,
+		bevel: 16,
+		refraction: 28,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	/** Floating navigation stadium capsule with gleaming top crest. */
+	"apple-pill": {
+		radius: 999,
+		bevel: 14,
+		refraction: 24,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	/** Frosted visionOS control center / dock pane with soft blur and low specular. */
+	"frosted-dock": {
+		radius: 32,
+		bevel: 18,
+		refraction: 18,
+		dispersion: 0.12,
+		roughness: 0.35,
+		frost: 28,
+		specular: 0.42,
+		edgeGlow: 0.28,
+		tint: "#ffffff",
+		tintAmount: 0.04,
+		saturation: 1.12,
+	},
+	// Semantic aliases
+	crystal: {
+		radius: 40,
+		bevel: 16,
+		refraction: 28,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	capsule: {
+		radius: 999,
+		bevel: 14,
+		refraction: 24,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	frosted: {
+		radius: 32,
+		bevel: 18,
+		refraction: 18,
+		dispersion: 0.12,
+		roughness: 0.35,
+		frost: 28,
+		specular: 0.42,
+		edgeGlow: 0.28,
+		tint: "#ffffff",
+		tintAmount: 0.04,
+		saturation: 1.12,
+	},
 	/* The IRIS looks are defined in @ui-lib/core so @ui-lib/dom can share
 	   them without depending on this package. */
 	...IRIS_GLASS_LOOKS,
 } as const satisfies Record<string, GlassPanelOptions>;
 
 export type GlassLookName = keyof typeof GLASS_LOOKS;
+export type GlassPresetName = GlassLookName;
+
+export interface ResolveGlassOptions {
+	preset?: GlassPresetName;
+	look?: GlassLookName;
+	/**
+	 * Thickness in millimeters (standard reference is 28mm).
+	 * Scales bevel and refraction proportionally relative to 28mm.
+	 */
+	thickness?: number;
+	overrides?: Partial<GlassPanelOptions>;
+}
+
+/**
+ * Resolves a high-level glass preset with optional thickness scaling and property overrides.
+ */
+export function resolveGlassPreset(
+	presetOrOptions: GlassPresetName | ResolveGlassOptions = "apple-crystal",
+	overrides: Partial<GlassPanelOptions> = {},
+): GlassPanelOptions {
+	const opts: ResolveGlassOptions =
+		typeof presetOrOptions === "string"
+			? { preset: presetOrOptions, overrides }
+			: { ...presetOrOptions, overrides: { ...presetOrOptions.overrides, ...overrides } };
+
+	const key = (opts.preset ?? opts.look ?? "apple-crystal") as GlassLookName;
+	const base = GLASS_LOOKS[key] ?? GLASS_LOOKS["apple-crystal"];
+	const merged: GlassPanelOptions = { ...base, ...definedPatch(opts.overrides ?? {}) };
+
+	if (
+		typeof opts.thickness === "number" &&
+		Number.isFinite(opts.thickness) &&
+		opts.thickness > 0
+	) {
+		const scale = opts.thickness / 28;
+		if (opts.overrides?.bevel === undefined && base.bevel !== undefined) {
+			merged.bevel = Math.round(base.bevel * scale);
+		}
+		if (opts.overrides?.refraction === undefined && base.refraction !== undefined) {
+			merged.refraction = Math.round(base.refraction * scale);
+		}
+	}
+
+	return merged;
+}

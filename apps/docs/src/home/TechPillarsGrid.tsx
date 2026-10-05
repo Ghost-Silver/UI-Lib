@@ -1,5 +1,5 @@
-import { GlassPanel } from "@ui-lib/react";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
+import { LiquidGlassCard } from "./LiquidGlass.js";
 
 export interface TechPillarsGridProps {
 	cardProps: GlassPanelOptions;
@@ -17,7 +17,7 @@ export function TechPillarsGrid({ cardProps }: TechPillarsGridProps) {
 			</div>
 
 			<div className="iris-pillars-grid">
-				<GlassPanel className="panel iris-pillar-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel iris-pillar-card" glassOptions={cardProps}>
 					<div className="iris-pillar-icon" aria-hidden="true">
 						💎
 					</div>
@@ -26,9 +26,9 @@ export function TechPillarsGrid({ cardProps }: TechPillarsGridProps) {
 						基于圆角矩形 SDF 精确推导四分之一圆倒角法线，多波长色散与全角焦模糊算法，单 Canvas
 						调度多面板无缝折射。
 					</p>
-				</GlassPanel>
+				</LiquidGlassCard>
 
-				<GlassPanel className="panel iris-pillar-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel iris-pillar-card" glassOptions={cardProps}>
 					<div className="iris-pillar-icon" aria-hidden="true">
 						🖌️
 					</div>
@@ -37,9 +37,9 @@ export function TechPillarsGrid({ cardProps }: TechPillarsGridProps) {
 						Lucas-Washburn 毛细渗透微分前沿，结合咖啡环暗边沉降与 Kubelka-Munk
 						真实减法光谱混色，告别发灰与生硬切边。
 					</p>
-				</GlassPanel>
+				</LiquidGlassCard>
 
-				<GlassPanel className="panel iris-pillar-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel iris-pillar-card" glassOptions={cardProps}>
 					<div className="iris-pillar-icon" aria-hidden="true">
 						🎚️
 					</div>
@@ -48,9 +48,9 @@ export function TechPillarsGrid({ cardProps }: TechPillarsGridProps) {
 						严格校准 &zeta; = 0.55 实体弹簧动效，双层柔焦光晕焦点协议（FOCUS_HALO），48
 						组笛卡尔积测试 WCAG AA/AAA 对比度全达标。
 					</p>
-				</GlassPanel>
+				</LiquidGlassCard>
 
-				<GlassPanel className="panel iris-pillar-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel iris-pillar-card" glassOptions={cardProps}>
 					<div className="iris-pillar-icon" aria-hidden="true">
 						🌐
 					</div>
@@ -59,7 +59,7 @@ export function TechPillarsGrid({ cardProps }: TechPillarsGridProps) {
 						深度集成 Iris Runtime 沙箱、CTorch 推理后端、Lyra 六轴机械臂与 UE5 XR
 						混合现实空间锚点，赋能次世代真实世界。
 					</p>
-				</GlassPanel>
+				</LiquidGlassCard>
 			</div>
 		</section>
 	);

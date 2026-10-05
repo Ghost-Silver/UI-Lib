@@ -1,6 +1,6 @@
 import type { IrisTone } from "@ui-lib/core";
-import { GlassPanel } from "@ui-lib/react";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
+import { LiquidGlassCard } from "./LiquidGlass.js";
 import type { PaletteId } from "./useIrisSynthesizer.js";
 
 export interface WorkbenchGatewaysProps {
@@ -22,7 +22,7 @@ export function WorkbenchGateways({ palette, tone, cardProps }: WorkbenchGateway
 			</div>
 
 			<div className="iris-discovery-grid">
-				<GlassPanel className="panel discovery-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel discovery-card" glassOptions={cardProps}>
 					<span className="discovery-card__kicker">35+ Soft Components</span>
 					<h3 className="discovery-card__title">全景组件索引 · Kit Index</h3>
 					<p className="discovery-card__body">
@@ -35,9 +35,9 @@ export function WorkbenchGateways({ palette, tone, cardProps }: WorkbenchGateway
 					>
 						进入全景索引&rarr;
 					</a>
-				</GlassPanel>
+				</LiquidGlassCard>
 
-				<GlassPanel className="panel discovery-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel discovery-card" glassOptions={cardProps}>
 					<span className="discovery-card__kicker">GPU Refraction SDF</span>
 					<h3 className="discovery-card__title">液态玻璃实验室 · Glass Lab</h3>
 					<p className="discovery-card__body">
@@ -46,9 +46,9 @@ export function WorkbenchGateways({ palette, tone, cardProps }: WorkbenchGateway
 					<a className="discovery-card__link" href={`/?demo=glass-lab&palette=${palette}`}>
 						探索玻璃实验室&rarr;
 					</a>
-				</GlassPanel>
+				</LiquidGlassCard>
 
-				<GlassPanel className="panel discovery-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel discovery-card" glassOptions={cardProps}>
 					<span className="discovery-card__kicker">Physics & Pigment</span>
 					<h3 className="discovery-card__title">水彩材质工作台 · Studio</h3>
 					<p className="discovery-card__body">
@@ -60,9 +60,9 @@ export function WorkbenchGateways({ palette, tone, cardProps }: WorkbenchGateway
 					>
 						进入水彩工作台&rarr;
 					</a>
-				</GlassPanel>
+				</LiquidGlassCard>
 
-				<GlassPanel className="panel discovery-card iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="panel discovery-card" glassOptions={cardProps}>
 					<span className="discovery-card__kicker">WAI-ARIA & Fixture</span>
 					<h3 className="discovery-card__title">组件陈列室 · Iris Kit</h3>
 					<p className="discovery-card__body">
@@ -74,7 +74,7 @@ export function WorkbenchGateways({ palette, tone, cardProps }: WorkbenchGateway
 					>
 						访问组件陈列室&rarr;
 					</a>
-				</GlassPanel>
+				</LiquidGlassCard>
 			</div>
 		</section>
 	);

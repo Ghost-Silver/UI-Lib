@@ -1,5 +1,11 @@
 import { PLAYGROUND_FIELD, PLAYGROUND_FIELD_CAMERA } from "@ui-lib/particles";
-import { GlassStage, ParticleField, useGlassStage, WatercolorBoard } from "@ui-lib/react";
+import {
+	FrostedGround,
+	GlassStage,
+	ParticleField,
+	useGlassStage,
+	WatercolorBoard,
+} from "@ui-lib/react";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect, useMemo, useRef } from "react";
 import {
@@ -84,7 +90,7 @@ function Scene({ synth }: SceneProps) {
 	};
 
 	return (
-		<div className="iris-home-ground">
+		<FrostedGround inset={16} radius={28} className="iris-home-ground">
 			<div className="iris-home-container">
 				{/* 1. Floating Glass Capsule Nav */}
 				<IrisNavCapsule
@@ -103,6 +109,7 @@ function Scene({ synth }: SceneProps) {
 					palette={synth.palette}
 					tone={synth.tone}
 					onExploreClick={handleExploreClick}
+					synth={synth}
 				/>
 
 				{/* 3. Oriental Xuan Paper & Watercolor Board (宣纸水墨底板) */}
@@ -153,7 +160,7 @@ function Scene({ synth }: SceneProps) {
 				{/* Real-time Status HUD */}
 				<StatusHud stats={stats} status={status} forceFallback={synth.forceFallback} />
 			</div>
-		</div>
+		</FrostedGround>
 	);
 }
 

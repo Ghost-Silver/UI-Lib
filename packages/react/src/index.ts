@@ -43,8 +43,10 @@ export { LiquidGlass } from "./LiquidGlass.js";
 export type {
 	FieldLookName,
 	GlassLookName,
+	GlassPresetName,
 	LensLookName,
 	LensOptical,
+	ResolveGlassOptions,
 } from "./looks.js";
 export {
 	CINEMA_LENS_ENVIRONMENT,
@@ -52,6 +54,7 @@ export {
 	fieldOptions,
 	GLASS_LOOKS,
 	LENS_LOOKS,
+	resolveGlassPreset,
 	resolveLensLook,
 } from "./looks.js";
 export type { MagneticProps } from "./Magnetic.js";

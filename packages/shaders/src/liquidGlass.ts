@@ -1,6 +1,7 @@
 import { mergeDefined } from "@ui-lib/core";
 import {
 	abs,
+	cos,
 	dot,
 	equirectUV,
 	float,
@@ -126,16 +127,16 @@ export const LIQUID_GLASS_DEFAULTS: Required<
 	roughness: 0.24,
 	frost: 26,
 	tint: "#ffffff",
-	tintAmount: 0.06,
-	saturation: 1.12,
-	brightness: 1.02,
-	contrast: 1.04,
+	tintAmount: 0.02,
+	saturation: 1.16,
+	brightness: 1.05,
+	contrast: 1.02,
 	highlight: "#ffffff",
-	specular: 0.55,
-	shininess: 34,
-	fresnel: 0.42,
-	fresnelPower: 3.2,
-	edgeGlow: 0.5,
+	specular: 0.85,
+	shininess: 38,
+	fresnel: 0.55,
+	fresnelPower: 2.8,
+	edgeGlow: 0.65,
 	lightDirection: [-0.45, 0.7],
 	grain: 0.012,
 	opacity: 1,
@@ -297,10 +298,31 @@ export function createLiquidGlassMaterial(
 		.add(min(outer, float(0)))
 		.sub(uniforms.radius);
 
-	/* ------------------------------------------------- rounded bevel normal -- */
-	// 0 on the rim, 1 once we are `bevel` pixels inside the silhouette.
-	const t = saturate(dist.negate().div(max(uniforms.bevel, float(0.001))));
-	const theta = t.mul(Math.PI * 0.5);
+	/* ----------------- continuous curvature 400m stadium capsule profile -- */
+	// Inward distance from the silhouette border in pixels.
+	const inwardDist = max(dist.negate(), float(0));
+	// Clamp bevel span to stay safely within corner radius so the bevel never crosses
+	// into the interior Voronoi seam, guaranteeing a seamless continuous capsule profile.
+	const maxBevel = min(uniforms.radius.mul(0.75), min(half.x, half.y).mul(0.4));
+	const bevelSpan = min(max(uniforms.bevel, float(0.001)), max(maxBevel, float(1.0)));
+
+	// Normalized profile coordinate: 0 at outer rim equator, 1 at interior flat.
+	const u = saturate(inwardDist.div(bevelSpan));
+	// Inverse coordinate: 1 at outer rim equator, 0 at interior flat.
+	const k = oneMinus(u);
+
+	// Quintic polynomial profile for the continuous 400m stadium capsule.
+	// C2 continuity: S(0) = 0, S'(0) = 0, S''(0) = 0, completely eliminating
+	// the inner facet line / crease ("无棱的双面扁平操场胶囊").
+	const k2 = k.mul(k);
+	const k3 = k2.mul(k);
+	const smoothK = k3.mul(k.mul(k.mul(6).sub(15)).add(10));
+
+	// Continuous rounding angle: tilts from ~87 deg at capsule equator to 0 deg at center.
+	const thetaMax = float(Math.PI * 0.485);
+	const theta = smoothK.mul(thetaMax);
+	const sinTheta = sin(theta);
+	const cosTheta = cos(theta);
 
 	// Analytic gradient of the rounded-box SDF: outward direction of the bevel.
 	const d2 = max(q, vec2(0));
@@ -314,33 +336,66 @@ export function createLiquidGlassMaterial(
 	const signY = select(p.y.lessThan(float(0)), float(-1), float(1));
 	const outward = gradient.mul(vec2(signX, signY));
 
-	const normal = normalize(vec3(outward.mul(theta.cos()), theta.sin()));
+	// Front surface normal: smoothly tilts along capsule profile, seamlessly flat at center.
+	const normal = normalize(vec3(outward.mul(sinTheta), cosTheta));
 
-	/* ---------------------------------------------------------- refraction -- */
-	// Frosted glass scatters, so it both blurs and refracts less crisply.
+	// Panel UV y is up. screenUV y is down.
+	// Incident perspective ray from camera through screen pixel:
+	const ndc = vec2(screenUV.x.mul(2).sub(1), oneMinus(screenUV.y).mul(2).sub(1));
+	const tanHalf = tan(radians(uniforms.cameraFov).mul(0.5));
+	const aspect = uniforms.resolution.x.div(max(uniforms.resolution.y, float(1)));
+	const incident = normalize(
+		vec3(ndc.x.mul(tanHalf).mul(aspect), ndc.y.mul(tanHalf), float(-1)),
+	);
+
+	/* ---------------------- dual-surface volumetric refraction & dispersion -- */
+	// Multi-wavelength dual-surface ray refraction through the flat stadium capsule:
+	// Ray enters the front curved/flat surface, traverses the slab thickness, and refracts
+	// through the symmetrical back surface with Cauchy chromatic dispersion.
 	const refractionScale = mix(float(1), float(0.35), uniforms.roughness);
-	const offsetPx = normal.xy.mul(uniforms.refraction).mul(refractionScale).add(uniforms.shift);
-	const offsetUv = offsetPx.div(res);
+	const baseScale = uniforms.refraction.mul(refractionScale);
 	const baseUv = screenUV;
+
+	// In a double-convex stadium capsule, both front and back surfaces curve inward:
+	// The deflection angle combines front entry and back exit refraction:
+	// At the flat center (smoothK = 0): front & back are parallel, lens deflection is exactly 0.
+	// At the curved rim (smoothK > 0): front & back produce smooth liquid lens magnification.
+	const lensDeflection = outward.mul(sinTheta.mul(float(1).add(cosTheta.mul(0.5))));
+	// Thickness parallax shift across the slab (tapers to 0 at capsule equator):
+	const internalShift = incident.xy.mul(oneMinus(smoothK)).mul(0.18);
+	const netDisplacement = lensDeflection.add(internalShift);
+
+	const dispScale = uniforms.dispersion.mul(0.35);
+	const offsetPxR = netDisplacement
+		.mul(baseScale.mul(float(1).add(dispScale)))
+		.add(uniforms.shift);
+	const offsetPxG = netDisplacement.mul(baseScale).add(uniforms.shift);
+	const offsetPxB = netDisplacement
+		.mul(baseScale.mul(float(1).sub(dispScale)))
+		.add(uniforms.shift);
+
+	const offsetUvR = offsetPxR.div(res);
+	const offsetUvG = offsetPxG.div(res);
+	const offsetUvB = offsetPxB.div(res);
 
 	const blurRadius = uniforms.roughness.mul(uniforms.frost);
 
 	const sharp = vec3(
-		sampleBackdrop(baseUv.add(offsetUv.mul(float(1).add(uniforms.dispersion)))).r,
-		sampleBackdrop(baseUv.add(offsetUv)).g,
-		sampleBackdrop(baseUv.add(offsetUv.mul(float(1).sub(uniforms.dispersion)))).b,
+		sampleBackdrop(baseUv.add(offsetUvR)).r,
+		sampleBackdrop(baseUv.add(offsetUvG)).g,
+		sampleBackdrop(baseUv.add(offsetUvB)).b,
 	);
 
 	let blurred: Node<"vec3"> = vec3(0);
 	if (taps === 1) {
-		blurred = sampleBackdrop(baseUv.add(offsetUv)).rgb;
+		blurred = sampleBackdrop(baseUv.add(offsetUvG)).rgb;
 	} else {
 		for (let i = 0; i < taps; i++) {
 			const angle = i * GOLDEN_ANGLE;
 			const radius = Math.sqrt((i + 0.5) / taps);
 			const dir = vec2(Math.cos(angle) * radius, Math.sin(angle) * radius);
 			blurred = blurred.add(
-				sampleBackdrop(baseUv.add(offsetUv).add(dir.mul(blurRadius).div(res))).rgb,
+				sampleBackdrop(baseUv.add(offsetUvG).add(dir.mul(blurRadius).div(res))).rgb,
 			);
 		}
 		blurred = blurred.div(taps);
@@ -353,28 +408,71 @@ export function createLiquidGlassMaterial(
 	color = mix(vec3(luma), color, uniforms.saturation);
 	color = color.mul(uniforms.brightness);
 	color = mix(vec3(0.5), color, uniforms.contrast);
-	color = mix(color, uniforms.tint, uniforms.tintAmount);
+
+	// Multiplicative transmission filtering (Beer-Lambert optical absorption):
+	// Pure white tint (#ffffff) leaves transmission 100% crystal clear with zero milky fog.
+	// Colored tints filter passing wavelengths naturally without lifting dark black levels.
+	const transmissionFilter = mix(vec3(1), uniforms.tint, uniforms.tintAmount);
+	color = color.mul(transmissionFilter);
+
+	// Diffuse surface backscattering only if roughness > 0 and frost > 0 (frosted glass mode):
+	const diffuseScatter = uniforms.tint.mul(
+		uniforms.tintAmount.mul(saturate(uniforms.roughness.mul(uniforms.frost.div(30)))),
+	);
+	color = color.add(diffuseScatter);
 
 	/* --------------------------------------------------------- lighting -- */
 	const lightDir = normalize(vec3(uniforms.lightDirection, float(1)));
 	const halfVec = normalize(lightDir.add(vec3(0, 0, 1)));
-	const specular = pow(saturate(normal.dot(halfVec)), uniforms.shininess).mul(
-		uniforms.specular,
-	);
+	const light2d = normalize(uniforms.lightDirection);
 
+	// Light alignment in 2D along the capsule outward normal:
+	// Peak facing (+1) at the upper-left crest, neutral (0) on orthogonal sides.
+	const lightFacing = saturate(dot(outward, light2d));
+	const topFacing = saturate(outward.y);
+	const crestAlignment = max(lightFacing, topFacing.mul(0.85));
+
+	// Dual-lobe directional specular:
+	// 1. Sharp pinpoint glint at the specular crest:
+	const sharpDot = saturate(normal.dot(halfVec));
+	const sharpSpec = pow(sharpDot, uniforms.shininess.mul(2.0)).mul(uniforms.specular.mul(1.4));
+	// 2. Silky liquid luster extending along the illuminated bevel curve:
+	const broadSpec = pow(sharpDot, uniforms.shininess.mul(0.4)).mul(uniforms.specular.mul(0.42));
+	const specular = sharpSpec.add(broadSpec);
+
+	// Directional meniscus crest sheen along the upper rounded edge (Apple visionOS lip):
+	// Cylindrical bevel lens catches overhead/key light smoothly along the upper stadium perimeter:
+	const meniscusSheen = pow(crestAlignment, float(1.8))
+		.mul(sinTheta)
+		.mul(smoothstep(float(0.12), float(0.92), smoothK))
+		.mul(uniforms.specular.mul(0.85));
+
+	// Physical Fresnel with directional key light enhancement:
 	const grazing = pow(saturate(float(1).sub(normal.z)), uniforms.fresnelPower);
-	// The room takes some of the white rim's energy, so a catching bevel
-	// changes colour instead of stacking a second highlight on the type.
 	const env = saturate(uniforms.environment);
-	const fresnel = grazing.mul(uniforms.fresnel).mul(oneMinus(env.mul(0.85)));
-	// Panel UV y is up. screenUV y is down. The ray is the perspective camera,
-	// not the ortho camera this quad is drawn with.
-	const ndc = vec2(screenUV.x.mul(2).sub(1), oneMinus(screenUV.y).mul(2).sub(1));
-	const tanHalf = tan(radians(uniforms.cameraFov).mul(0.5));
-	const aspect = uniforms.resolution.x.div(max(uniforms.resolution.y, float(1)));
-	const incident = normalize(
-		vec3(ndc.x.mul(tanHalf).mul(aspect), ndc.y.mul(tanHalf), float(-1)),
-	);
+	const directionalFresnel = grazing
+		.mul(uniforms.fresnel)
+		.mul(0.68)
+		.mul(mix(float(0.12), float(1.3), crestAlignment))
+		.mul(oneMinus(env.mul(0.6)));
+
+	// Total Internal Reflection (TIR) caustic light concentration near the meniscus equator:
+	const causticRim = pow(sinTheta, float(3.4))
+		.mul(smoothstep(float(0.7), float(0.98), smoothK))
+		.mul(uniforms.fresnel.mul(0.72))
+		.mul(mix(float(0.1), float(1.25), crestAlignment));
+
+	// Polished outer equator edge glint (crisp subpixel gleam, directionally weighted):
+	const edge = smoothstep(float(0.91), float(0.998), smoothK)
+		.mul(uniforms.edgeGlow.mul(0.85))
+		.mul(mix(float(0.12), float(1.35), crestAlignment));
+
+	// Subtle ambient counter-rim bounce along the bottom edge:
+	const counterRim = pow(saturate(outward.y.negate()), float(3.5))
+		.mul(sinTheta)
+		.mul(smoothstep(float(0.35), float(0.96), smoothK))
+		.mul(uniforms.specular.mul(0.1));
+
 	const reflected = reflect(incident, normal);
 	const roomDir = uniforms.cameraRight
 		.mul(reflected.x)
@@ -388,14 +486,9 @@ export function createLiquidGlassMaterial(
 		sampleRoom(roomUv).g,
 		sampleRoom(roomUv.sub(vec2(fringe, float(0)))).b,
 	);
-	// Walls are near black, so a higher face weight shows the horizon and the
-	// pane without laying a veil over the type.
 	const roomWeight = env.mul(mix(float(0.4), float(1), grazing));
 
-	// Thin ring right at the border — the "polished edge" cue.
-	const edge = smoothstep(float(0.62), float(1), float(1).sub(t)).mul(uniforms.edgeGlow);
-
-	// Same sample as the world ray. Zero velocity is the old circle.
+	// Pointer sheen:
 	const pointerGlow = pointerSheen(
 		screenUV,
 		res,
@@ -405,11 +498,20 @@ export function createLiquidGlassMaterial(
 		uniforms.pointerStrength,
 	);
 
-	// Bevel self-shading gives the slab thickness.
-	const bevelShade = mix(float(0.78), float(1), t);
+	// Subtle volumetric absorption depth at the extreme outer rim (no dark center!):
+	const edgeAbsorption = mix(float(0.96), float(1), oneMinus(smoothK.mul(smoothK).mul(0.08)));
+	color = color.mul(edgeAbsorption);
 
-	color = color.mul(bevelShade);
-	color = color.add(uniforms.highlight.mul(specular.add(fresnel).add(edge).add(pointerGlow)));
+	// Total highlights:
+	const totalHighlight = specular
+		.add(meniscusSheen)
+		.add(causticRim)
+		.add(directionalFresnel)
+		.add(edge)
+		.add(counterRim)
+		.add(pointerGlow);
+
+	color = color.add(uniforms.highlight.mul(totalHighlight));
 	color = color.add(room.mul(roomWeight));
 
 	/* -------------------------------------------------------- film grain -- */

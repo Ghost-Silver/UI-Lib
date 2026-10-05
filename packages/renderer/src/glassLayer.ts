@@ -32,7 +32,20 @@ import {
 	type WorldLensMaterial,
 	type WorldLensOptions,
 } from "@ui-lib/shaders";
-import { float, texture, uniform, uv, vec2 } from "three/tsl";
+import {
+	abs,
+	float,
+	length,
+	max,
+	min,
+	mix,
+	smoothstep,
+	texture,
+	uniform,
+	uv,
+	vec2,
+	vec3,
+} from "three/tsl";
 import {
 	ClampToEdgeWrapping,
 	DepthTexture,
@@ -376,8 +389,12 @@ export class GlassLayer implements Disposable {
 		depthBuffer: true,
 		stencilBuffer: false,
 	});
-	/** Frosted blur radius in device pixels (~2.0px CSS radius scaled by DPR). */
-	private readonly frostedRadius = uniform(2.0);
+	/** Frosted blur radius in device pixels. */
+	private readonly frostedRadius = uniform(10.0);
+	/** Frosted ground viewport inset in device pixels (~16px CSS scaled by DPR). */
+	private readonly groundInset = uniform(16.0);
+	/** Frosted ground corner radius in device pixels (~28px CSS scaled by DPR). */
+	private readonly groundRadius = uniform(28.0);
 	private readonly frostedScene = new Scene();
 	private readonly frostedQuad: ReturnType<typeof createFullscreenQuad>;
 	/** Frosted intermediate backdrop target; glass panels and composite sample this directly. */
@@ -528,8 +545,22 @@ export class GlassLayer implements Disposable {
 		this.backdropRT.texture.minFilter = LinearFilter;
 		this.backdropRT.texture.generateMipmaps = false;
 
-		// 6-tap golden-angle disc kernel for subtle whole-page frosted blur (~2.0px radius)
-		const FROST_TAPS = 6;
+		// Ground panel SDF computation (16px inset, 28px radius)
+		const p = uv().sub(0.5).mul(this.sharedResolution);
+		const half = this.sharedResolution.mul(0.5);
+		const groundHalf = half.sub(this.groundInset);
+		const groundInner = groundHalf.sub(this.groundRadius);
+		const q = abs(p).sub(groundInner);
+		const outer = max(q.x, q.y);
+		const dist = length(max(q, vec2(0)))
+			.add(min(outer, float(0)))
+			.sub(this.groundRadius);
+
+		// Antialiased mask for the frosted ground panel (1.0 inside, 0.0 outside)
+		const groundMask = smoothstep(float(1.0), float(-1.0), dist);
+
+		// 8-tap golden-angle disc kernel for frosted blur on the ground panel
+		const FROST_TAPS = 8;
 		const GOLDEN_ANGLE = 2.399963229728653;
 		let blurNode = texture(
 			this.rawBackdropRT.texture,
@@ -553,8 +584,16 @@ export class GlassLayer implements Disposable {
 				).rgb,
 			);
 		}
+		const frostedColor = blurNode.div(float(FROST_TAPS)).add(vec3(0.035));
+		// Delicate specular highlight sheen on the outer rim
+		const borderSheen = smoothstep(float(2.0), float(0.0), abs(dist)).mul(float(0.18));
+		const groundComposite = frostedColor.add(borderSheen);
+
+		const rawColor = texture(this.rawBackdropRT.texture, uv()).rgb;
+		const blendedBackdrop = mix(rawColor, groundComposite, groundMask);
+
 		const frostedMaterial = new MeshBasicNodeMaterial();
-		frostedMaterial.colorNode = blurNode.div(float(FROST_TAPS));
+		frostedMaterial.colorNode = blendedBackdrop;
 		frostedMaterial.depthTest = false;
 		frostedMaterial.depthWrite = false;
 		frostedMaterial.toneMapped = false;
@@ -1438,7 +1477,10 @@ export class GlassLayer implements Disposable {
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
-		this.frostedRadius.value = 2.0 * dpr;
+		const isMobile = width < 768;
+		this.frostedRadius.value = 10.0 * dpr;
+		this.groundInset.value = (isMobile ? 8.0 : 16.0) * dpr;
+		this.groundRadius.value = (isMobile ? 18.0 : 28.0) * dpr;
 		this.rawBackdropRT.setSize(bufferWidth, bufferHeight);
 		this.backdropRT.setSize(bufferWidth, bufferHeight);
 		this.refractionRT.setSize(bufferWidth, bufferHeight);

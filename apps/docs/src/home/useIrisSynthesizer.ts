@@ -41,26 +41,26 @@ export interface OpticalParams {
 }
 
 export const DEFAULT_OPTICAL_PARAMS: OpticalParams = {
-	radius: 34,
-	bevel: 28,
-	refraction: 46,
-	dispersion: 0.3,
-	roughness: 0.2,
-	frost: 24,
-	specular: 0.6,
-	edgeGlow: 0.55,
-	tintAmount: 0.05,
-	saturation: 1.15,
-	bloomStrength: 0.28,
-	haloStrength: 0.14,
-	flareStrength: 0.1,
-	chromaticAberration: 0.35,
+	radius: 40,
+	bevel: 16,
+	refraction: 28,
+	dispersion: 0.22,
+	roughness: 0.02,
+	frost: 0,
+	specular: 0.88,
+	edgeGlow: 0.62,
+	tintAmount: 0.02,
+	saturation: 1.18,
+	bloomStrength: 0.32,
+	haloStrength: 0.16,
+	flareStrength: 0.12,
+	chromaticAberration: 0.38,
 	focusBlur: 2.5,
 	focusDepth: 0.62,
 	motionBlur: 0.05,
 	temporalReactive: 0.8,
-	grain: 0.018,
-	vignette: 0.12,
+	grain: 0.015,
+	vignette: 0.1,
 };
 
 const PALETTE_TO_TONE: Record<PaletteId, IrisTone> = {
@@ -100,6 +100,7 @@ export function useIrisSynthesizer() {
 	const [stepperStep, setStepperStep] = useState("neural");
 	const [forceSensing, setForceSensing] = useState(true);
 	const [smoothMotion, setSmoothMotion] = useState(true);
+	const [thickness, setThickness] = useState(28); // mm, Apple thick liquid glass
 
 	const tone = PALETTE_TO_TONE[palette] ?? "iris";
 
@@ -137,11 +138,33 @@ export function useIrisSynthesizer() {
 	);
 
 	const pill = useMemo(
-		() => ({ ...glass, radius: 999, bevel: 14, refraction: 18, frost: 12 }),
-		[glass],
+		() => ({
+			...glass,
+			radius: 999,
+			bevel: Math.round(thickness * 0.9),
+			refraction: Math.round(thickness * 1.8),
+			dispersion: 0.32,
+			frost: 0,
+			specular: 0.92,
+			edgeGlow: 0.48,
+		}),
+		[glass, thickness],
 	);
 
-	const card = useMemo(() => ({ ...glass, radius: 22, bevel: 18, refraction: 30 }), [glass]);
+	const card = useMemo(
+		() => ({
+			...glass,
+			radius: 32,
+			bevel: Math.round(thickness * 1.5),
+			refraction: Math.round(thickness * 3.2),
+			dispersion: 0.36,
+			roughness: 0.04,
+			frost: 0,
+			specular: 0.94,
+			edgeGlow: 0.55,
+		}),
+		[glass, thickness],
+	);
 
 	return {
 		params,
@@ -175,5 +198,7 @@ export function useIrisSynthesizer() {
 		setForceSensing,
 		smoothMotion,
 		setSmoothMotion,
+		thickness,
+		setThickness,
 	};
 }

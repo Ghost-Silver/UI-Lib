@@ -6,11 +6,23 @@ import {
 	type HTMLAttributes,
 	type ReactNode,
 	useCallback,
+	useEffect,
 	useMemo,
 	useRef,
 } from "react";
 import { useGlassStage } from "./context.js";
+import { type GlassLookName, type GlassPresetName, resolveGlassPreset } from "./looks.js";
 import { stableKey, useIsomorphicLayoutEffect } from "./utils.js";
+
+let hasWarnedMissingStage = false;
+function warnMissingGlassStageOnce() {
+	if (hasWarnedMissingStage || typeof console === "undefined") return;
+	hasWarnedMissingStage = true;
+	console.warn(
+		"[UI-Lib] <GlassPanel> rendered outside <GlassStage>. Rendering in CSS fallback mode.\n" +
+			"To enable real GPU liquid glass refraction, wrap your view tree or card in <GlassStage>.",
+	);
+}
 
 export interface GlassPanelProps
 	extends GlassPanelOptions,
@@ -18,6 +30,18 @@ export interface GlassPanelProps
 	/** Element to render. Defaults to a `div`. */
 	as?: ElementType;
 	children?: ReactNode;
+	/**
+	 * High-level semantic preset (e.g. 'apple-crystal', 'capsule', 'frosted-dock', 'slab', 'pane', 'dew').
+	 * Fully compatible with custom overrides.
+	 */
+	preset?: GlassPresetName;
+	/** Alias for `preset` for backward compatibility with `look`. */
+	look?: GlassLookName;
+	/**
+	 * Thickness in millimeters (standard reference is 28mm).
+	 * Scales bevel and refraction proportionally relative to 28mm.
+	 */
+	thickness?: number;
 	/**
 	 * Render as plain DOM, keeping the same box, without asking the layer for
 	 * glass. Named `plain` rather than `disabled` because `disabled` belongs to
@@ -48,6 +72,9 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 			children,
 			className,
 			style,
+			preset,
+			look,
+			thickness,
 			radius,
 			bevel,
 			refraction,
@@ -80,62 +107,83 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 		const innerRef = useRef<HTMLElement | null>(null);
 		const handleRef = useRef<GlassPanelHandle | null>(null);
 
-		const options = useMemo<GlassPanelOptions>(
-			() => ({
-				radius,
-				bevel,
-				refraction,
-				shift,
-				dispersion,
-				roughness,
-				frost,
-				tint,
-				tintAmount,
-				saturation,
-				brightness,
-				contrast,
-				highlight,
-				specular,
-				shininess,
-				fresnel,
-				fresnelPower,
-				edgeGlow,
-				lightDirection,
-				grain,
-				opacity,
-				pointerStrength,
-				pointerRadius,
-				environment,
-				z,
-			}),
-			[
-				radius,
-				bevel,
-				refraction,
-				shift,
-				dispersion,
-				roughness,
-				frost,
-				tint,
-				tintAmount,
-				saturation,
-				brightness,
-				contrast,
-				highlight,
-				specular,
-				shininess,
-				fresnel,
-				fresnelPower,
-				edgeGlow,
-				lightDirection,
-				grain,
-				opacity,
-				pointerStrength,
-				pointerRadius,
-				environment,
-				z,
-			],
-		);
+		useEffect(() => {
+			const isDev =
+				typeof globalThis !== "undefined" &&
+				(globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !==
+					"production";
+			if (isDev && !plain && status === "idle" && !layer) {
+				warnMissingGlassStageOnce();
+			}
+		}, [plain, status, layer]);
+
+		const resolvedBase = useMemo(() => {
+			const activePreset = preset ?? look;
+			if (!activePreset && thickness === undefined) return null;
+			return resolveGlassPreset({
+				preset: activePreset,
+				thickness,
+			});
+		}, [preset, look, thickness]);
+
+		const options = useMemo<GlassPanelOptions>(() => {
+			const base = resolvedBase ?? {};
+			return {
+				...base,
+				...(radius !== undefined && { radius }),
+				...(bevel !== undefined && { bevel }),
+				...(refraction !== undefined && { refraction }),
+				...(shift !== undefined && { shift }),
+				...(dispersion !== undefined && { dispersion }),
+				...(roughness !== undefined && { roughness }),
+				...(frost !== undefined && { frost }),
+				...(tint !== undefined && { tint }),
+				...(tintAmount !== undefined && { tintAmount }),
+				...(saturation !== undefined && { saturation }),
+				...(brightness !== undefined && { brightness }),
+				...(contrast !== undefined && { contrast }),
+				...(highlight !== undefined && { highlight }),
+				...(specular !== undefined && { specular }),
+				...(shininess !== undefined && { shininess }),
+				...(fresnel !== undefined && { fresnel }),
+				...(fresnelPower !== undefined && { fresnelPower }),
+				...(edgeGlow !== undefined && { edgeGlow }),
+				...(lightDirection !== undefined && { lightDirection }),
+				...(grain !== undefined && { grain }),
+				...(opacity !== undefined && { opacity }),
+				...(pointerStrength !== undefined && { pointerStrength }),
+				...(pointerRadius !== undefined && { pointerRadius }),
+				...(environment !== undefined && { environment }),
+				...(z !== undefined && { z }),
+			};
+		}, [
+			resolvedBase,
+			radius,
+			bevel,
+			refraction,
+			shift,
+			dispersion,
+			roughness,
+			frost,
+			tint,
+			tintAmount,
+			saturation,
+			brightness,
+			contrast,
+			highlight,
+			specular,
+			shininess,
+			fresnel,
+			fresnelPower,
+			edgeGlow,
+			lightDirection,
+			grain,
+			opacity,
+			pointerStrength,
+			pointerRadius,
+			environment,
+			z,
+		]);
 
 		// Keep the latest options readable from the registration effect without
 		// making them a dependency of it.

@@ -4376,7 +4376,8 @@ const CSS = `
 }
 
 .ui-lib-soft-segments__track {
-	display: inline-flex;
+	display: flex;
+	width: 100%;
 	gap: 3px;
 	padding: 3px;
 	border-radius: var(--moe-radius-full);
@@ -4384,24 +4385,26 @@ const CSS = `
 	box-shadow:
 		inset 0 2px 4px 0 rgb(77 60 56 / 0.12),
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.9);
+	box-sizing: border-box;
 }
 
 .ui-lib-soft-segments__segment {
-	display: grid;
-	gap: 1px;
-	justify-items: center;
-	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1 1 0%;
 	min-width: 0;
-	padding: 7px 16px;
+	padding: 6px 8px;
 	border: none;
 	border-radius: var(--moe-radius-full);
 	background: transparent;
 	font: inherit;
-	font-size: 13.5px;
+	font-size: 12.5px;
 	font-weight: 600;
 	color: var(--moe-cocoa-soft);
 	text-align: center;
 	cursor: pointer;
+	box-sizing: border-box;
 	transition:
 		background 200ms ease-out,
 		color 200ms ease-out,
@@ -4476,10 +4479,14 @@ const CSS = `
 }
 
 .ui-lib-soft-segments__text {
-	font-size: 13.5px;
+	display: block;
+	max-width: 100%;
+	font-size: 12.5px;
 	font-weight: 600;
 	line-height: 1.3;
 	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .ui-lib-soft-segments__note {
@@ -4491,8 +4498,9 @@ const CSS = `
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.ui-lib-soft-segments__segment 
+	.ui-lib-soft-segments__segment {
 		transition: none;
+	}
 }
 
 
@@ -5850,14 +5858,20 @@ const CSS = `
 	position: fixed;
 	z-index: 1;
 	pointer-events: none;
-	background: rgba(255, 255, 255, 0.09);
-	backdrop-filter: blur(8px) saturate(125%);
-	-webkit-backdrop-filter: blur(8px) saturate(125%);
+	background: transparent;
 	border: 1px solid rgba(255, 255, 255, 0.45);
 	box-shadow:
 		0 8px 32px rgba(31, 38, 135, 0.04),
 		inset 0 1px 0 rgba(255, 255, 255, 0.6);
 	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-ui-lib-stage="unsupported"] .ui-lib-frosted-ground-fixed,
+[data-ui-lib-stage="fallback"] .ui-lib-frosted-ground-fixed,
+[data-gpu-active="false"] .ui-lib-frosted-ground-fixed {
+	background: rgba(255, 255, 255, 0.09);
+	backdrop-filter: blur(8px) saturate(125%);
+	-webkit-backdrop-filter: blur(8px) saturate(125%);
 }
 
 .ui-lib-watercolor-board {

@@ -14,6 +14,7 @@ import {
 	SoftTabs,
 } from "@ui-lib/react";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
+import { LiquidGlassCard } from "./LiquidGlass.js";
 import type { MaterialMode, OpticalParams } from "./useIrisSynthesizer.js";
 
 export interface MaterialSynthesizerDeckProps {
@@ -90,7 +91,7 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 			{activeTab === 0 && (
 				<div className="iris-synthesizer-grid">
 					{/* Left Column: Parameters & Controls Dock */}
-					<GlassPanel className="iris-dock-card panel iris-card--frosted" {...cardProps}>
+					<LiquidGlassCard className="iris-dock-card panel" glassOptions={cardProps}>
 						<h3 className="iris-dock-title">材质与物理参数控制舱</h3>
 						<p className="iris-dock-desc">
 							调节参数将即时广播至右侧实机组件矩阵与底层材质渲染管线。
@@ -167,7 +168,7 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 								label="磨砂度"
 							/>
 						</div>
-					</GlassPanel>
+					</LiquidGlassCard>
 
 					{/* Right Column: Active Soft Components Board */}
 					<div className="iris-stage-column">
@@ -186,8 +187,8 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 						>
 							<div className="iris-live-header">
 								<div>
-									<div className="iris-live-card-eyebrow">实机交互矩阵 · LIVE BENCH</div>
-									<h4 className="iris-live-card-title">Iris 神经控制终端组件簇</h4>
+									<div className="iris-live-card-eyebrow">实机交互矩阵 · SEMANTIC ATELIER</div>
+									<h4 className="iris-live-card-title">UI-Lib 交互视界 · 多材质组件调谐台</h4>
 								</div>
 								<span className="iris-live-card-tag">
 									material="{materialMode}" · tone="{tone}"
@@ -197,44 +198,45 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 							<div className="iris-live-form">
 								<div>
 									<label htmlFor="agent-prompt-input" className="iris-sublabel">
-										任务指令 / Agent Prompt
+										语义化表单输入 / SoftInput
 									</label>
 									<SoftInput
 										id="agent-prompt-input"
 										value={promptInput}
 										onChange={(e) => setPromptInput(e.target.value)}
-										placeholder="输入具身行动规划Prompt..."
+										placeholder="输入文字体验柔焦光晕 (FOCUS_HALO)..."
 									/>
 									<span className="iris-control-hint">
-										具有无障碍柔焦光晕（FOCUS_HALO），回车触发具身规划
+										具有物理级无障碍柔焦光晕，支持全键盘 Focus-Visible
 									</span>
 								</div>
 
 								<div className="iris-form-row">
 									<div style={{ flex: 1 }}>
 										<label htmlFor="executor-select" className="iris-sublabel">
-											执行硬件 / Embodied Executor
+											交互触感形态 / Tactile Preset
 										</label>
 										<SoftSelect
 											value={targetExecutor}
 											onChange={setTargetExecutor}
 											options={[
-												{ value: "lyra", label: "Lyra·揽星 六轴机械臂" },
-												{ value: "openinspire", label: "OpenInspire 3 工业无人机" },
-												{ value: "ue5xr", label: "UE5 XR 空间具身模拟器" },
+												{ value: "clay", label: "粘土微弹态 (Clay Touch)" },
+												{ value: "gummy", label: "软糖高阻尼 (Gummy Damping)" },
+												{ value: "flat", label: "微透平展态 (Flat Surface)" },
+												{ value: "glass", label: "厚重液态玻璃 (Apple Glass)" },
 											]}
 										/>
 									</div>
 
 									<div className="iris-choice-wrap">
-										<span className="iris-sublabel">运动控制策略</span>
+										<span className="iris-sublabel">物理动力学策略</span>
 										<SoftCheckbox
-											label="力感知避障 (Force Sensing)"
+											label="无量纲阻尼回弹 (\u03B6 = 0.55)"
 											checked={forceSensing}
 											onChange={(e) => setForceSensing(e.target.checked)}
 										/>
 										<SoftCheckbox
-											label="姿态平滑阻尼 (Smooth Damping)"
+											label="毛细扩散光晕 (Capillary Halo)"
 											checked={smoothMotion}
 											onChange={(e) => setSmoothMotion(e.target.checked)}
 										/>
@@ -242,27 +244,27 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 								</div>
 
 								<div>
-									<span className="iris-sublabel">自主规划执行阶段 (Stepped Pipeline)</span>
+									<span className="iris-sublabel">物理弹簧动力学阶段 (Spring Phase)</span>
 									<div className="iris-stepper-wrap">
 										<SoftStepper
-											label="具身规划执行阶段"
+											label="动力学执行阶段"
 											current={stepperStep}
 											onChange={setStepperStep}
 											steps={[
 												{
-													id: "sense",
-													label: "多模态感知",
-													note: "RGB-D点云建图",
+													id: "press",
+													label: "弹性按压",
+													note: "触觉形变",
 												},
 												{
-													id: "neural",
-													label: "CTorch 推理",
-													note: "大模型决策规划",
+													id: "overshoot",
+													label: "单峰超调",
+													note: "动力学回弹",
 												},
 												{
-													id: "actuate",
-													label: "动力学执行",
-													note: "闭环力控驱动",
+													id: "settle",
+													label: "稳态静止",
+													note: "无余震停驻",
 												},
 											]}
 										/>
@@ -274,24 +276,22 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 										variant="clay"
 										tone={tone}
 										onClick={() => {
-											setPromptInput(
-												"指令已下发至 Lyra 机械臂（闭环力矩传感器就绪，执行亚毫米级装配）",
-											);
+											setPromptInput("已激活粘土触感按钮（Clay Variant）：柔和反弹力曲线");
 										}}
 									>
-										🚀 下发并执行指令
+										粘土触感体验
 									</SoftButton>
 									<SoftButton
 										variant="gummy"
 										tone={tone}
 										onClick={() => {
-											setPromptInput("规划 Lyra 机械臂抓取试管并执行微升移液...");
+											setPromptInput("已激活软糖阻尼按钮（Gummy Variant）：高阻尼吸收振动");
 										}}
 									>
-										状态回正
+										软糖阻尼手感
 									</SoftButton>
 									<SoftButton variant="flat" tone={tone} disabled={true}>
-										硬件急停（保护中）
+										禁用微透态 (Disabled)
 									</SoftButton>
 								</div>
 
@@ -305,9 +305,10 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 												: materialMode
 									}
 								>
-									<strong>Iris Runtime 通信就绪</strong>
+									<strong>UI-Lib 语义化架构就绪</strong>
 									<div style={{ marginTop: "4px" }}>
-										CTorch 推理后端延迟 1.2ms，WebGPU 渲染管线 120 FPS，与底层外设通信正常。
+										所有 35+ 个 Soft 组件均深度适配信手感与东方水墨/液态玻璃材质，全量通过 463
+										项自动化门禁。
 									</div>
 								</SoftAlert>
 							</div>
@@ -318,7 +319,7 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 
 			{/* Tab 1: 具身交互终端 */}
 			{activeTab === 1 && (
-				<GlassPanel className="iris-dock-card panel iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="iris-dock-card panel" glassOptions={cardProps}>
 					<div className="iris-embodied-showcase">
 						<div className="iris-embodied-header">
 							<span className="iris-live-card-eyebrow">EMBODIED AGI PIPELINE</span>
@@ -356,12 +357,12 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 							</div>
 						</div>
 					</div>
-				</GlassPanel>
+				</LiquidGlassCard>
 			)}
 
 			{/* Tab 2: 光学折射透镜 */}
 			{activeTab === 2 && (
-				<GlassPanel className="iris-dock-card panel iris-card--frosted" {...cardProps}>
+				<LiquidGlassCard className="iris-dock-card panel" glassOptions={cardProps}>
 					<div className="iris-lens-showcase">
 						<div className="iris-lens-intro">
 							<span className="iris-live-card-eyebrow">PHYSICAL OPTICS PROBE</span>
@@ -419,7 +420,7 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 							</div>
 						</div>
 					</div>
-				</GlassPanel>
+				</LiquidGlassCard>
 			)}
 		</section>
 	);
