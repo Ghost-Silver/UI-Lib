@@ -26,6 +26,7 @@ import { CursorFieldPage } from "./CursorField.js";
 import { Choice, Slider, Toggle } from "./components/Slider.js";
 import { StatusHud } from "./components/StatusHud.js";
 import { GlassLabPage } from "./GlassLab.js";
+import { IrisHomepage } from "./IrisHomepage.js";
 import { IrisKitPage, isKitComponent } from "./IrisKit.js";
 import { IrisShowcasePage } from "./IrisShowcase.js";
 import { KitIndexPage } from "./KitIndex.js";
@@ -924,9 +925,10 @@ export default function App() {
 			const targetComponent = isKitComponent(component) ? component : "matrix";
 			return <IrisKitPage component={targetComponent} tone={targetTone} />;
 		}
+		if (demo === "playground") return <Playground />;
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}
-	return <Playground />;
+	return <IrisHomepage />;
 }
 
 /**
