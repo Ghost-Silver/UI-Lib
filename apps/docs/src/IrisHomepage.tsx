@@ -1,7 +1,6 @@
 import type { IrisTone } from "@ui-lib/core";
 import { PLAYGROUND_FIELD, PLAYGROUND_FIELD_CAMERA } from "@ui-lib/particles";
 import {
-	FrostedGround,
 	GlassPanel,
 	GlassStage,
 	Magnetic,
@@ -195,7 +194,7 @@ function Scene(props: SceneProps) {
 	const card = { ...glass, radius: 22, bevel: 18, refraction: 30 };
 
 	return (
-		<FrostedGround inset={16} radius={24} className="iris-home-ground">
+		<div className="iris-home-ground">
 			<div className="iris-home-container">
 				{/* 1. Floating Glass Capsule Nav */}
 				<header className="iris-nav-wrapper">
@@ -855,7 +854,7 @@ function Scene(props: SceneProps) {
 
 				<StatusHud stats={stats} status={status} forceFallback={forceFallback} />
 			</div>
-		</FrostedGround>
+		</div>
 	);
 }
 

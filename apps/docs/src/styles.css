@@ -3966,14 +3966,17 @@ input[type="range"]::-moz-range-thumb {
 	gap: 16px;
 	padding: 8px 20px;
 	border-radius: 999px;
-	background: rgba(15, 23, 42, 0.55);
-	-webkit-backdrop-filter: blur(20px) saturate(160%);
-	backdrop-filter: blur(20px) saturate(160%);
-	box-shadow:
-		0 16px 36px -10px rgba(0, 0, 0, 0.45),
-		0 0 0 1px rgba(255, 255, 255, 0.18);
 	max-width: 1140px;
 	width: 100%;
+	box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.35);
+}
+
+.iris-nav-capsule[data-ui-lib-glass="fallback"],
+.iris-nav-capsule[data-ui-lib-glass="off"] {
+	background: rgba(15, 23, 42, 0.65);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+	backdrop-filter: blur(20px) saturate(160%);
+	border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .iris-nav-left {
