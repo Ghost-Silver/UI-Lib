@@ -240,7 +240,8 @@ export function computeEffectiveGroundLuminance(options: {
 	washCss?: string;
 }): GroundContrast {
 	const { cardColor, pigmentColor, weight = 1, theme, washCss } = options;
-	let luminance = 0.95;
+	let washLum: number | null = null;
+	let washAlpha = 1;
 
 	if (washCss) {
 		const match = washCss.match(
@@ -249,7 +250,8 @@ export function computeEffectiveGroundLuminance(options: {
 		if (match) {
 			const parsed = parseColour(match[0]);
 			if (parsed) {
-				luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+				washLum = srgbLuminance(parsed.r, parsed.g, parsed.b);
+				washAlpha = parsed.alpha ?? 1;
 			}
 		}
 	} else if (pigmentColor) {
@@ -258,17 +260,38 @@ export function computeEffectiveGroundLuminance(options: {
 			const css = mixToCss([p], { thickness: (weight || 1) * 0.7, backing: 1 });
 			const parsed = parseColour(css);
 			if (parsed) {
-				luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+				washLum = srgbLuminance(parsed.r, parsed.g, parsed.b);
 			}
 		} catch {
 			const parsed = parseColour(pigmentColor);
-			if (parsed) luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+			if (parsed) washLum = srgbLuminance(parsed.r, parsed.g, parsed.b);
 		}
-	} else if (cardColor) {
+	}
+
+	let cardLum: number | null = null;
+	if (cardColor) {
 		const parsed = parseColour(cardColor);
 		if (parsed) {
-			luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+			cardLum = srgbLuminance(parsed.r, parsed.g, parsed.b);
 		}
+	}
+
+	let luminance = 0.95;
+	if (washCss && washLum !== null) {
+		// When rendered washCss is present, if it has opacity < 1, blend with underlying ground
+		if (washAlpha < 1 && cardLum !== null) {
+			luminance = (1 - washAlpha) * cardLum + washAlpha * washLum;
+		} else {
+			luminance = washLum;
+		}
+	} else if (cardLum !== null && washLum !== null) {
+		// Optical deposit blend: translucent pigment wash over the underlying ground (e.g. Xuan paper / card)
+		const opacity = Math.min(0.65, Math.max(0.12, (weight || 1) * 0.35));
+		luminance = (1 - opacity) * cardLum + opacity * washLum;
+	} else if (washLum !== null) {
+		luminance = washLum;
+	} else if (cardLum !== null) {
+		luminance = cardLum;
 	} else if (theme === "cyberpunk") {
 		luminance = 0.05;
 	} else if (theme === "obsidian") {

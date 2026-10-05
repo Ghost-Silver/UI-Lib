@@ -412,6 +412,8 @@ const CSS = `
 	 */
 	--moe-ease-jelly: cubic-bezier(0.34, 1.56, 0.64, 1);
 	--moe-ease-press: cubic-bezier(0.28, 1.38, 0.48, 1); /* zeta = 0.55 */
+	--moe-press-damping: 0.55;
+	--moe-focus-halo: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
 	--moe-ease-snappy: cubic-bezier(0.2, 1.25, 0.4, 1);
 	--moe-ease-gentle: cubic-bezier(0.22, 0.61, 0.36, 1);
 	--moe-dur-quick: 140ms;
@@ -1052,7 +1054,12 @@ const CSS = `
 
 .ui-lib-paper-button:active:not(:disabled) {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
+}
+
+.ui-lib-paper-button[data-ui-lib-spring]:not(:disabled) {
+	transform: translateY(calc(var(--press, 0) * 1.5px)) scale(calc(1 - var(--press, 0) * 0.03), calc(1 - var(--press, 0) * 0.05));
+	transition: none;
 }
 
 .ui-lib-paper-button:disabled {
@@ -1366,7 +1373,7 @@ const CSS = `
 
 .ui-lib-soft-switch:active:not(:disabled):not([data-ui-lib-soft-disabled]) {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-switch[data-ui-lib-on] {
@@ -1493,7 +1500,7 @@ const CSS = `
 
 .ui-lib-soft-tabs__tab:active:not(:disabled):not([data-ui-lib-disabled]) {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-tabs__tab:disabled,
@@ -1956,16 +1963,25 @@ const CSS = `
 	transform: translateY(-1px);
 }
 
-.ui-lib-soft-modal__confirm:active,
-.ui-lib-soft-modal__cancel:active {
+.ui-lib-soft-modal__confirm:active:not(:disabled),
+.ui-lib-soft-modal__cancel:active:not(:disabled) {
 	transform: scale(1.04, 0.94);
+	transition: transform 90ms var(--moe-ease-press);
+}
+
+.ui-lib-soft-modal__confirm:disabled,
+.ui-lib-soft-modal__cancel:disabled {
+	transform: none !important;
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 .ui-lib-soft-modal__dismiss:focus-visible,
 .ui-lib-soft-modal__cancel:focus-visible,
 .ui-lib-soft-modal__confirm:focus-visible {
-	outline: 3px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2383,6 +2399,7 @@ const CSS = `
 	   the text inside it; a light ring standing off the field reads as the
 	   field having been singled out, which is what focus is. */
 	border: 1.5px solid var(--moe-taro-500);
+	box-shadow: 0 0 12px 3px var(--moe-taro-500);
 	/* --ring is the spring's value, written every frame. It goes slightly past
 	   1 on the way in, which is what gives the ring its settle. */
 	opacity: calc(var(--ring, 0) * 0.6);
@@ -2498,7 +2515,7 @@ const CSS = `
 
 .ui-lib-soft-select:not([data-ui-lib-disabled]) .ui-lib-soft-select__trigger:active {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-select[data-ui-lib-open] .ui-lib-soft-select__trigger {
@@ -2716,7 +2733,7 @@ const CSS = `
 
 .ui-lib-soft-choice:active:not([data-ui-lib-disabled]) .ui-lib-soft-choice__box {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box,
@@ -3349,8 +3366,9 @@ const CSS = `
 }
 
 .ui-lib-soft-toast__close:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* The stack. Fixed to a corner, and each toast is placed in flow inside it, so
@@ -3593,8 +3611,9 @@ const CSS = `
 }
 
 .ui-lib-soft-tag__remove:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 1px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3683,7 +3702,7 @@ const CSS = `
 
 .ui-lib-soft-accordion__item:not([data-ui-lib-disabled]) .ui-lib-soft-accordion__trigger:active {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-accordion__trigger:focus-visible {
@@ -3863,8 +3882,9 @@ const CSS = `
 }
 
 .ui-lib-soft-table__sort:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* The arrow is drawn, and it is only present when the column is sorted. An
@@ -4075,8 +4095,9 @@ const CSS = `
 }
 
 .ui-lib-soft-drawer__close:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-drawer__body {
@@ -4419,7 +4440,7 @@ const CSS = `
 
 .ui-lib-soft-segments__segment:active:not([data-ui-lib-disabled]) {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 /* Raised out of the groove: a lift, not a fill. */
@@ -4585,8 +4606,9 @@ const CSS = `
 }
 
 .ui-lib-soft-alert__dismiss:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-alert[data-ui-lib-tone="info"] {
@@ -4739,7 +4761,7 @@ const CSS = `
 
 .ui-lib-soft-pagination__page:not([data-ui-lib-current]):active {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-pagination__page:focus-visible {
@@ -4825,8 +4847,9 @@ const CSS = `
 
 .ui-lib-soft-breadcrumb__link:focus-visible,
 .ui-lib-soft-breadcrumb__button:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* Where the reader is. Not a link, and it does not pretend to be one. */
@@ -4887,8 +4910,9 @@ const CSS = `
 }
 
 .ui-lib-soft-menu__trigger:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-menu__trigger:disabled {
@@ -4975,6 +4999,12 @@ const CSS = `
 	outline: none;
 }
 
+.ui-lib-soft-menu__item:focus-visible {
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
+}
+
 /* A pointer can hover an item the keyboard is not on, and those are two
    different things: hovering previews, focusing acts. Both are highlighted
    because in a menu they converge the moment the pointer moves. */
@@ -5047,8 +5077,9 @@ const CSS = `
 }
 
 .ui-lib-soft-list:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-list__item {
@@ -5300,7 +5331,7 @@ const CSS = `
 
 .ui-lib-soft-toolbar__item:active:not(:disabled) {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 /*
@@ -5376,8 +5407,9 @@ const CSS = `
 }
 
 .ui-lib-soft-toolbar__slot > button:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 1px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-toolbar__icon {
@@ -5430,7 +5462,7 @@ const CSS = `
 
 .ui-lib-soft-chip-wrap:active:not([data-ui-lib-disabled]):not(:has(:disabled)) {
 	transform: translateY(1.5px) scale(0.97, 0.95);
-	transition: transform 90ms ease-in;
+	transition: transform 90ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-chip-wrap[data-ui-lib-disabled],
@@ -5536,8 +5568,9 @@ const CSS = `
 }
 
 .ui-lib-soft-chip__remove:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 1px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* --- stepper -------------------------------------------------------------
@@ -5640,8 +5673,9 @@ const CSS = `
 }
 
 .ui-lib-soft-stepper__control:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-stepper__mark {

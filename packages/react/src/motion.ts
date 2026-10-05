@@ -27,6 +27,8 @@ export interface SpringInteractionOptions {
 	initial?: number;
 	unit?: string;
 	format?: (v: number) => string;
+	/** Whether the spring driver is actively attached. Defaults to true. */
+	enabled?: boolean;
 }
 
 export interface SpringInteractionResult<T extends HTMLElement = HTMLElement> {
@@ -43,19 +45,26 @@ export interface SpringInteractionResult<T extends HTMLElement = HTMLElement> {
 export function useSpringInteraction<T extends HTMLElement = HTMLElement>(
 	options: SpringInteractionOptions = {},
 ): SpringInteractionResult<T> {
-	const { property = "--press", motion = "press", initial = 0, unit = "", format } = options;
+	const {
+		property = "--press",
+		motion = "press",
+		initial = 0,
+		unit = "",
+		format,
+		enabled = true,
+	} = options;
 	const ref = useRef<T | null>(null);
 	const driverRef = useRef<SpringDriver | null>(null);
 
 	useEffect(() => {
 		const node = ref.current;
-		if (!node) return;
+		if (!node || !enabled) return;
 		const driver = driveSpring(node, property, motion, { initial, unit, format });
 		driverRef.current = driver;
 		return () => {
 			driver.stop();
 		};
-	}, [property, motion, initial, unit, format]);
+	}, [property, motion, initial, unit, format, enabled]);
 
 	const to = useCallback((value: number, next?: MotionPresetName | MotionSpec) => {
 		driverRef.current?.to(value, next);

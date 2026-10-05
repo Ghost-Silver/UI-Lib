@@ -4,10 +4,13 @@ import { describe, expect, it } from "vitest";
 import {
 	computeEffectiveGroundLuminance,
 	SoftAlert,
+	SoftChip,
 	SoftEmptyState,
 	SoftLightPanel,
+	SoftMenu,
 	SoftSegmentedControl,
 	SoftSelect,
+	SoftTabs,
 	srgbLuminance,
 } from "../src/index.js";
 
@@ -48,6 +51,26 @@ describe("Material contrast engine", () => {
 			pigmentColor: "#e0b0ff",
 			weight: 0.34,
 			theme: "obsidian",
+		});
+		expect(res.luminance).toBeGreaterThan(0.5);
+		expect(res.onMaterial).toBe("oklch(0.10 0.02 265.76)");
+	});
+
+	it("computes high contrast light ink on dark Xuan paper ground with wash", () => {
+		const res = computeEffectiveGroundLuminance({
+			cardColor: "#181512",
+			pigmentColor: "#2effff",
+			weight: 0.35,
+		});
+		expect(res.luminance).toBeLessThan(0.22);
+		expect(res.onMaterial).toBe("oklch(0.96 0.01 265.76)");
+	});
+
+	it("computes high contrast dark ink on light Xuan paper ground with wash", () => {
+		const res = computeEffectiveGroundLuminance({
+			cardColor: "#faf8f5",
+			pigmentColor: "#ffb7c5",
+			weight: 0.35,
 		});
 		expect(res.luminance).toBeGreaterThan(0.5);
 		expect(res.onMaterial).toBe("oklch(0.10 0.02 265.76)");
@@ -127,5 +150,44 @@ describe("Expanded component material and tone support", () => {
 		);
 		expect(html).toContain("ui-lib-soft-select");
 		expect(html).toContain("First");
+	});
+
+	it("renders SoftTabs with material and tone", () => {
+		const html = renderToString(
+			React.createElement(SoftTabs, {
+				material: "wash",
+				tone: "iris",
+				items: ["First", "Second"],
+			}),
+		);
+		expect(html).toContain("ui-lib-soft-tabs");
+		expect(html).toContain('data-ui-lib-material="wash"');
+		expect(html).toContain('data-ui-lib-tone="iris"');
+		expect(html).toContain("First");
+	});
+
+	it("renders SoftMenu with material and tone", () => {
+		const html = renderToString(
+			React.createElement(SoftMenu, {
+				material: "wash",
+				tone: "iris",
+				trigger: "Actions",
+				items: [{ kind: "item", id: "edit", label: "Edit item", onSelect: () => {} }],
+			}),
+		);
+		expect(html).toContain("ui-lib-soft-menu");
+		expect(html).toContain('data-ui-lib-material="wash"');
+		expect(html).toContain('data-ui-lib-tone="iris"');
+		expect(html).toContain("Actions");
+	});
+
+	it("renders SoftChip with material and tone", () => {
+		const html = renderToString(
+			React.createElement(SoftChip, { material: "wash", tone: "blossom" }, "Watercolor Tag"),
+		);
+		expect(html).toContain("ui-lib-soft-chip");
+		expect(html).toContain('data-ui-lib-material="wash"');
+		expect(html).toContain('data-ui-lib-tone="blossom"');
+		expect(html).toContain("Watercolor Tag");
 	});
 });

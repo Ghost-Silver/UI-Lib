@@ -3,10 +3,13 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
 	FOCUS_HALO,
+	PinkPaperButton,
 	PRESS_DAMPING,
 	PRESS_EASING,
+	SoftLightPanel,
 	type SpringInteractionResult,
 	useSpringInteraction,
+	WatercolorCard,
 } from "../src/index.js";
 
 describe("Motion tokens and physics presets", () => {
@@ -39,5 +42,49 @@ describe("useSpringInteraction hook", () => {
 		expect(current?.ref).toBeDefined();
 		expect(typeof current?.to).toBe("function");
 		expect(typeof current?.set).toBe("function");
+	});
+
+	it("respects enabled: false without errors", () => {
+		let captured: SpringInteractionResult<HTMLButtonElement> | null = null;
+		function DisabledButton() {
+			captured = useSpringInteraction<HTMLButtonElement>({
+				enabled: false,
+			});
+			return React.createElement("button", { type: "button", ref: captured.ref }, "No Spring");
+		}
+		const html = renderToString(React.createElement(DisabledButton));
+		expect(html).toContain("No Spring");
+		expect(captured).not.toBeNull();
+	});
+});
+
+describe("Micro-interaction physics and tilt support", () => {
+	it("renders PinkPaperButton / SoftButton with tilt and spring enabled", () => {
+		const html = renderToString(
+			React.createElement(
+				PinkPaperButton,
+				{ tilt: true, spring: true, tone: "blossom" },
+				"Press Me",
+			),
+		);
+		expect(html).toContain("ui-lib-paper-button");
+		expect(html).toContain("data-ui-lib-spring");
+		expect(html).toContain("Press Me");
+	});
+
+	it("renders SoftLightPanel with tilt enabled", () => {
+		const html = renderToString(
+			React.createElement(SoftLightPanel, { tilt: true, tone: "mist" }, "Light Panel"),
+		);
+		expect(html).toContain("ui-lib-soft-light-panel");
+		expect(html).toContain("Light Panel");
+	});
+
+	it("renders WatercolorCard with tilt enabled", () => {
+		const html = renderToString(
+			React.createElement(WatercolorCard, { tilt: true, tone: "iris" }, "Card Content"),
+		);
+		expect(html).toContain("ui-lib-watercolor-card");
+		expect(html).toContain("Card Content");
 	});
 });

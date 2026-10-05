@@ -4,6 +4,8 @@ import { GlassPanel } from "./GlassPanel.js";
 import { irisClass, splitGlassProps } from "./irisPanel.js";
 import type { IrisPanelProps } from "./irisTypes.js";
 import { GLASS_LOOKS } from "./looks.js";
+import { useSpringInteraction } from "./motion.js";
+import { useTilt } from "./tilt.js";
 
 /** How the button is made. */
 export type PaperButtonVariant = "clay" | "gummy" | "flat";
@@ -25,6 +27,14 @@ export interface PinkPaperButtonProps
 	 * turns itself off under `prefers-reduced-motion`.
 	 */
 	sparkles?: boolean;
+	/**
+	 * Lean into horizontal pointer speed using calibrated spring damping (zeta = 0.55).
+	 */
+	tilt?: boolean;
+	/**
+	 * Drive active press damping via continuous spring physics (zeta = 0.55).
+	 */
+	spring?: boolean;
 }
 
 /** One spark, in flight. */
@@ -63,14 +73,66 @@ export const PinkPaperButton = forwardRef<HTMLButtonElement, PinkPaperButtonProp
 			variant = "clay",
 			size = "md",
 			sparkles = true,
+			tilt = false,
+			spring = false,
 			className,
 			style,
 			children,
 			onClick,
+			onPointerDown,
+			onPointerUp,
+			onPointerLeave,
+			onPointerCancel,
 			...props
 		},
 		ref,
 	) {
+		const host = useRef<HTMLButtonElement | null>(null);
+		useTilt(host, { enabled: Boolean(tilt) });
+		const springInteraction = useSpringInteraction<HTMLButtonElement>({
+			property: "--press",
+			motion: "press",
+			enabled: Boolean(spring),
+		});
+
+		const setHost = (node: HTMLButtonElement | null) => {
+			host.current = node;
+			(springInteraction.ref as React.MutableRefObject<HTMLButtonElement | null>).current =
+				node;
+			if (typeof ref === "function") ref(node);
+			else if (ref) (ref as React.MutableRefObject<HTMLButtonElement | null>).current = node;
+		};
+
+		const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+			onPointerDown?.(event);
+			if (spring && !props.disabled) springInteraction.to(1);
+		};
+		const handlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+			onPointerUp?.(event);
+			if (spring) springInteraction.to(0);
+		};
+		const handlePointerLeave = (event: React.PointerEvent<HTMLButtonElement>) => {
+			onPointerLeave?.(event);
+			if (spring) springInteraction.to(0);
+		};
+		const handlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
+			onPointerCancel?.(event);
+			if (spring) springInteraction.to(0);
+		};
+
+		const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+			props.onKeyDown?.(event);
+			if (spring && !props.disabled && (event.key === " " || event.key === "Enter")) {
+				springInteraction.to(1);
+			}
+		};
+		const handleKeyUp = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+			props.onKeyUp?.(event);
+			if (spring && (event.key === " " || event.key === "Enter")) {
+				springInteraction.to(0);
+			}
+		};
+
 		const { options, rest } = splitGlassProps(props, {
 			...GLASS_LOOKS.iris,
 			radius: 18,
@@ -112,14 +174,21 @@ export const PinkPaperButton = forwardRef<HTMLButtonElement, PinkPaperButtonProp
 			<GlassPanel
 				as="button"
 				plain
-				ref={ref}
+				ref={setHost}
 				type="button"
 				className={irisClass("paper-button", tone, className)}
 				data-ui-lib-block={block ? "" : undefined}
 				data-ui-lib-variant={variant}
 				data-ui-lib-size={size}
+				data-ui-lib-spring={spring ? "" : undefined}
 				style={style}
 				onClick={handleClick}
+				onPointerDown={handlePointerDown}
+				onPointerUp={handlePointerUp}
+				onPointerLeave={handlePointerLeave}
+				onPointerCancel={handlePointerCancel}
+				onKeyDown={handleKeyDown}
+				onKeyUp={handleKeyUp}
 				{...rest}
 				{...options}
 			>

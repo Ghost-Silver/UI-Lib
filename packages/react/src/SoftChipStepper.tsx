@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
 /* ------------------------------------------------------------------ chip -- */
@@ -6,7 +8,7 @@ import { useStyles } from "./useStyles.js";
 export interface SoftChipProps
 	extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "type"> {
 	/** The text. */
-	children: React.ReactNode;
+	children?: React.ReactNode;
 	/** A leading mark, usually a swatch or an icon. */
 	leading?: React.ReactNode;
 	/**
@@ -24,6 +26,10 @@ export interface SoftChipProps
 	removeLabel?: string;
 	/** `solid` fills it when selected; `outline` marks it. */
 	variant?: "solid" | "outline";
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+	/** Pigment family for the material ground. */
+	tone?: IrisTone;
 }
 
 /**
@@ -60,12 +66,16 @@ export const SoftChip = forwardRef<HTMLButtonElement, SoftChipProps>(function So
 		removeLabel = "移除",
 		variant = "solid",
 		className,
+		material,
+		tone,
+		style,
 		...props
 	},
 	ref,
 ) {
 	// The stylesheet is not injected by the GPU components alone; see useStyles.
 	useStyles();
+	const surface = useMaterial(material ? { material, tone } : {});
 	const toggle = selected !== undefined;
 	return (
 		<span
@@ -83,7 +93,15 @@ export const SoftChip = forwardRef<HTMLButtonElement, SoftChipProps>(function So
 				aria-pressed={toggle ? selected : undefined}
 				data-ui-lib-selected={selected ? "" : undefined}
 				data-ui-lib-removable={onRemove ? "" : undefined}
-				className={className ? `ui-lib-soft-chip ${className}` : "ui-lib-soft-chip"}
+				data-ui-lib-material={material && material !== "plain" ? material : undefined}
+				data-ui-lib-tone={tone}
+				className={[
+					className ? `ui-lib-soft-chip ${className}` : "ui-lib-soft-chip",
+					surface.className,
+				]
+					.filter(Boolean)
+					.join(" ")}
+				style={{ ...style, ...surface.style }}
 			>
 				{leading && (
 					<span className="ui-lib-soft-chip__leading" aria-hidden="true">

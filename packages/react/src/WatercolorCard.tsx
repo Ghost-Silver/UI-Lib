@@ -1,9 +1,10 @@
 import { IRIS } from "@ui-lib/core";
-import { forwardRef, type HTMLAttributes } from "react";
+import { forwardRef, type HTMLAttributes, useRef } from "react";
 import { GlassPanel } from "./GlassPanel.js";
 import { irisClass, splitGlassProps } from "./irisPanel.js";
 import type { IrisPanelProps } from "./irisTypes.js";
 import { GLASS_LOOKS } from "./looks.js";
+import { useTilt } from "./tilt.js";
 
 export interface WatercolorCardProps
 	extends IrisPanelProps,
@@ -14,6 +15,8 @@ export interface WatercolorCardProps
 	 * that need to look settled.
 	 */
 	pools?: "offCentre" | "still";
+	/** Lean into horizontal pointer speed using calibrated spring damping (zeta = 0.55). */
+	tilt?: boolean;
 }
 
 /**
@@ -33,9 +36,18 @@ export interface WatercolorCardProps
  */
 export const WatercolorCard = forwardRef<HTMLDivElement, WatercolorCardProps>(
 	function WatercolorCard(
-		{ tone = "iris", pools = "offCentre", className, style, children, ...props },
+		{ tone = "iris", pools = "offCentre", tilt = false, className, style, children, ...props },
 		ref,
 	) {
+		const host = useRef<HTMLDivElement | null>(null);
+		useTilt(host, { enabled: Boolean(tilt) });
+
+		const setHost = (node: HTMLDivElement | null) => {
+			host.current = node;
+			if (typeof ref === "function") ref(node);
+			else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+		};
+
 		const { options, rest } = splitGlassProps(props, {
 			...GLASS_LOOKS.wash,
 			tint: IRIS[tone][100],
@@ -43,7 +55,7 @@ export const WatercolorCard = forwardRef<HTMLDivElement, WatercolorCardProps>(
 
 		return (
 			<GlassPanel
-				ref={ref}
+				ref={setHost}
 				className={irisClass("watercolor-card", tone, className)}
 				data-ui-lib-pools={pools}
 				style={style}

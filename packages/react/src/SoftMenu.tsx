@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { anchorNameFrom, usePopover } from "./overlay.js";
 import { useStyles } from "./useStyles.js";
 
@@ -31,6 +33,10 @@ export interface SoftMenuProps {
 	label?: string;
 	disabled?: boolean;
 	className?: string;
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+	/** Pigment family for the material ground. */
+	tone?: IrisTone;
 }
 
 /**
@@ -76,11 +82,12 @@ export interface SoftMenuProps {
  * ```
  */
 export const SoftMenu = forwardRef<HTMLDivElement, SoftMenuProps>(function SoftMenu(
-	{ trigger, items, align = "start", label, disabled, className },
+	{ trigger, items, align = "start", label, disabled, className, material, tone },
 	ref,
 ) {
 	// The stylesheet is not injected by the GPU components alone; see useStyles.
 	useStyles();
+	const surface = useMaterial(material ? { material, tone } : {});
 	const [open, setOpen] = useState(false);
 	const [active, setActive] = useState(-1);
 	const generated = useId();
@@ -303,8 +310,10 @@ export const SoftMenu = forwardRef<HTMLDivElement, SoftMenuProps>(function SoftM
 				id={menuId}
 				role="menu"
 				aria-label={label ?? trigger}
-				className="ui-lib-soft-menu__list"
-				style={{ positionAnchor: anchor } as React.CSSProperties}
+				className={["ui-lib-soft-menu__list", surface.className].filter(Boolean).join(" ")}
+				style={{ positionAnchor: anchor, ...surface.style } as React.CSSProperties}
+				data-ui-lib-material={material && material !== "plain" ? material : undefined}
+				data-ui-lib-tone={tone}
 				onKeyDown={onMenuKeyDown}
 			>
 				{items.map((item, index) => {

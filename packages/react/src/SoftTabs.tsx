@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
 export interface SoftTabsProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onChange"> {
@@ -12,6 +14,10 @@ export interface SoftTabsProps extends Omit<React.HTMLAttributes<HTMLDivElement>
 	size?: "sm" | "md";
 	/** A name for the group, for assistive technology. */
 	label?: string;
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+	/** Pigment family for the material ground. */
+	tone?: IrisTone;
 }
 
 interface Geometry {
@@ -39,11 +45,12 @@ interface Geometry {
  * ```
  */
 export const SoftTabs = forwardRef<HTMLDivElement, SoftTabsProps>(function SoftTabs(
-	{ items, value, onChange, size = "md", label, className, ...props },
+	{ items, value, onChange, size = "md", label, material, tone, className, style, ...props },
 	ref,
 ) {
 	// The stylesheet is not injected by the GPU components alone; see useStyles.
 	useStyles();
+	const surface = useMaterial(material ? { material, tone } : {});
 	const [own, setOwn] = useState(0);
 	const active = value ?? own;
 	const isControlled = value !== undefined;
@@ -124,8 +131,16 @@ export const SoftTabs = forwardRef<HTMLDivElement, SoftTabsProps>(function SoftT
 				if (typeof ref === "function") ref(node);
 				else if (ref) ref.current = node;
 			}}
-			className={className ? `ui-lib-soft-tabs ${className}` : "ui-lib-soft-tabs"}
+			className={[
+				className ? `ui-lib-soft-tabs ${className}` : "ui-lib-soft-tabs",
+				surface.className,
+			]
+				.filter(Boolean)
+				.join(" ")}
+			style={{ ...style, ...surface.style }}
 			data-ui-lib-size={size}
+			data-ui-lib-material={material && material !== "plain" ? material : undefined}
+			data-ui-lib-tone={tone}
 			data-ui-lib-travelling={travelling ? "" : undefined}
 		>
 			<div className="ui-lib-soft-tabs__list" role="tablist" aria-label={label} ref={listRef}>
