@@ -8,8 +8,8 @@
 			"maxDtsBytes": 65000
 		},
 		"shaders": {
-			"maxJsBytes": 38000,
-			"maxDtsBytes": 18500
+			"maxJsBytes": 41000,
+			"maxDtsBytes": 19000
 		},
 		"particles": {
 			"maxJsBytes": 28000,
@@ -28,7 +28,7 @@
 			"maxDtsBytes": 28000
 		},
 		"react": {
-			"maxJsBytes": 340000,
+			"maxJsBytes": 380000,
 			"maxDtsBytes": 126000
 		}
 	}

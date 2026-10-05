@@ -400,10 +400,13 @@ export function createWash(options: WashOptions): WashResult {
 	 * saturates. Mixed in K-M rather than darkened in RGB, so it stays the same
 	 * hue instead of heading toward grey.
 	 */
-	const rim = mixToCss([pigment, { ...PROCESS_PIGMENTS.black, concentration: 0.012 * weight }], {
-		thickness: Math.max(weight, 0.25) * 2.4,
-		backing: 1,
-	});
+	const rim = mixToCss(
+		[pigment, { ...PROCESS_PIGMENTS.black, concentration: 0.012 * weight }],
+		{
+			thickness: Math.max(weight, 0.25) * 2.4,
+			backing: 1,
+		},
+	);
 
 	return {
 		className: `ui-lib-wash ui-lib-wash--${state}`,

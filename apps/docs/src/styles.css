@@ -4274,22 +4274,6 @@ input[type="range"]::-moz-range-thumb {
 	backdrop-filter: blur(28px) saturate(180%) brightness(1.08);
 }
 
-.iris-hero-glass-card .iris-live-card-title,
-.iris-hero-glass-card .iris-sublabel,
-.iris-hero-glass-card h3 {
-	color: rgba(255, 255, 255, 0.95);
-}
-
-.iris-hero-glass-card .iris-control-hint,
-.iris-hero-glass-card .iris-live-card-eyebrow {
-	color: rgba(255, 255, 255, 0.65);
-}
-
-.iris-hero-glass-card .iris-live-card-tag {
-	background: rgba(255, 255, 255, 0.12);
-	color: rgba(255, 255, 255, 0.88);
-}
-
 .iris-hero-metrics {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
@@ -4592,6 +4576,11 @@ input[type="range"]::-moz-range-thumb {
 	color: var(--moe-on-material, #241828);
 }
 
+.iris-hero-glass-card .iris-live-card-title,
+.iris-hero-glass-card h3 {
+	color: rgba(255, 255, 255, 0.95);
+}
+
 .iris-live-card--glass .iris-live-card-title,
 .iris-live-card[data-ui-lib-look="slab"] .iris-live-card-title {
 	color: #fff;
@@ -4604,6 +4593,11 @@ input[type="range"]::-moz-range-thumb {
 	border-radius: 6px;
 	background: rgba(0, 0, 0, 0.08);
 	color: var(--moe-on-material, #241828);
+}
+
+.iris-hero-glass-card .iris-live-card-tag {
+	background: rgba(255, 255, 255, 0.12);
+	color: rgba(255, 255, 255, 0.88);
 }
 
 .iris-live-card--glass .iris-live-card-tag,
@@ -4638,9 +4632,18 @@ input[type="range"]::-moz-range-thumb {
 	color: var(--moe-on-material, #241828);
 }
 
+.iris-hero-glass-card .iris-sublabel {
+	color: rgba(255, 255, 255, 0.95);
+}
+
 .iris-live-card--glass .iris-sublabel,
 .iris-live-card[data-ui-lib-look="slab"] .iris-sublabel {
 	color: rgba(255, 255, 255, 0.85);
+}
+
+.iris-hero-glass-card .iris-control-hint,
+.iris-hero-glass-card .iris-live-card-eyebrow {
+	color: rgba(255, 255, 255, 0.65);
 }
 
 .iris-choice-wrap {

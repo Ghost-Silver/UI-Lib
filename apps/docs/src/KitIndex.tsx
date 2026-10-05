@@ -7,6 +7,10 @@ import {
 	SoftCard,
 	SoftCheckbox,
 	SoftChip,
+	type SoftCommandItem,
+	SoftCommandPalette,
+	SoftDataTable,
+	type SoftDataTableColumn,
 	SoftInput,
 	SoftList,
 	SoftProgress,
@@ -147,6 +151,86 @@ export function KitIndexPage() {
 	const [segVal, setSegVal] = useState("clay");
 	const [chipSelected, setChipSelected] = useState(true);
 	const [selectVal, setSelectVal] = useState("paper");
+
+	const [paletteOpen, setPaletteOpen] = useState(false);
+	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set(["crystal", "dew"]));
+
+	const paletteCommands: SoftCommandItem[] = [
+		{
+			id: "tone-iris",
+			label: "切换为 Iris 调色板",
+			group: "调色板",
+			shortcut: ["⌘", "1"],
+			onSelect: () => setTone("iris"),
+		},
+		{
+			id: "tone-blossom",
+			label: "切换为 Blossom 调色板",
+			group: "调色板",
+			shortcut: ["⌘", "2"],
+			onSelect: () => setTone("blossom"),
+		},
+		{
+			id: "tone-mist",
+			label: "切换为 Mist 调色板",
+			group: "调色板",
+			shortcut: ["⌘", "3"],
+			onSelect: () => setTone("mist"),
+		},
+		{
+			id: "mat-wash",
+			label: "应用水彩材质 (Wash)",
+			group: "物理材质",
+			onSelect: () => setMaterialMode("wash"),
+		},
+		{
+			id: "mat-glass",
+			label: "应用液态玻璃材质 (Glass)",
+			group: "物理材质",
+			onSelect: () => setMaterialMode("glass"),
+		},
+		{
+			id: "mat-solid",
+			label: "应用纯色无水材质 (Solid)",
+			group: "物理材质",
+			onSelect: () => setMaterialMode("solid"),
+		},
+	];
+
+	interface MaterialSpec {
+		id: string;
+		name: string;
+		ior: number;
+		viscosity: number;
+		category: string;
+	}
+
+	const dataColumns: SoftDataTableColumn<MaterialSpec>[] = [
+		{ key: "name", header: "材质预设", sortable: true },
+		{ key: "category", header: "光学分类", align: "center" },
+		{ key: "ior", header: "折射率 (IOR)", numeric: true, sortable: true },
+		{ key: "viscosity", header: "流体阻尼系数", numeric: true, sortable: true },
+	];
+
+	const dataRows: MaterialSpec[] = [
+		{ id: "crystal", name: "Apple Crystal", ior: 1.52, viscosity: 0.55, category: "超透玻璃" },
+		{ id: "dock", name: "Frosted Dock", ior: 1.34, viscosity: 0.82, category: "磨砂背板" },
+		{
+			id: "capsule",
+			name: "Stadium Capsule",
+			ior: 1.48,
+			viscosity: 0.6,
+			category: "C2双凸透镜",
+		},
+		{ id: "dew", name: "Capillary Dew", ior: 1.33, viscosity: 0.45, category: "表面微露" },
+		{
+			id: "slab",
+			name: "Heavy Optical Slab",
+			ior: 1.65,
+			viscosity: 0.9,
+			category: "重晶石平板",
+		},
+	];
 
 	const cardMaterial =
 		materialMode === "solid" ? "plain" : materialMode === "glass" ? "plain" : materialMode;
@@ -318,6 +402,9 @@ export function KitIndexPage() {
 						))}
 					</fieldset>
 					<SoftSwitch checked={dense} onChange={setDense} label="紧凑" />
+					<PinkPaperButton tone={tone} onClick={() => setPaletteOpen(true)}>
+						⌘K 命令面板
+					</PinkPaperButton>
 				</div>
 			</header>
 
@@ -1057,6 +1144,36 @@ export function KitIndexPage() {
 					</table>
 				</div>
 			</section>
+
+			{/* High-level Composites: SoftCommandPalette & SoftDataTable */}
+			<section
+				className="kitindex__matrix-section"
+				aria-label="高阶复合组件：命令面板与数据网格"
+			>
+				<div className="kitindex__matrix-head">
+					<h2 className="kitindex__matrix-title">高阶复合组件 · 命令面板与数据网格</h2>
+					<p className="kitindex__matrix-desc">
+						遵循桌面级生产规范的复合交互：包含全键盘无障碍导航的玻璃命令浮层（按 <code>⌘K</code>{" "}
+						唤出）与支持多列排序、多行选择的轻量数据网格（<code>SoftDataTable</code>）。
+					</p>
+				</div>
+				<SoftDataTable
+					columns={dataColumns}
+					rows={dataRows}
+					rowKey={(r) => r.id}
+					selectionMode="multiple"
+					selectedKeys={selectedRows}
+					onSelectionChange={setSelectedRows}
+					caption="液态玻璃与水彩物理参数一览表"
+				/>
+			</section>
+
+			<SoftCommandPalette
+				open={paletteOpen}
+				onClose={() => setPaletteOpen(false)}
+				items={paletteCommands}
+				title="全局命令面板"
+			/>
 
 			<section className="kitindex__grid" aria-label="可看的表面">
 				{SURFACES.map((surface) => (

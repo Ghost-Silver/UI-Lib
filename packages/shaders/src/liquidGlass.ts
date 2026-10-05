@@ -4,6 +4,7 @@ import {
 	cos,
 	dot,
 	equirectUV,
+	exp,
 	float,
 	fract,
 	length,
@@ -37,6 +38,7 @@ import {
 	type Texture,
 	Vector2,
 	Vector3,
+	Vector4,
 } from "three/webgpu";
 import type {
 	ColorUniform,
@@ -44,6 +46,7 @@ import type {
 	SharedUniforms,
 	Vec2Uniform,
 	Vec3Uniform,
+	Vec4Uniform,
 } from "./nodeTypes.js";
 import { pointerSheen } from "./pointerSheen.js";
 import { studioEnvironment } from "./studioEnvironment.js";
@@ -92,6 +95,8 @@ export interface LiquidGlassOptions {
 	pointerStrength?: number;
 	/** Radius of the cursor influence in device pixels. */
 	pointerRadius?: number;
+	/** Fluid ripple perturbation strength (0 = disabled, 1 = default). */
+	rippleStrength?: number;
 	/**
 	 * Mix of the shared studio probe. The face stays nearly clear so type
 	 * remains readable; the bevel carries the window. `0` keeps only the
@@ -143,6 +148,7 @@ export const LIQUID_GLASS_DEFAULTS: Required<
 	blurTaps: 8,
 	pointerStrength: 0.35,
 	pointerRadius: 320,
+	rippleStrength: 1,
 	environment: 0.28,
 	backdrop: null,
 };
@@ -172,6 +178,11 @@ export interface LiquidGlassUniforms {
 	opacity: FloatUniform;
 	pointerStrength: FloatUniform;
 	pointerRadius: FloatUniform;
+	rippleStrength: FloatUniform;
+	ripple0: Vec4Uniform;
+	ripple1: Vec4Uniform;
+	ripple2: Vec4Uniform;
+	ripple3: Vec4Uniform;
 	environment: FloatUniform;
 	cameraRight: Vec3Uniform;
 	cameraUp: Vec3Uniform;
@@ -194,8 +205,71 @@ export interface LiquidGlassMaterial extends MeshBasicNodeMaterial {
 	setBackdrop(backdrop: Texture | null): void;
 	/** Patch any subset of the options; device-pixel semantics. */
 	update(options: Partial<LiquidGlassOptions>): void;
+	/** Dispatch a dynamic capillary ripple pulse at normalized panel UV (0..1). */
+	addRipple(u: number, v: number, amplitude?: number, time?: number): void;
 	/** True when the material refracts the live framebuffer (default mode). */
 	readonly usesPlaceholderBackdrop: boolean;
+}
+
+/**
+ * Evaluates the analytical surface gradient of a circular damped capillary wavelet packet.
+ *
+ * z(r, dt) = amp * exp(-gamma * dt) * exp(-(r - r_c)^2 / (2 * sigma^2)) * cos(k * (r - r_c))
+ * dz/dr is derived analytically, giving exact normal perturbation without finite differences.
+ */
+function computeRippleSlope(
+	rippleUniform: Vec4Uniform,
+	panelP: Node<"vec2">,
+	panelSize: Node<"vec2">,
+	currentTime: Node<"float">,
+): Node<"vec2"> {
+	const rippleUv = rippleUniform.xy;
+	const t0 = rippleUniform.z;
+	const amp = rippleUniform.w;
+
+	const dt = max(float(0), currentTime.sub(t0));
+
+	// Ripple origin in panel device pixels relative to center:
+	const center = rippleUv.sub(0.5).mul(panelSize);
+	const dp = panelP.sub(center);
+	const r = length(dp);
+
+	// Capillary wave propagation speed: 280 px/s
+	const speed = float(280.0);
+	const frontR = dt.mul(speed);
+	const dr = r.sub(frontR);
+
+	// Spatial Gaussian wavepacket envelope (sigma = 26 px):
+	const invTwoSigmaSq = float(1.0 / (2.0 * 26.0 * 26.0));
+	const spatialEnv = exp(dr.mul(dr).negate().mul(invTwoSigmaSq));
+
+	// Viscous decay: gamma = 2.6 / s
+	const temporalDamp = exp(dt.mul(float(-2.6)));
+
+	// Capillary wavelength ~ 24px -> k ~= 0.2618 rad/px
+	const k = float(0.2618);
+	const phase = dr.mul(k);
+	const cosPhase = cos(phase);
+	const sinPhase = sin(phase);
+
+	// Analytical derivative dz/dr:
+	const invSigmaSq = float(1.0 / (26.0 * 26.0));
+	const dEnv = dr.negate().mul(invSigmaSq).mul(cosPhase);
+	const dOsc = k.mul(sinPhase);
+	const dHeight = amp.mul(temporalDamp).mul(spatialEnv).mul(dEnv.sub(dOsc));
+
+	// Unit radial vector:
+	const rDir = select(r.greaterThan(float(0.01)), dp.div(r), vec2(0, 0));
+
+	// Temporal window gate (fades in smoothly over 0.04s, dissipates completely by 2.2s):
+	const timeGate = select(
+		amp.greaterThan(float(0.001)),
+		smoothstep(float(0.0), float(0.04), dt).mul(smoothstep(float(2.2), float(1.6), dt)),
+		float(0),
+	);
+
+	// Negative slope for outward-pointing normal perturbation:
+	return rDir.negate().mul(dHeight).mul(timeGate);
 }
 
 /**
@@ -252,6 +326,11 @@ export function createLiquidGlassMaterial(
 		opacity: uniform(opts.opacity),
 		pointerStrength: uniform(opts.pointerStrength),
 		pointerRadius: uniform(opts.pointerRadius),
+		rippleStrength: uniform(opts.rippleStrength),
+		ripple0: uniform(new Vector4(0, 0, -100, 0)),
+		ripple1: uniform(new Vector4(0, 0, -100, 0)),
+		ripple2: uniform(new Vector4(0, 0, -100, 0)),
+		ripple3: uniform(new Vector4(0, 0, -100, 0)),
 		environment: uniform(quietEnvironment(opts.environment)),
 		cameraRight: shared.cameraRight ?? uniform(new Vector3(1, 0, 0)),
 		cameraUp: shared.cameraUp ?? uniform(new Vector3(0, 1, 0)),
@@ -336,8 +415,20 @@ export function createLiquidGlassMaterial(
 	const signY = select(p.y.lessThan(float(0)), float(-1), float(1));
 	const outward = gradient.mul(vec2(signX, signY));
 
-	// Front surface normal: smoothly tilts along capsule profile, seamlessly flat at center.
-	const normal = normalize(vec3(outward.mul(sinTheta), cosTheta));
+	// Dynamic fluid ripples: analytical normal perturbation field from pointer interactions.
+	const rippleSlope0 = computeRippleSlope(uniforms.ripple0, p, uniforms.size, uniforms.time);
+	const rippleSlope1 = computeRippleSlope(uniforms.ripple1, p, uniforms.size, uniforms.time);
+	const rippleSlope2 = computeRippleSlope(uniforms.ripple2, p, uniforms.size, uniforms.time);
+	const rippleSlope3 = computeRippleSlope(uniforms.ripple3, p, uniforms.size, uniforms.time);
+	const totalRippleSlope = rippleSlope0
+		.add(rippleSlope1)
+		.add(rippleSlope2)
+		.add(rippleSlope3)
+		.mul(uniforms.rippleStrength);
+
+	// Front surface normal: smoothly tilts along capsule profile with fluid wave perturbation:
+	const perturbedOutward = outward.mul(sinTheta).add(totalRippleSlope.mul(float(0.85)));
+	const normal = normalize(vec3(perturbedOutward, cosTheta));
 
 	// Panel UV y is up. screenUV y is down.
 	// Incident perspective ray from camera through screen pixel:
@@ -360,7 +451,7 @@ export function createLiquidGlassMaterial(
 	// The deflection angle combines front entry and back exit refraction:
 	// At the flat center (smoothK = 0): front & back are parallel, lens deflection is exactly 0.
 	// At the curved rim (smoothK > 0): front & back produce smooth liquid lens magnification.
-	const lensDeflection = outward.mul(sinTheta.mul(float(1).add(cosTheta.mul(0.5))));
+	const lensDeflection = perturbedOutward.mul(float(1).add(cosTheta.mul(0.5)));
 	// Thickness parallax shift across the slab (tapers to 0 at capsule equator):
 	const internalShift = incident.xy.mul(oneMinus(smoothK)).mul(0.18);
 	const netDisplacement = lensDeflection.add(internalShift);
@@ -532,6 +623,7 @@ export function createLiquidGlassMaterial(
 	material.depthTest = false;
 	material.toneMapped = false;
 
+	let rippleSlot = 0;
 	Object.defineProperties(material, {
 		uniforms: { value: uniforms, enumerable: true },
 		environmentMap: {
@@ -544,6 +636,16 @@ export function createLiquidGlassMaterial(
 				if (useViewport || next == null) return;
 				backdropTexture = next;
 				for (const node of backdropNodes) node.value = next;
+			},
+			enumerable: false,
+		},
+		addRipple: {
+			value: (u: number, v: number, amplitude = 1.0, time?: number) => {
+				const t = time ?? uniforms.time.value;
+				const slots = [uniforms.ripple0, uniforms.ripple1, uniforms.ripple2, uniforms.ripple3];
+				const slot = slots[rippleSlot];
+				if (slot) slot.value.set(u, v, t, amplitude);
+				rippleSlot = (rippleSlot + 1) % 4;
 			},
 			enumerable: false,
 		},
@@ -576,6 +678,8 @@ export function createLiquidGlassMaterial(
 					uniforms.pointerStrength.value = patch.pointerStrength;
 				if (patch.pointerRadius !== undefined)
 					uniforms.pointerRadius.value = patch.pointerRadius;
+				if (patch.rippleStrength !== undefined)
+					uniforms.rippleStrength.value = patch.rippleStrength;
 				if (patch.environment !== undefined) {
 					uniforms.environment.value = quietEnvironment(patch.environment);
 				}

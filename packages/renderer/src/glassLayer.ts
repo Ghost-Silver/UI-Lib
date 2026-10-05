@@ -115,6 +115,8 @@ export interface GlassPanelOptions {
 	opacity?: number;
 	pointerStrength?: number;
 	pointerRadius?: number;
+	/** Fluid ripple perturbation strength (0 = disabled, 1 = default). */
+	rippleStrength?: number;
 	/**
 	 * Mix of the shared studio probe. Looks set this. The face stays quiet;
 	 * the bevel carries the window. Pages do not pass a cubemap.
@@ -148,6 +150,7 @@ export const GLASS_PANEL_DEFAULTS: Required<GlassPanelOptions> = {
 	opacity: 1,
 	pointerStrength: 0.3,
 	pointerRadius: 320,
+	rippleStrength: 1,
 	environment: 0.28,
 	z: 0,
 };
@@ -156,6 +159,8 @@ export interface GlassPanelHandle extends Disposable {
 	readonly element: HTMLElement;
 	update(options: Partial<GlassPanelOptions>): void;
 	setVisible(visible: boolean): void;
+	/** Dispatch a dynamic fluid ripple wavelet at normalized UV coordinates (0..1). */
+	addRipple(u: number, v: number, amplitude?: number): void;
 	readonly visible: boolean;
 }
 
@@ -1136,6 +1141,10 @@ export class GlassLayer implements Disposable {
 				panel.userVisible = visible;
 				this.markDirty();
 			},
+			addRipple: (u: number, v: number, amplitude?: number) => {
+				panel.material.addRipple(u, v, amplitude, this.sharedTime.value);
+				this.markDirty();
+			},
 			dispose: () => {
 				this.resizeObserver.unobserve(element);
 				this.destroyPanel(panel);
@@ -1379,6 +1388,7 @@ export class GlassLayer implements Disposable {
 				opacity: options.opacity,
 				pointerStrength: options.pointerStrength,
 				pointerRadius: options.pointerRadius,
+				rippleStrength: options.rippleStrength,
 				environment: options.environment,
 				blurTaps: this.quality.settings.blurTaps,
 			},
@@ -1416,6 +1426,7 @@ export class GlassLayer implements Disposable {
 		u.opacity.value = panel.options.opacity;
 		u.pointerStrength.value = panel.options.pointerStrength;
 		u.pointerRadius.value = panel.options.pointerRadius;
+		u.rippleStrength.value = panel.options.rippleStrength;
 		u.environment.value = clamp01(panel.options.environment);
 	}
 

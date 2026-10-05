@@ -98,6 +98,14 @@ export type { SoftCheckboxProps, SoftRadioGroupProps, SoftRadioProps } from "./S
 export { SoftCheckbox, SoftRadio, SoftRadioGroup } from "./SoftChoice.js";
 export type { SoftComboboxOption, SoftComboboxProps } from "./SoftCombobox.js";
 export { SoftCombobox } from "./SoftCombobox.js";
+export type { SoftCommandItem, SoftCommandPaletteProps } from "./SoftCommandPalette.js";
+export { matchCommand, SoftCommandPalette } from "./SoftCommandPalette.js";
+export type {
+	SoftDataTableColumn,
+	SoftDataTableProps,
+	SoftDataTableSort,
+} from "./SoftDataTable.js";
+export { SoftDataTable } from "./SoftDataTable.js";
 export type { SoftDividerProps, SoftDrawerProps } from "./SoftDrawer.js";
 export { SoftDivider, SoftDrawer } from "./SoftDrawer.js";
 export type { SoftAvatarProps, SoftTagProps } from "./SoftIdentity.js";

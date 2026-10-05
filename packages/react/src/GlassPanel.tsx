@@ -50,6 +50,11 @@ export interface GlassPanelProps
 	 * from the DOM.
 	 */
 	plain?: boolean;
+	/**
+	 * Enable dynamic interactive fluid ripples when pointer presses down on the glass.
+	 * Defaults to `true`.
+	 */
+	interactiveRipples?: boolean;
 	className?: string;
 	style?: CSSProperties;
 }
@@ -98,6 +103,8 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 			opacity,
 			pointerStrength,
 			pointerRadius,
+			rippleStrength,
+			interactiveRipples = true,
 			environment,
 			z,
 			...domProps
@@ -153,6 +160,7 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 				...(opacity !== undefined && { opacity }),
 				...(pointerStrength !== undefined && { pointerStrength }),
 				...(pointerRadius !== undefined && { pointerRadius }),
+				...(rippleStrength !== undefined && { rippleStrength }),
 				...(environment !== undefined && { environment }),
 				...(z !== undefined && { z }),
 			};
@@ -181,6 +189,7 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 			opacity,
 			pointerStrength,
 			pointerRadius,
+			rippleStrength,
 			environment,
 			z,
 		]);
@@ -215,12 +224,32 @@ export const GlassPanel = forwardRef<HTMLElement, GlassPanelProps>(
 			handleRef.current?.update(optionsRef.current);
 		}, [optionsKey]);
 
+		const handlePointerDown = useCallback(
+			(e: React.PointerEvent<HTMLElement>) => {
+				domProps.onPointerDown?.(e as unknown as React.PointerEvent<never>);
+				if (interactiveRipples && handleRef.current && innerRef.current) {
+					const rect = innerRef.current.getBoundingClientRect();
+					if (rect.width > 0 && rect.height > 0) {
+						const u = (e.clientX - rect.left) / rect.width;
+						const v = 1 - (e.clientY - rect.top) / rect.height;
+						handleRef.current.addRipple(
+							Math.max(0, Math.min(1, u)),
+							Math.max(0, Math.min(1, v)),
+							1.2,
+						);
+					}
+				}
+			},
+			[interactiveRipples, domProps.onPointerDown],
+		);
+
 		const glassState = plain ? "off" : layer ? "gpu" : "fallback";
 
 		return (
 			<Tag
 				{...domProps}
 				ref={setRefs}
+				onPointerDown={handlePointerDown}
 				className={className}
 				style={style}
 				data-ui-lib-glass={glassState}
