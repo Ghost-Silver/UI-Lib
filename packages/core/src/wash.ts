@@ -293,8 +293,8 @@ export function createWash(options: WashOptions): WashResult {
 	 * through. `thickness` is the concentration, so `weight` drives it directly.
 	 */
 	const pigment = pigmentFromHex(hue);
-	const bodyCentre = mixToCss([pigment], { thickness: weight * 1.6, backing: 1 });
-	const bodyEdge = mixToCss([pigment], { thickness: weight * 1.1, backing: 1 });
+	const bodyCentre = mixToCss([pigment], { thickness: weight * 0.7, backing: 1 });
+	const bodyEdge = mixToCss([pigment], { thickness: weight * 1.25, backing: 1 });
 	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, ${bodyCentre} 0%, ${bodyEdge} 76%, transparent 95%)`;
 
 	/*
@@ -421,6 +421,7 @@ export function createWash(options: WashOptions): WashResult {
 			"--wash-grain": grain.image,
 			"--wash-grain-size": grain.sizes,
 			"--wash-grain-opacity": String(Number((BASE_OPACITY * 0.9).toFixed(3))),
+			"--wash-grain-angle": String(options.fibreAngle ?? 92),
 			"--wash-lobes": lobes.toFixed(2),
 		},
 		resolved: { weight, state, arcs, rotation, lobes, opacity, blur },

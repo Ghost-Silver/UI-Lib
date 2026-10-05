@@ -28,10 +28,11 @@ import {
 	createWorldLensMaterial,
 	type LiquidGlassMaterial,
 	type SharedUniforms,
+	type Vec2Uniform,
 	type WorldLensMaterial,
 	type WorldLensOptions,
 } from "@ui-lib/shaders";
-import { uniform } from "three/tsl";
+import { float, texture, uniform, uv, vec2 } from "three/tsl";
 import {
 	ClampToEdgeWrapping,
 	DepthTexture,
@@ -40,6 +41,7 @@ import {
 	Matrix4,
 	Mesh,
 	MeshBasicMaterial,
+	MeshBasicNodeMaterial,
 	type Object3D,
 	OrthographicCamera,
 	PerspectiveCamera,
@@ -67,6 +69,13 @@ import {
 import { createRenderer, type UiRenderer } from "./createRenderer.js";
 import { stepDepthHistory } from "./depthHistory.js";
 import { stepSectionViewport } from "./sectionViewport.js";
+
+declare module "@ui-lib/shaders" {
+	interface SharedUniforms {
+		scroll?: Vec2Uniform;
+		sharedScroll?: Vec2Uniform;
+	}
+}
 
 /** Panel tuning knobs, all in **CSS pixels** — the layer scales them by DPR. */
 export interface GlassPanelOptions {
@@ -108,8 +117,8 @@ export const GLASS_PANEL_DEFAULTS: Required<GlassPanelOptions> = {
 	refraction: 42,
 	shift: [0, 0],
 	dispersion: 0.28,
-	roughness: 0.22,
-	frost: 22,
+	roughness: 0,
+	frost: 0,
 	tint: "#ffffff",
 	tintAmount: 0.06,
 	saturation: 1.12,
@@ -326,6 +335,7 @@ export class GlassLayer implements Disposable {
 	private readonly sharedCameraUp = uniform(new Vector3(0, 1, 0));
 	private readonly sharedCameraBack = uniform(new Vector3(0, 0, 1));
 	private readonly sharedCameraFov = uniform(52);
+	private readonly sharedScroll = uniform(new Vector2());
 	private readonly shared: SharedUniforms;
 
 	private readonly glassScene = new Scene();
@@ -361,8 +371,20 @@ export class GlassLayer implements Disposable {
 	private backdrop: BackdropInstance;
 	private backdropResource: ResourceHandle | null = null;
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
-	/** Background renders into this off-screen target; glass samples it directly. */
-	private readonly backdropRT = new WebGLRenderTarget(1, 1);
+	/** Raw watercolor backdrop + motes before intermediate frosted glass pass. */
+	private readonly rawBackdropRT = new WebGLRenderTarget(1, 1, {
+		depthBuffer: true,
+		stencilBuffer: false,
+	});
+	/** Frosted blur radius in device pixels (~2.0px CSS radius scaled by DPR). */
+	private readonly frostedRadius = uniform(2.0);
+	private readonly frostedScene = new Scene();
+	private readonly frostedQuad: ReturnType<typeof createFullscreenQuad>;
+	/** Frosted intermediate backdrop target; glass panels and composite sample this directly. */
+	private readonly backdropRT = new WebGLRenderTarget(1, 1, {
+		depthBuffer: false,
+		stencilBuffer: false,
+	});
 	/** Perspective depth of that target. The canvas depth is only the present quad. */
 	private readonly worldDepth = new DepthTexture(1, 1);
 	/**
@@ -470,7 +492,13 @@ export class GlassLayer implements Disposable {
 			cameraUp: this.sharedCameraUp,
 			cameraBack: this.sharedCameraBack,
 			cameraFov: this.sharedCameraFov,
+			scroll: this.sharedScroll,
+			sharedScroll: this.sharedScroll,
 		};
+
+		if (typeof window !== "undefined") {
+			this.sharedScroll.value.set(window.scrollX ?? 0, window.scrollY ?? 0);
+		}
 
 		this.backdrop = createBackdrop(options.backdrop ?? DEFAULT_BACKDROP, this.shared);
 		this.backdropResource = resourceRegistry.track("backdrop");
@@ -485,16 +513,64 @@ export class GlassLayer implements Disposable {
 		);
 		this.presentScene.add(this.presentQuad.mesh);
 		this.worldDepth.name = "ui-lib:world-depth";
-		this.backdropRT.depthTexture = this.worldDepth;
+		this.rawBackdropRT.depthTexture = this.worldDepth;
+		this.rawBackdropRT.texture.name = "ui-lib:raw-backdrop";
+		this.rawBackdropRT.texture.wrapS = ClampToEdgeWrapping;
+		this.rawBackdropRT.texture.wrapT = ClampToEdgeWrapping;
+		this.rawBackdropRT.texture.magFilter = LinearFilter;
+		this.rawBackdropRT.texture.minFilter = LinearFilter;
+		this.rawBackdropRT.texture.generateMipmaps = false;
+
+		this.backdropRT.texture.name = "ui-lib:frosted-backdrop";
+		this.backdropRT.texture.wrapS = ClampToEdgeWrapping;
+		this.backdropRT.texture.wrapT = ClampToEdgeWrapping;
+		this.backdropRT.texture.magFilter = LinearFilter;
+		this.backdropRT.texture.minFilter = LinearFilter;
+		this.backdropRT.texture.generateMipmaps = false;
+
+		// 6-tap golden-angle disc kernel for subtle whole-page frosted blur (~2.0px radius)
+		const FROST_TAPS = 6;
+		const GOLDEN_ANGLE = 2.399963229728653;
+		let blurNode = texture(
+			this.rawBackdropRT.texture,
+			uv().add(
+				vec2(
+					Math.cos(0 * GOLDEN_ANGLE) * Math.sqrt((0 + 0.5) / FROST_TAPS),
+					Math.sin(0 * GOLDEN_ANGLE) * Math.sqrt((0 + 0.5) / FROST_TAPS),
+				)
+					.mul(this.frostedRadius)
+					.div(this.sharedResolution),
+			),
+		).rgb;
+		for (let i = 1; i < FROST_TAPS; i++) {
+			const angle = i * GOLDEN_ANGLE;
+			const radius = Math.sqrt((i + 0.5) / FROST_TAPS);
+			const dir = vec2(Math.cos(angle) * radius, Math.sin(angle) * radius);
+			blurNode = blurNode.add(
+				texture(
+					this.rawBackdropRT.texture,
+					uv().add(dir.mul(this.frostedRadius).div(this.sharedResolution)),
+				).rgb,
+			);
+		}
+		const frostedMaterial = new MeshBasicNodeMaterial();
+		frostedMaterial.colorNode = blurNode.div(float(FROST_TAPS));
+		frostedMaterial.depthTest = false;
+		frostedMaterial.depthWrite = false;
+		frostedMaterial.toneMapped = false;
+		this.frostedQuad = createFullscreenQuad(frostedMaterial);
+		this.silenceDepth(frostedMaterial);
+		this.frostedScene.add(this.frostedQuad.mesh);
+
 		this.refractionRT.texture.name = "ui-lib:refraction-source";
 		this.refractionRT.texture.wrapS = ClampToEdgeWrapping;
 		this.refractionRT.texture.wrapT = ClampToEdgeWrapping;
 		this.refractionRT.texture.magFilter = LinearFilter;
 		this.refractionRT.texture.minFilter = LinearFilter;
 		this.refractionRT.texture.generateMipmaps = false;
-		this.refractionRT.texture.colorSpace = this.backdropRT.texture.colorSpace;
+		this.refractionRT.texture.colorSpace = this.rawBackdropRT.texture.colorSpace;
 		const blitMaterial = new MeshBasicMaterial({
-			map: this.backdropRT.texture,
+			map: this.rawBackdropRT.texture,
 			toneMapped: false,
 		});
 		this.refractionBlit = createFullscreenQuad(blitMaterial);
@@ -503,6 +579,7 @@ export class GlassLayer implements Disposable {
 		// The gradient quad must not fill the depth buffer, or every fragment
 		// looks like world geometry and camera reprojection smears the glass.
 		this.silenceDepth(this.backdropQuad.mesh.material);
+		this.silenceDepth(this.frostedQuad.mesh.material);
 		this.silenceDepth(this.compositeQuad.mesh.material);
 		this.silenceDepth(this.presentQuad.mesh.material);
 		this.setPostProcessing(options.post ?? {});
@@ -524,10 +601,18 @@ export class GlassLayer implements Disposable {
 		if (options.alwaysSyncLayout !== true) {
 			this.resizeObserver.observe(this.boundsElement ?? document.documentElement);
 		}
-		this.disposer.listen(window, "scroll", () => this.markDirty(), {
-			passive: true,
-			capture: true,
-		});
+		this.disposer.listen(
+			window,
+			"scroll",
+			() => {
+				this.sharedScroll.value.set(window.scrollX ?? 0, window.scrollY ?? 0);
+				this.markDirty();
+			},
+			{
+				passive: true,
+				capture: true,
+			},
+		);
 		this.disposer.listen(window, "resize", () => this.markDirty(), { passive: true });
 
 		if (options.pointer !== false) {
@@ -563,6 +648,12 @@ export class GlassLayer implements Disposable {
 		this.disposer.add(() => this.backdrop.dispose());
 		this.disposer.add(() => this.backdropResource?.dispose());
 		this.disposer.add(() => this.backdropQuad.dispose());
+		this.disposer.add(() => this.rawBackdropRT.dispose());
+		this.disposer.add(() => this.frostedQuad.dispose());
+		this.disposer.add(() => {
+			const material = this.frostedQuad.mesh.material;
+			if (!Array.isArray(material)) material.dispose();
+		});
 		this.disposer.add(() => this.backdropRT.dispose());
 		this.disposer.add(() => this.worldDepth.dispose());
 		this.disposer.add(() => this.refractionRT.dispose());
@@ -1347,6 +1438,8 @@ export class GlassLayer implements Disposable {
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
+		this.frostedRadius.value = 2.0 * dpr;
+		this.rawBackdropRT.setSize(bufferWidth, bufferHeight);
 		this.backdropRT.setSize(bufferWidth, bufferHeight);
 		this.refractionRT.setSize(bufferWidth, bufferHeight);
 		this.compositeRT.setSize(bufferWidth, bufferHeight);
@@ -1381,9 +1474,17 @@ export class GlassLayer implements Disposable {
 	 */
 	private lastScroll = { x: 0, y: 0, boxes: [] as number[] };
 
+	/** The shared scroll uniform, tracking window scroll coordinates. */
+	get scrollUniform() {
+		return this.sharedScroll;
+	}
+
 	private scrollChanged(): boolean {
 		const boxes: number[] = [];
 		let moved = window.scrollX !== this.lastScroll.x || window.scrollY !== this.lastScroll.y;
+		if (moved) {
+			this.sharedScroll.value.set(window.scrollX, window.scrollY);
+		}
 		let i = 0;
 		for (const panel of this.panels) {
 			const rect = panel.element.getBoundingClientRect();
@@ -1448,11 +1549,16 @@ export class GlassLayer implements Disposable {
 				panel.options.z,
 			);
 
+			const shortEdge = Math.max(1, Math.min(pw, ph) / dpr);
+			const thicknessScale = shortEdge / 200;
 			const u = panel.material.uniforms;
 			u.size.value.set(pw, ph);
 			u.radius.value = Math.min(panel.options.radius * dpr, Math.min(pw, ph) / 2);
-			u.bevel.value = Math.min(panel.options.bevel * dpr, Math.min(pw, ph) / 2);
-			u.refraction.value = panel.options.refraction * dpr;
+			u.bevel.value = Math.min(
+				panel.options.bevel * thicknessScale * dpr,
+				Math.min(pw, ph) / 2,
+			);
+			u.refraction.value = panel.options.refraction * thicknessScale * dpr;
 			u.frost.value = panel.options.frost * dpr;
 			u.pointerRadius.value = panel.options.pointerRadius * dpr;
 		}
@@ -1739,10 +1845,9 @@ export class GlassLayer implements Disposable {
 		// three's own output pass when it is not. Nothing here has to flip
 		// `toneMapping` / `outputColorSpace` per frame.
 		//
-		// 1. Backdrop + world objects render into a dedicated off-screen target.
-		//    Glass samples this target directly (never the live framebuffer), so
+		// 1. Raw backdrop + world objects render into a dedicated off-screen target (rawBackdropRT).
 		//    WebGPU sees no read-after-write and no MSAA sample-count clash.
-		renderer.setRenderTarget(this.backdropRT);
+		renderer.setRenderTarget(this.rawBackdropRT);
 		renderer.clear(true, true, false);
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
 
@@ -1795,7 +1900,7 @@ export class GlassLayer implements Disposable {
 				// here is a second full-target write that the quad replaces.
 				renderer.render(this.refractionScene, this.refractionBlit.camera);
 				if (hasInside) renderer.render(this.insideScene, this.particleCamera);
-				renderer.setRenderTarget(this.backdropRT);
+				renderer.setRenderTarget(this.rawBackdropRT);
 				if (hasLens) renderer.render(this.lensScene, this.particleCamera);
 				else if (hasInside) renderer.render(this.insideScene, this.particleCamera);
 			}
@@ -1804,11 +1909,16 @@ export class GlassLayer implements Disposable {
 		}
 		renderer.setRenderTarget(null);
 
-		// 3. Screen base = the rendered backdrop (also the glass refraction
-		//    source) + the glass panels, composited into a target we own. The
-		//    canvas is not readable, so the composite has to live in a texture
-		//    for the post chain to sample it and for the temporal history to be
-		//    copied out of it.
+		// 2.5 Middle subtle frosted glass pass (~2.0px radius, 6-tap disc)
+		//     Samples rawBackdropRT and writes subtle frosted backdrop into backdropRT.
+		//     Whole canvas and foreground glass cards sample this frosted backdrop.
+		renderer.setRenderTarget(this.backdropRT);
+		renderer.clear(true, false, false);
+		renderer.render(this.frostedScene, this.frostedQuad.camera);
+		renderer.setRenderTarget(null);
+
+		// 3. Screen base = the rendered backdrop (carrying watercolor + subtle frost)
+		//    + the glass panels, composited into a target we own.
 		renderer.setRenderTarget(this.compositeRT);
 		renderer.clear(true, true, false);
 		renderer.render(this.compositeScene, this.compositeQuad.camera);
@@ -1833,7 +1943,7 @@ export class GlassLayer implements Disposable {
 			// copy. The target is bound first so the world pass has stored
 			// its depth attachment. Skip the copy when this frame drew none.
 			if (depth.captureDepth) {
-				renderer.setRenderTarget(this.backdropRT);
+				renderer.setRenderTarget(this.rawBackdropRT);
 				this.postProcessing?.captureDepth(renderer);
 				renderer.setRenderTarget(null);
 			}

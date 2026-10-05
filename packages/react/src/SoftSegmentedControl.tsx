@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useId } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
 export interface SoftSegmentOption {
@@ -20,6 +22,10 @@ export interface SoftSegmentedControlProps
 	ariaLabelledBy?: string;
 	/** `solid` fills the selected segment; `outline` only marks it. */
 	variant?: "solid" | "outline";
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+	/** Pigment tone for the material ground. */
+	tone?: IrisTone;
 }
 
 /**
@@ -62,20 +68,38 @@ export interface SoftSegmentedControlProps
  */
 export const SoftSegmentedControl = forwardRef<HTMLDivElement, SoftSegmentedControlProps>(
 	function SoftSegmentedControl(
-		{ options, value, onChange, label, ariaLabelledBy, variant = "solid", className, ...props },
+		{
+			options,
+			value,
+			onChange,
+			label,
+			ariaLabelledBy,
+			variant = "solid",
+			material,
+			tone,
+			className,
+			style,
+			...props
+		},
 		ref,
 	) {
 		// The stylesheet is not injected by the GPU components alone; see useStyles.
 		useStyles();
 		const generated = useId();
 		const labelId = `${generated}-label`;
+		const surface = useMaterial(material ? { material, tone } : {});
 
 		return (
 			<div
 				{...props}
 				ref={ref}
-				className={className ? `ui-lib-soft-segments ${className}` : "ui-lib-soft-segments"}
+				className={["ui-lib-soft-segments", surface.className, className]
+					.filter(Boolean)
+					.join(" ")}
+				style={{ ...style, ...surface.style }}
 				data-ui-lib-variant={variant}
+				data-ui-lib-material={material && material !== "plain" ? material : undefined}
+				data-ui-lib-tone={tone}
 			>
 				{label && (
 					<span className="ui-lib-soft-segments__label" id={labelId}>

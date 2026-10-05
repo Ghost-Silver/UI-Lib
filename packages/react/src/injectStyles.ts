@@ -239,8 +239,9 @@ const CSS = `
 
 
 .ui-lib-paper-button:focus-visible {
-	outline: 2px solid #5b3aa6;
-	outline-offset: 3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-paper-button:disabled {
@@ -405,10 +406,12 @@ const CSS = `
 	 * control point. Jelly's two humps are a keyframe animation, not a curve —
 	 * a bezier can cross its target once and never twice.
 	 *   Jelly  k280 c14 m1   zeta 0.42
+	 *   Press  k350 c20 m1   zeta 0.55
 	 *   Snappy k450 c25 m1   zeta 0.59
 	 *   Gentle k140 c19 m1   zeta 0.80
 	 */
 	--moe-ease-jelly: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--moe-ease-press: cubic-bezier(0.28, 1.38, 0.48, 1); /* zeta = 0.55 */
 	--moe-ease-snappy: cubic-bezier(0.2, 1.25, 0.4, 1);
 	--moe-ease-gentle: cubic-bezier(0.22, 0.61, 0.36, 1);
 	--moe-dur-quick: 140ms;
@@ -676,6 +679,8 @@ const CSS = `
 	   component that assumed dark-on-light reads as broken immediately. */
 	--moe-cocoa: oklch(0.96000 0.01000 265.76);
 	--moe-cocoa-soft: oklch(0.72000 0.02000 265.76);
+	--moe-on-material: oklch(0.96 0.01 202.88);
+	--moe-on-material-soft: oklch(0.75 0.02 202.88);
 	--moe-stroke: rgb(0 240 255 / 0.25);
 	--moe-text: var(--moe-cocoa);
 	--moe-text-soft: var(--moe-cocoa-soft);
@@ -831,6 +836,8 @@ const CSS = `
 
 	--moe-cocoa: oklch(0.95000 0.01000 261.69);
 	--moe-cocoa-soft: oklch(0.70000 0.02000 261.69);
+	--moe-on-material: oklch(0.95 0.01 261.69);
+	--moe-on-material-soft: oklch(0.72 0.02 261.69);
 	--moe-stroke: rgb(245 158 11 / 0.22);
 	--moe-text: var(--moe-cocoa);
 	--moe-text-soft: var(--moe-cocoa-soft);
@@ -918,8 +925,8 @@ const CSS = `
 	user-select: none;
 	border: 1.5px solid rgb(255 255 255 / 0.5);
 	transition:
-		transform var(--moe-dur-base) var(--moe-ease-jelly),
-		box-shadow var(--moe-dur-base) var(--moe-ease-jelly);
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-paper-button__label {
@@ -1044,7 +1051,8 @@ const CSS = `
 }
 
 .ui-lib-paper-button:active:not(:disabled) {
-	animation: ui-lib-moe-squash 420ms var(--moe-ease-jelly);
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 .ui-lib-paper-button:disabled {
@@ -1055,8 +1063,9 @@ const CSS = `
 }
 
 .ui-lib-paper-button:focus-visible {
-	outline: 3px solid var(--moe-taro-500);
-	outline-offset: 3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* --- sparks -------------------------------------------------------------- */
@@ -1214,24 +1223,18 @@ const CSS = `
 	 * because backdrop-filter cannot displace anything. These are the surface of
 	 * a real refraction rather than a substitute for it.
 	 */
-	border-width: 2.5px 1.5px 1.5px 2px;
-	border-color: rgb(255 255 255 / 0.92);
+	border-width: 1.5px 1px 1px 1.5px;
+	border-color: rgb(255 255 255 / 0.55);
 	/*
 	 * Held in a variable because the hover below has to *add* to this surface
 	 * rather than replace it.
-	 *
-	 * The clay hover shadow is the paper card's lift and it is the right answer
-	 * for paper. A glass card that swapped its four insets for it would go flat
-	 * at the exact moment the pointer arrived — and the pointer arriving is when
-	 * a thick surface should read as thickest, because that is when the reader is
-	 * looking at it.
 	 */
 	--ui-lib-glass-shadow:
-		inset 1.5px 1.5px 3px rgb(255 185 210 / 0.4),
-		inset -1.5px -1.5px 3px rgb(165 240 240 / 0.4),
-		inset 0 3px 6px rgb(255 255 255 / 0.92),
-		inset 0 -4px 10px rgb(198 172 212 / 0.22),
-		0 24px 48px -12px rgb(120 100 140 / 0.24);
+		inset 1px 1px 2px rgb(255 185 210 / 0.25),
+		inset -1px -1px 2px rgb(165 240 240 / 0.25),
+		inset 0 1.5px 3px rgb(255 255 255 / 0.6),
+		inset 0 -2px 6px rgb(198 172 212 / 0.15),
+		0 20px 40px -12px rgb(120 100 140 / 0.18);
 	box-shadow: var(--ui-lib-glass-shadow);
 }
 
@@ -1350,8 +1353,20 @@ const CSS = `
 		inset 0 -1px 2px 0 rgb(255 255 255 / 0.7);
 	cursor: pointer;
 	touch-action: none;
-	transition: background var(--moe-dur-base) var(--moe-ease-gentle);
+	transition:
+		background var(--moe-dur-base) var(--moe-ease-gentle),
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
 	-webkit-tap-highlight-color: transparent;
+}
+
+.ui-lib-soft-switch:hover:not(:disabled):not([data-ui-lib-soft-disabled]) {
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-switch:active:not(:disabled):not([data-ui-lib-soft-disabled]) {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 .ui-lib-soft-switch[data-ui-lib-on] {
@@ -1362,8 +1377,9 @@ const CSS = `
 }
 
 .ui-lib-soft-switch:focus-visible {
-	outline: 3px solid var(--moe-taro-500);
-	outline-offset: 3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-switch[data-ui-lib-soft-disabled],
@@ -1464,8 +1480,27 @@ const CSS = `
 	font-weight: 600;
 	color: var(--moe-cocoa-soft);
 	cursor: pointer;
-	transition: color var(--moe-dur-base) var(--moe-ease-gentle);
+	transition:
+		color var(--moe-dur-base) var(--moe-ease-gentle),
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
 	-webkit-tap-highlight-color: transparent;
+}
+
+.ui-lib-soft-tabs__tab:hover:not(:disabled):not([data-ui-lib-disabled]) {
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-tabs__tab:active:not(:disabled):not([data-ui-lib-disabled]) {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
+}
+
+.ui-lib-soft-tabs__tab:disabled,
+.ui-lib-soft-tabs__tab[data-ui-lib-disabled] {
+	transform: none !important;
+	opacity: 0.45;
+	cursor: not-allowed;
 }
 
 .ui-lib-soft-tabs[data-ui-lib-size="md"] .ui-lib-soft-tabs__tab {
@@ -1479,8 +1514,9 @@ const CSS = `
 }
 
 .ui-lib-soft-tabs__tab:focus-visible {
-	outline: 3px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* The pill and the neck. Both sit behind the labels, which is why the tabs
@@ -1686,8 +1722,9 @@ const CSS = `
 
 .ui-lib-soft-slider__input:focus-visible + .ui-lib-soft-slider__bubble,
 .ui-lib-soft-slider:focus-within .ui-lib-soft-slider__thumb {
-	outline: 3px solid var(--moe-taro-500);
-	outline-offset: 3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2450,7 +2487,18 @@ const CSS = `
 	cursor: pointer;
 	transition:
 		border-color 180ms ease-out,
-		background 180ms ease-out;
+		background 180ms ease-out,
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
+}
+
+.ui-lib-soft-select:not([data-ui-lib-disabled]) .ui-lib-soft-select__trigger:hover {
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-select:not([data-ui-lib-disabled]) .ui-lib-soft-select__trigger:active {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 .ui-lib-soft-select[data-ui-lib-open] .ui-lib-soft-select__trigger {
@@ -2459,8 +2507,9 @@ const CSS = `
 }
 
 .ui-lib-soft-select__trigger:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-select[data-ui-lib-disabled] .ui-lib-soft-select__trigger {
@@ -2646,7 +2695,8 @@ const CSS = `
 	transition:
 		background 180ms ease-out,
 		border-color 180ms ease-out,
-		transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
 }
 
 /* The checkbox keeps a small radius; the radio is a circle. The design system
@@ -2660,13 +2710,22 @@ const CSS = `
 	border-radius: var(--moe-radius-full);
 }
 
-.ui-lib-soft-choice:hover .ui-lib-soft-choice__box {
-	transform: scale(1.06);
+.ui-lib-soft-choice:hover:not([data-ui-lib-disabled]) .ui-lib-soft-choice__box {
+	transform: translateY(-2px) scale(1.04);
 }
 
-.ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 3px;
+.ui-lib-soft-choice:active:not([data-ui-lib-disabled]) .ui-lib-soft-choice__box {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
+}
+
+.ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind] .ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind] .ui-lib-soft-choice__input:checked:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind] .ui-lib-soft-choice__input:indeterminate:focus-visible ~ .ui-lib-soft-choice__box {
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500) !important;
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* --- checked -------------------------------------------------------------
@@ -2765,6 +2824,17 @@ const CSS = `
 
 .ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__dot {
 	display: none;
+}
+
+/* Focus-visible halo outranks checked radio and checkbox inset shadows */
+.ui-lib-soft-choice[data-ui-lib-kind] .ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind] .ui-lib-soft-choice__input:checked:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind="radio"] .ui-lib-soft-choice__input:checked:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__input:focus-visible ~ .ui-lib-soft-choice__box,
+.ui-lib-soft-choice[data-ui-lib-kind="checkbox"] .ui-lib-soft-choice__input:checked:focus-visible ~ .ui-lib-soft-choice__box {
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500) !important;
+	outline: none;
 }
 
 /* --- text ---------------------------------------------------------------- */
@@ -3602,12 +3672,25 @@ const CSS = `
 	color: inherit;
 	text-align: left;
 	cursor: pointer;
+	transition:
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
+}
+
+.ui-lib-soft-accordion__item:not([data-ui-lib-disabled]) .ui-lib-soft-accordion__trigger:hover {
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-accordion__item:not([data-ui-lib-disabled]) .ui-lib-soft-accordion__trigger:active {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 .ui-lib-soft-accordion__trigger:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: -3px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
 	border-radius: var(--moe-radius-lg);
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-accordion__item[data-ui-lib-disabled] .ui-lib-soft-accordion__trigger {
@@ -4322,12 +4405,18 @@ const CSS = `
 	transition:
 		background 200ms ease-out,
 		color 200ms ease-out,
-		box-shadow 200ms ease-out,
-		transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+		box-shadow 180ms var(--moe-ease-press),
+		transform var(--moe-dur-quick) var(--moe-ease-press);
 }
 
 .ui-lib-soft-segments__segment:hover:not([data-ui-lib-disabled]) {
 	color: var(--moe-cocoa);
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-segments__segment:active:not([data-ui-lib-disabled]) {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 /* Raised out of the groove: a lift, not a fill. */
@@ -4369,10 +4458,15 @@ const CSS = `
 	pointer-events: none;
 }
 
-/* Focus is shown on the segment, because the input cannot show it. */
-.ui-lib-soft-segments__segment:has(.ui-lib-soft-segments__input:focus-visible) {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+/* Focus is shown on the segment, because the input cannot show it.
+   High specificity and !important ensure focus halo outranks solid/outline checked variant box-shadow. */
+.ui-lib-soft-segments__segment:has(.ui-lib-soft-segments__input:focus-visible),
+.ui-lib-soft-segments .ui-lib-soft-segments__segment:has(.ui-lib-soft-segments__input:focus-visible),
+.ui-lib-soft-segments[data-ui-lib-variant] .ui-lib-soft-segments__segment:has(.ui-lib-soft-segments__input:focus-visible),
+.ui-lib-soft-segments[data-ui-lib-variant] .ui-lib-soft-segments__segment[data-ui-lib-checked]:has(.ui-lib-soft-segments__input:focus-visible) {
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500) !important;
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* The segment is the label, so it is the click target and it needs to lay out
@@ -4624,17 +4718,26 @@ const CSS = `
 	transition:
 		background 180ms ease-out,
 		color 180ms ease-out,
-		border-color 180ms ease-out;
+		border-color 180ms ease-out,
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
 }
 
-.ui-lib-soft-pagination__page:hover {
+.ui-lib-soft-pagination__page:not([data-ui-lib-current]):hover {
 	background: oklch(0.95 0.018 310);
 	color: var(--moe-cocoa);
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-pagination__page:not([data-ui-lib-current]):active {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 .ui-lib-soft-pagination__page:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 2px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* The one that is not a control. No cursor, no hover, and it says where you are
@@ -5172,8 +5275,8 @@ const CSS = `
 	transition:
 		background 160ms ease-out,
 		color 160ms ease-out,
-		box-shadow 160ms ease-out,
-		transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+		box-shadow 180ms var(--moe-ease-press),
+		transform var(--moe-dur-quick) var(--moe-ease-press);
 }
 
 .ui-lib-soft-toolbar[data-ui-lib-size="sm"] .ui-lib-soft-toolbar__item {
@@ -5184,10 +5287,12 @@ const CSS = `
 .ui-lib-soft-toolbar__item:hover:not(:disabled) {
 	background: oklch(0.92 0.02 310);
 	color: var(--moe-cocoa);
+	transform: translateY(-2px);
 }
 
 .ui-lib-soft-toolbar__item:active:not(:disabled) {
-	transform: scale(0.92);
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
 }
 
 /*
@@ -5196,8 +5301,9 @@ const CSS = `
  * row is active when one button is.
  */
 .ui-lib-soft-toolbar__item:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 1px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* A toggle that is on. Raised out of the recess, like the segmented control's
@@ -5305,7 +5411,34 @@ const CSS = `
 	color: var(--moe-cocoa);
 	transition:
 		border-color 180ms ease-out,
-		background 180ms ease-out;
+		background 180ms ease-out,
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
+}
+
+.ui-lib-soft-chip-wrap:hover:not([data-ui-lib-disabled]):not(:has(:disabled)) {
+	transform: translateY(-2px);
+}
+
+.ui-lib-soft-chip-wrap:active:not([data-ui-lib-disabled]):not(:has(:disabled)) {
+	transform: translateY(1.5px) scale(0.97, 0.95);
+	transition: transform 90ms ease-in;
+}
+
+.ui-lib-soft-chip-wrap[data-ui-lib-disabled],
+.ui-lib-soft-chip-wrap:has(:disabled) {
+	transform: none !important;
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-chip:disabled {
+	cursor: not-allowed;
+}
+
+.ui-lib-soft-chip__remove:disabled {
+	cursor: not-allowed;
+	pointer-events: none;
 }
 
 /* A chip with nothing to remove has no trailing control to make room for. */
@@ -5329,7 +5462,9 @@ const CSS = `
 	cursor: pointer;
 	transition:
 		background 160ms ease-out,
-		color 160ms ease-out;
+		color 160ms ease-out,
+		transform var(--moe-dur-quick) var(--moe-ease-press),
+		box-shadow 180ms var(--moe-ease-press);
 }
 
 .ui-lib-soft-chip-wrap:not(:has(.ui-lib-soft-chip__remove)) .ui-lib-soft-chip {
@@ -5341,8 +5476,9 @@ const CSS = `
 }
 
 .ui-lib-soft-chip:focus-visible {
-	outline: 2px solid var(--moe-taro-500);
-	outline-offset: 1px;
+	box-shadow: 0 0 0 2px var(--moe-card), 0 0 12px 3px var(--moe-taro-500);
+	outline: none;
+	transition: box-shadow 180ms var(--moe-ease-press);
 }
 
 /* Selected. The whole chip carries the pigment rather than a corner of it. */
@@ -5708,6 +5844,20 @@ const CSS = `
 	.ui-lib-wash--laying,
 	.ui-lib-wash--laying .ui-lib-wash__deposit 
 		animation: none;
+}
+
+.ui-lib-frosted-ground-fixed {
+	position: fixed;
+	z-index: 1;
+	pointer-events: none;
+	background: rgba(255, 255, 255, 0.09);
+	backdrop-filter: blur(8px) saturate(125%);
+	-webkit-backdrop-filter: blur(8px) saturate(125%);
+	border: 1px solid rgba(255, 255, 255, 0.45);
+	box-shadow:
+		0 8px 32px rgba(31, 38, 135, 0.04),
+		inset 0 1px 0 rgba(255, 255, 255, 0.6);
+	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 `;
 

@@ -47,7 +47,15 @@ function installDocument(log: Recorded[]): void {
 		const target: Record<string, unknown> = {
 			canvas: null,
 			createRadialGradient: () => ({ addColorStop: () => {} }),
-			createConicGradient: () => ({ addColorStop: () => {} }),
+			createConicGradient: (...args: unknown[]) => {
+				log.push({
+					canvas: id,
+					kind: "call",
+					name: "createConicGradient",
+					value: args.map(String).join(","),
+				});
+				return { addColorStop: () => {} };
+			},
 			createPattern: () => null,
 			measureText: () => ({ width: 0 }),
 		};
@@ -55,8 +63,13 @@ function installDocument(log: Recorded[]): void {
 			get(t, key) {
 				const existing = t[key as string];
 				if (existing !== undefined) return existing;
-				return (..._args: unknown[]) => {
-					log.push({ canvas: id, kind: "call", name: String(key), value: "" });
+				return (...args: unknown[]) => {
+					log.push({
+						canvas: id,
+						kind: "call",
+						name: String(key),
+						value: args.map(String).join(","),
+					});
 					return undefined;
 				};
 			},
@@ -224,5 +237,106 @@ describe("washToCanvas", () => {
 			(e) => e.kind === "set" && e.name === "globalAlpha" && e.value === "0.2",
 		);
 		expect(faint).toHaveLength(0);
+	});
+
+	it("draws the body contour using an elliptical path without rectangular fillRect ghosting", async () => {
+		const log: Recorded[] = [];
+		installDocument(log);
+
+		await washToCanvas({
+			hue: "#b79cf5",
+			weight: 0.9,
+			seed: 7,
+			width: 190,
+			height: 190,
+		});
+
+		const fibreAt = log.findIndex(
+			(e) =>
+				e.canvas === 0 &&
+				e.kind === "set" &&
+				e.name === "globalCompositeOperation" &&
+				e.value === "multiply",
+		);
+		expect(fibreAt).toBeGreaterThan(0);
+
+		// Canvas 0 draws the body using ellipse, avoiding rectangular fillRect clipping
+		const bodyCalls = log.slice(0, fibreAt).filter((e) => e.canvas === 0 && e.kind === "call");
+		const hasEllipse = bodyCalls.some((e) => e.name === "ellipse");
+		const hasFillRect = bodyCalls.some((e) => e.name === "fillRect");
+
+		expect(hasEllipse).toBe(true);
+		expect(hasFillRect).toBe(false);
+	});
+
+	it("creates the deposit conic gradient at the translated origin on the isolated layer", async () => {
+		const log: Recorded[] = [];
+		installDocument(log);
+
+		await washToCanvas({
+			hue: "#b79cf5",
+			weight: 0.9,
+			seed: 7,
+			width: 190,
+			height: 190,
+		});
+
+		// Canvas 0 must not receive createConicGradient directly
+		const canvas0Conic = log.filter(
+			(e) => e.canvas === 0 && e.kind === "call" && e.name === "createConicGradient",
+		);
+		expect(canvas0Conic).toHaveLength(0);
+
+		// Scratch canvas creates conic gradient at (0, 0)
+		const conicCalls = log.filter((e) => e.kind === "call" && e.name === "createConicGradient");
+		expect(conicCalls.length).toBeGreaterThan(0);
+		for (const call of conicCalls) {
+			expect(call.canvas).not.toBe(0);
+			const [, x, y] = call.value.split(",");
+			expect(Number(x)).toBe(0);
+			expect(Number(y)).toBe(0);
+		}
+	});
+
+	it("translates the deposit scratch layer to the mark center before drawing", async () => {
+		const log: Recorded[] = [];
+		installDocument(log);
+
+		await washToCanvas({
+			hue: "#b79cf5",
+			weight: 0.85,
+			seed: 42,
+			width: 200,
+			height: 180,
+		});
+
+		// Scratch canvas translates to mark center before drawing band and conic
+		const ringTranslates = log.filter(
+			(e) => e.canvas === 1 && e.kind === "call" && e.name === "translate",
+		);
+		expect(ringTranslates.length).toBeGreaterThanOrEqual(1);
+	});
+
+	it("unifies coordinate space by translating and scaling context on canvas 0", async () => {
+		const log: Recorded[] = [];
+		installDocument(log);
+
+		await washToCanvas({
+			hue: "#b79cf5",
+			weight: 0.9,
+			seed: 7,
+			width: 200,
+			height: 160,
+		});
+
+		// Canvas 0 must translate and scale before drawing body gradient and contour
+		const bodyTranslates = log.filter(
+			(e) => e.canvas === 0 && e.kind === "call" && e.name === "translate",
+		);
+		const bodyScales = log.filter(
+			(e) => e.canvas === 0 && e.kind === "call" && e.name === "scale",
+		);
+		expect(bodyTranslates.length).toBeGreaterThanOrEqual(1);
+		expect(bodyScales.length).toBeGreaterThanOrEqual(2);
 	});
 });

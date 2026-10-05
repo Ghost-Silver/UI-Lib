@@ -1,4 +1,11 @@
-import { createWash, type IrisTone, parseColour, type WashResult } from "@ui-lib/core";
+import {
+	createWash,
+	type IrisTone,
+	mixToCss,
+	parseColour,
+	pigmentFromHex,
+	type WashResult,
+} from "@ui-lib/core";
 import { useEffect, useMemo, useState } from "react";
 
 /**
@@ -205,45 +212,110 @@ export interface MaterialResult {
  */
 export const MATERIAL_GROUND_CLASS = "ui-lib-material--ground";
 
+/**
+ * Linearise sRGB channel and calculate relative luminance.
+ */
+export function srgbLuminance(r: number, g: number, b: number): number {
+	const chan = (v: number) => {
+		const s = v / 255;
+		return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+	};
+	return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
+}
+
+export interface GroundContrast {
+	luminance: number;
+	onMaterial: string;
+	onMaterialSoft: string;
+}
+
+/**
+ * Dynamically compute effective ground luminance and appropriate on-material ink tokens.
+ */
+export function computeEffectiveGroundLuminance(options: {
+	cardColor?: string;
+	pigmentColor?: string;
+	weight?: number;
+	theme?: string;
+	washCss?: string;
+}): GroundContrast {
+	const { cardColor, pigmentColor, weight = 1, theme, washCss } = options;
+	let luminance = 0.95;
+
+	if (washCss) {
+		const match = washCss.match(
+			/rgb\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*\)|#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)/,
+		);
+		if (match) {
+			const parsed = parseColour(match[0]);
+			if (parsed) {
+				luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+			}
+		}
+	} else if (pigmentColor) {
+		try {
+			const p = pigmentFromHex(pigmentColor);
+			const css = mixToCss([p], { thickness: (weight || 1) * 0.7, backing: 1 });
+			const parsed = parseColour(css);
+			if (parsed) {
+				luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+			}
+		} catch {
+			const parsed = parseColour(pigmentColor);
+			if (parsed) luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+		}
+	} else if (cardColor) {
+		const parsed = parseColour(cardColor);
+		if (parsed) {
+			luminance = srgbLuminance(parsed.r, parsed.g, parsed.b);
+		}
+	} else if (theme === "cyberpunk") {
+		luminance = 0.05;
+	} else if (theme === "obsidian") {
+		luminance = 0.08;
+	}
+
+	let onMaterial: string;
+	let onMaterialSoft: string;
+	if (luminance >= 0.22) {
+		onMaterial = "oklch(0.10 0.02 265.76)";
+		onMaterialSoft = "oklch(0.20 0.02 265.76)";
+	} else if (theme === "cyberpunk") {
+		onMaterial = "oklch(0.96 0.01 202.88)";
+		onMaterialSoft = "oklch(0.75 0.02 202.88)";
+	} else if (theme === "obsidian") {
+		onMaterial = "oklch(0.95 0.01 261.69)";
+		onMaterialSoft = "oklch(0.72 0.02 261.69)";
+	} else {
+		onMaterial = "oklch(0.96 0.01 265.76)";
+		onMaterialSoft = "oklch(0.75 0.02 265.76)";
+	}
+
+	return { luminance, onMaterial, onMaterialSoft };
+}
+
 export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 	const { material = "plain", tone = "iris", weight, seed, name, fibre, fibreAngle } = options;
 
-	/*
-	 * The pigment, read from the token rather than written here.
-	 *
-	 * Two states rather than one, and it is not decoration: `getComputedStyle`
-	 * does not exist on the server, so the first render uses the palette's own
-	 * fallback and the client re-reads the token afterwards. In the default theme
-	 * the two are the same value, so nothing moves; in another theme the first
-	 * paint is the old colour for one frame.
-	 *
-	 * The alternative — reading during render — is a hydration mismatch, and this
-	 * library has already paid for one of those: a module-level counter in
-	 * `SoftInput` that produced a different id on each side.
-	 */
+	const [theme, setTheme] = useState(() =>
+		typeof document !== "undefined"
+			? (document.documentElement.getAttribute("data-moe-theme") ?? "")
+			: "",
+	);
 	const [pigment, setPigment] = useState(() => TONE_FALLBACK[tone]);
 	const [resolvedWeight, setResolvedWeight] = useState(() => MATERIAL_WEIGHT[material]);
 	useEffect(() => {
 		setPigment(resolveTone(tone));
 		setResolvedWeight(resolveWeight(material, MATERIAL_WEIGHT[material]));
-		/*
-		 * And again whenever the theme changes, which the `tone` dependency above
-		 * cannot see.
-		 *
-		 * A theme is an attribute on `<html>` and the palette is read out of CSS, so
-		 * from React's point of view nothing happened when the theme changed — the
-		 * prop is the same, the component is the same, and the wash kept the colour
-		 * it was generated with. Measured: switching to the cyberpunk theme moved
-		 * `--moe-taro-500` from `oklch(0.82 0.12 305)` to `oklch(0.87 0.148 202.88)`
-		 * and left every card's `--wash-ground` at the pastel value.
-		 *
-		 * An observer rather than a context, because the theme is deliberately not a
-		 * React concept: the specification calls it hot-swappable through CSS
-		 * variables, and a page that sets the attribute from a `<script>` or from
-		 * devtools should work the same as one that sets it from a provider.
-		 */
+		if (typeof document !== "undefined") {
+			setTheme(document.documentElement.getAttribute("data-moe-theme") ?? "");
+		}
 		if (typeof MutationObserver === "undefined") return;
-		const read = () => setPigment(resolveTone(tone));
+		const read = () => {
+			setPigment(resolveTone(tone));
+			setResolvedWeight(resolveWeight(material, MATERIAL_WEIGHT[material]));
+			setTheme(document.documentElement.getAttribute("data-moe-theme") ?? "");
+		};
 		const observer = new MutationObserver(read);
 		observer.observe(document.documentElement, {
 			attributes: true,
@@ -252,12 +324,6 @@ export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 		return () => observer.disconnect();
 	}, [tone, material]);
 
-	/*
-	 * The wash is memoised on its inputs, because it is not cheap: it generates
-	 * two SVG turbulence layers and a five-stop conic gradient as strings, and
-	 * redoing that on every render of a list of cards is real work for a value
-	 * that cannot have changed.
-	 */
 	const wash = useMemo(() => {
 		if (material === "plain") return null;
 		return createWash({
@@ -266,40 +332,37 @@ export function useMaterial(options: MaterialOptions = {}): MaterialResult {
 			fibre,
 			fibreAngle,
 			seed: name !== undefined ? seedFromName(name) : (seed ?? 1),
-			// A surface is never wet. The wet states describe a *stroke* — pigment
-			// still moving — and a card that looked like it was still spreading
-			// would read as unfinished rather than as soft.
 			state: "dry",
 		});
-		// `tone` is not a dependency: it is what `pigment` was resolved from, and the
-		// effect above re-resolves it. Listing both makes the memo run twice per change.
 	}, [material, weight, seed, name, pigment, resolvedWeight, fibre, fibreAngle]);
+
+	const contrast = useMemo(() => {
+		if (material === "plain") return null;
+		const rawCard =
+			typeof window !== "undefined"
+				? getComputedStyle(document.documentElement).getPropertyValue("--moe-card").trim()
+				: undefined;
+		return computeEffectiveGroundLuminance({
+			cardColor: rawCard,
+			pigmentColor: pigment,
+			weight: weight ?? resolvedWeight,
+			theme,
+			washCss: wash?.style["--wash-body"] as string | undefined,
+		});
+	}, [material, pigment, weight, resolvedWeight, theme, wash]);
 
 	return useMemo(() => {
 		if (!wash) return { className: "", style: {}, wash };
-		/*
-		 * The ground class **and not** `wash.className`, which is the second
-		 * version of this and the first one was wrong in a way that took three
-		 * measurements to find.
-		 *
-		 * `createWash` returns `ui-lib-wash ui-lib-wash--dry`, and that base
-		 * class is written for a *stroke*: it sets `background`, `border-radius`,
-		 * a lobed silhouette, a rotation and an opacity — the whole appearance of
-		 * a mark on paper. It also sets `background` as a shorthand, which resets
-		 * `background-color` to transparent and silently undid the paper ground
-		 * this class declares. Measured, every material card had a fully
-		 * transparent background no matter what the stylesheet said, and the
-		 * matched-rule list was the only thing that showed why: both classes
-		 * matched and the wash one won.
-		 *
-		 * So a ground takes the **variables** and not the class. The generator's
-		 * output is the right thing to carry; its default presentation is the
-		 * right thing for a mark and the wrong thing for a surface.
-		 */
+		const style = {
+			...(wash.style as unknown as Record<string, string>),
+			"--moe-on-material": contrast?.onMaterial ?? "oklch(0.14 0.02 265.76)",
+			"--moe-on-material-soft": contrast?.onMaterialSoft ?? "oklch(0.20 0.02 265.76)",
+		} as unknown as React.CSSProperties;
+
 		return {
 			className: MATERIAL_GROUND_CLASS,
-			style: wash.style as unknown as React.CSSProperties,
+			style,
 			wash,
 		};
-	}, [wash]);
+	}, [wash, contrast]);
 }

@@ -1,14 +1,24 @@
 import type { IrisTone } from "@ui-lib/core";
 import {
+	BubbleBadge,
+	PinkPaperButton,
 	SoftAccordion,
 	SoftAlert,
 	SoftCard,
+	SoftCheckbox,
 	SoftChip,
+	SoftInput,
 	SoftList,
 	SoftProgress,
+	SoftRadio,
+	SoftSegmentedControl,
+	SoftSelect,
+	SoftSlider,
 	SoftStepper,
 	SoftSwitch,
 	SoftTag,
+	SoftTextarea,
+	SoftToolbar,
 } from "@ui-lib/react";
 import { useState } from "react";
 
@@ -106,12 +116,182 @@ const SURFACES: Surface[] = [
 	},
 ];
 
+export type MaterialMode = "solid" | "wash" | "tint" | "glass";
+
 export function KitIndexPage() {
-	const [tone, setTone] = useState<IrisTone>("iris");
+	const [tone, setTone] = useState<IrisTone>(() => {
+		if (typeof window !== "undefined") {
+			const q = new URLSearchParams(window.location.search);
+			const t = q.get("tone");
+			if (t === "iris" || t === "blossom" || t === "mist") return t;
+			const p = q.get("palette");
+			if (p === "ember") return "blossom";
+			if (p === "mint") return "mist";
+		}
+		return "iris";
+	});
 	const [dense, setDense] = useState(false);
+	const [materialMode, setMaterialMode] = useState<MaterialMode>(() => {
+		if (typeof window !== "undefined") {
+			const m = new URLSearchParams(window.location.search).get("material");
+			if (m === "solid" || m === "wash" || m === "tint" || m === "glass") return m;
+		}
+		return "wash";
+	});
+
+	// Interactive component states for live matrix inspection
+	const [switchVal, setSwitchVal] = useState(true);
+	const [checkVal, setCheckVal] = useState(true);
+	const [radioVal, setRadioVal] = useState("a");
+	const [sliderVal, setSliderVal] = useState(62);
+	const [segVal, setSegVal] = useState("clay");
+	const [chipSelected, setChipSelected] = useState(true);
+	const [selectVal, setSelectVal] = useState("paper");
+
+	const cardMaterial =
+		materialMode === "solid" ? "plain" : materialMode === "glass" ? "plain" : materialMode;
+	const cardLook = materialMode === "glass" ? ("slab" as const) : undefined;
 
 	return (
 		<div className={`kitindex kitindex--${tone}`}>
+			<style>{`
+				.kitindex__matrix-section {
+					overflow: hidden;
+					max-width: 980px;
+					margin: 48px auto 72px;
+					padding: 32px;
+					border-radius: var(--moe-radius-lg, 24px);
+					background: var(--moe-card, rgba(255, 255, 255, 0.65));
+					backdrop-filter: blur(16px);
+					border: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+					box-shadow: 0 12px 36px rgba(0, 0, 0, 0.04);
+				}
+				.kitindex__matrix-head {
+					margin-bottom: 24px;
+				}
+				.kitindex__matrix-title {
+					margin: 0 0 8px;
+					font-size: 26px;
+					font-weight: 800;
+					color: var(--moe-cocoa, #2c2523);
+				}
+				.kitindex__matrix-desc {
+					margin: 0 0 20px;
+					font-size: 14px;
+					line-height: 1.7;
+					color: var(--moe-cocoa-soft, #6e645f);
+				}
+				.kitindex__mat-toggles {
+					display: flex;
+					align-items: center;
+					gap: 12px;
+					flex-wrap: wrap;
+					margin-bottom: 28px;
+					padding: 12px 16px;
+					border-radius: 16px;
+					background: var(--moe-sand-100, #f5efe6);
+				}
+				.kitindex__mat-toggles-label {
+					font-size: 13px;
+					font-weight: 700;
+					color: var(--moe-cocoa, #2c2523);
+				}
+				.kitindex__matrix-table-wrap {
+					overflow-x: auto;
+					border-radius: 16px;
+					border: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+					background: var(--moe-canvas, #faf7f2);
+				}
+				.kitindex__matrix-table {
+					width: 100%;
+					border-collapse: collapse;
+					min-width: 760px;
+					font-size: 13.5px;
+				}
+				.kitindex__matrix-table th {
+					padding: 14px 18px;
+					text-align: left;
+					background: var(--moe-sand-200, #eee6d8);
+					color: var(--moe-cocoa, #2c2523);
+					font-weight: 700;
+					border-bottom: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+				}
+				.kitindex__matrix-table td {
+					padding: 16px 18px;
+					border-bottom: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.06));
+					vertical-align: middle;
+				}
+				.kitindex__matrix-row-title {
+					font-weight: 700;
+					color: var(--moe-cocoa, #2c2523);
+					white-space: nowrap;
+					width: 130px;
+				}
+				.kitindex__sim-hover {
+					display: inline-block;
+					transform: translateY(-2px) rotate(-0.5deg);
+					filter: brightness(1.05);
+					box-shadow: 0 6px 14px rgba(120, 111, 166, 0.22);
+					border-radius: 12px;
+				}
+				.kitindex__sim-focus {
+					display: inline-block;
+					outline: 2px solid rgba(120, 111, 166, 0.85);
+					outline-offset: 3px;
+					box-shadow: 0 0 0 2px var(--moe-card, #fff), 0 0 14px 3px var(--moe-taro-500, #786fa6);
+					border-radius: 12px;
+				}
+				.kitindex__sim-active {
+					display: inline-block;
+					transform: scale(0.96) translateY(1px);
+					transition: transform 0.1s var(--moe-ease-press, cubic-bezier(0.28, 1.38, 0.48, 1));
+					filter: brightness(0.94);
+					border-radius: 12px;
+				}
+				.kitindex__sim-disabled {
+					display: inline-block;
+					opacity: 0.45;
+					pointer-events: none;
+					filter: grayscale(0.35);
+					border-radius: 12px;
+				}
+				.kitindex__cell-mat {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					padding: 6px;
+					border-radius: 12px;
+					transition: all 0.22s ease;
+				}
+				.kitindex__cell-mat--solid {
+					background: var(--moe-card, rgba(255, 255, 255, 0.9));
+					border: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+					box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+				}
+				.kitindex__cell-mat--wash {
+					background: radial-gradient(circle at 50% 50%, rgba(120, 111, 166, 0.08) 0%, rgba(120, 111, 166, 0.16) 75%, rgba(100, 85, 150, 0.26) 100%);
+					border: 1px solid rgba(120, 111, 166, 0.22);
+					box-shadow: inset 0 0 8px rgba(120, 111, 166, 0.08);
+				}
+				.kitindex__cell-mat--tint {
+					background: rgba(120, 111, 166, 0.07);
+					border: 1px solid rgba(120, 111, 166, 0.14);
+				}
+				.kitindex__cell-mat--glass {
+					background: rgba(255, 255, 255, 0.45);
+					backdrop-filter: blur(14px);
+					border: 1px solid rgba(255, 255, 255, 0.65);
+					box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85), 0 4px 14px rgba(0, 0, 0, 0.04);
+				}
+				.kitindex__card-cell {
+					min-width: 110px;
+					padding: 10px 12px;
+					border-radius: 14px;
+					font-size: 12px;
+					text-align: center;
+				}
+			`}</style>
+
 			<header className="kitindex__head">
 				<p className="kitindex__eyebrow">组件层 · 三十五件</p>
 				<h1 className="kitindex__title">
@@ -141,6 +321,743 @@ export function KitIndexPage() {
 				</div>
 			</header>
 
+			{/* F10 & F11: Comprehensive Component State Matrix & Multi-Material Toggles */}
+			<section className="kitindex__matrix-section" aria-label="组件全状态矩阵与多材质切换">
+				<div className="kitindex__matrix-head">
+					<h2 className="kitindex__matrix-title">组件 5 态物理矩阵 & 多材质切换</h2>
+					<p className="kitindex__matrix-desc">
+						全套核心控件在 <strong>[默认 · 悬停 · 聚焦 · 激活 · 禁用]</strong>{" "}
+						五种交互基态下的并排呈现。 通过上方材质切换条，可在{" "}
+						<strong>[纯色 (solid) · 水彩 (wash) · 微透 (tint) · 玻璃 (glass)]</strong>{" "}
+						之间动态切换材质基底， 实时检验统一物理阻尼比（&zeta; = 0.55）与无障碍视觉反馈。
+					</p>
+
+					<div className="kitindex__mat-toggles">
+						<span className="kitindex__mat-toggles-label">多材质切换：</span>
+						{(
+							[
+								{ id: "solid", label: "纯色 (solid)" },
+								{ id: "wash", label: "水彩 (wash)" },
+								{ id: "tint", label: "微透 (tint)" },
+								{ id: "glass", label: "玻璃 (glass)" },
+							] as const
+						).map((m) => (
+							<SoftChip
+								key={m.id}
+								selected={materialMode === m.id}
+								onClick={() => setMaterialMode(m.id)}
+							>
+								{m.label}
+							</SoftChip>
+						))}
+					</div>
+				</div>
+
+				<div className="kitindex__matrix-table-wrap">
+					<table className="kitindex__matrix-table">
+						<thead>
+							<tr>
+								<th scope="col">组件类别</th>
+								<th scope="col">1. 默认 (Default)</th>
+								<th scope="col">2. 悬停 (Hover)</th>
+								<th scope="col">3. 聚焦 (Focus)</th>
+								<th scope="col">4. 激活 (Active)</th>
+								<th scope="col">5. 禁用 (Disabled)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{/* Row 1: SoftButton (Clay) */}
+							<tr>
+								<td className="kitindex__matrix-row-title">按钮 · 粘土</td>
+								<td>
+									<PinkPaperButton tone={tone} variant="clay" size={dense ? "sm" : "md"}>
+										粘土按钮
+									</PinkPaperButton>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<PinkPaperButton tone={tone} variant="clay" size={dense ? "sm" : "md"}>
+											悬停微倾
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<PinkPaperButton
+											tone={tone}
+											variant="clay"
+											size={dense ? "sm" : "md"}
+											tabIndex={0}
+										>
+											光晕聚焦
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<PinkPaperButton tone={tone} variant="clay" size={dense ? "sm" : "md"}>
+											弹性按压
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<PinkPaperButton
+										tone={tone}
+										variant="clay"
+										size={dense ? "sm" : "md"}
+										disabled
+									>
+										已禁用
+									</PinkPaperButton>
+								</td>
+							</tr>
+
+							{/* Row 2: SoftButton (Gummy) */}
+							<tr>
+								<td className="kitindex__matrix-row-title">按钮 · 软糖</td>
+								<td>
+									<PinkPaperButton tone={tone} variant="gummy" size={dense ? "sm" : "md"}>
+										软糖按钮
+									</PinkPaperButton>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<PinkPaperButton tone={tone} variant="gummy" size={dense ? "sm" : "md"}>
+											果冻微浮
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<PinkPaperButton
+											tone={tone}
+											variant="gummy"
+											size={dense ? "sm" : "md"}
+											tabIndex={0}
+										>
+											双层焦点
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<PinkPaperButton tone={tone} variant="gummy" size={dense ? "sm" : "md"}>
+											阻尼回弹
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<PinkPaperButton
+										tone={tone}
+										variant="gummy"
+										size={dense ? "sm" : "md"}
+										disabled
+									>
+										已禁用
+									</PinkPaperButton>
+								</td>
+							</tr>
+
+							{/* Row 3: SoftInput */}
+							<tr>
+								<td className="kitindex__matrix-row-title">输入框 · Input</td>
+								<td>
+									<SoftInput placeholder="未聚焦输入框" />
+								</td>
+								<td>
+									<span className="kitindex__sim-hover" style={{ width: "100%" }}>
+										<SoftInput defaultValue="指针悬停" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus" style={{ width: "100%" }}>
+										<SoftInput defaultValue="键盘获焦" autoFocus={false} />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active" style={{ width: "100%" }}>
+										<SoftInput defaultValue="激活输入" />
+									</span>
+								</td>
+								<td>
+									<SoftInput defaultValue="已锁定禁用" disabled />
+								</td>
+							</tr>
+
+							{/* Row 4: SoftSwitch */}
+							<tr>
+								<td className="kitindex__matrix-row-title">滑动开关 · Switch</td>
+								<td>
+									<SoftSwitch checked={switchVal} onChange={setSwitchVal} label="开" />
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftSwitch checked={true} label="悬停" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftSwitch checked={true} label="聚焦" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftSwitch checked={true} label="按下" />
+									</span>
+								</td>
+								<td>
+									<SoftSwitch checked softDisabled label="禁用" />
+								</td>
+							</tr>
+
+							{/* Row 5: SoftCheckbox */}
+							<tr>
+								<td className="kitindex__matrix-row-title">复选框 · Checkbox</td>
+								<td>
+									<SoftCheckbox
+										checked={checkVal}
+										onChange={(e) => setCheckVal(e.target.checked)}
+										label="宣纸水墨"
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftCheckbox checked={true} readOnly label="悬停高亮" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftCheckbox checked={true} readOnly label="焦点环" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftCheckbox checked={true} readOnly label="弹性回弹" />
+									</span>
+								</td>
+								<td>
+									<SoftCheckbox disabled checked={false} label="不可选择" />
+								</td>
+							</tr>
+
+							{/* Row 6: SoftRadio */}
+							<tr>
+								<td className="kitindex__matrix-row-title">单选框 · Radio</td>
+								<td>
+									<SoftRadio
+										name="matrix-radio"
+										value="a"
+										checked={radioVal === "a"}
+										onChange={() => setRadioVal("a")}
+										label="选项 A"
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftRadio
+											name="matrix-radio-hover"
+											value="h"
+											checked={true}
+											readOnly
+											label="悬停态"
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftRadio
+											name="matrix-radio-focus"
+											value="f"
+											checked={true}
+											readOnly
+											label="聚焦态"
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftRadio
+											name="matrix-radio-act"
+											value="act"
+											checked={true}
+											readOnly
+											label="激活态"
+										/>
+									</span>
+								</td>
+								<td>
+									<SoftRadio name="matrix-radio-dis" value="d" disabled label="已禁用" />
+								</td>
+							</tr>
+
+							{/* Row 7: SoftSlider */}
+							<tr>
+								<td className="kitindex__matrix-row-title">滑块 · Slider</td>
+								<td>
+									<SoftSlider
+										value={sliderVal}
+										onChange={setSliderVal}
+										label="水分"
+										format={(v) => `${v}%`}
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover" style={{ width: "100%" }}>
+										<SoftSlider value={72} label="悬停" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus" style={{ width: "100%" }}>
+										<SoftSlider value={85} label="聚焦" />
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active" style={{ width: "100%" }}>
+										<SoftSlider value={92} label="拖拽" />
+									</span>
+								</td>
+								<td>
+									<SoftSlider value={45} softDisabled label="禁用" />
+								</td>
+							</tr>
+
+							{/* Row 8: SoftChip */}
+							<tr>
+								<td className="kitindex__matrix-row-title">纸片 · Chip</td>
+								<td>
+									<SoftChip selected={chipSelected} onClick={() => setChipSelected((v) => !v)}>
+										默认纸片
+									</SoftChip>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftChip selected={false}>悬停抬升</SoftChip>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftChip selected={false} tabIndex={0}>
+											键盘聚焦
+										</SoftChip>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftChip selected={true}>按压激活</SoftChip>
+									</span>
+								</td>
+								<td>
+									<SoftChip disabled>已禁用</SoftChip>
+								</td>
+							</tr>
+
+							{/* Row 9: SoftSegmentedControl */}
+							<tr>
+								<td className="kitindex__matrix-row-title">分段 · Segment</td>
+								<td>
+									<SoftSegmentedControl
+										label="材质选择"
+										options={[
+											{ value: "clay", label: "粘土" },
+											{ value: "wash", label: "水彩" },
+										]}
+										value={segVal}
+										onChange={setSegVal}
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftSegmentedControl
+											label="悬停态"
+											options={[
+												{ value: "clay", label: "粘土" },
+												{ value: "wash", label: "水彩" },
+											]}
+											value="clay"
+											onChange={() => undefined}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftSegmentedControl
+											label="聚焦态"
+											options={[
+												{ value: "clay", label: "粘土" },
+												{ value: "wash", label: "水彩" },
+											]}
+											value="clay"
+											onChange={() => undefined}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftSegmentedControl
+											label="激活态"
+											options={[
+												{ value: "clay", label: "粘土" },
+												{ value: "wash", label: "水彩" },
+											]}
+											value="wash"
+											onChange={() => undefined}
+										/>
+									</span>
+								</td>
+								<td>
+									<SoftSegmentedControl
+										label="禁用态"
+										options={[
+											{ value: "clay", label: "锁定", disabled: true },
+											{ value: "wash", label: "禁用", disabled: true },
+										]}
+										value="clay"
+										onChange={() => undefined}
+									/>
+								</td>
+							</tr>
+
+							{/* Row 10: SoftSelect */}
+							<tr>
+								<td className="kitindex__matrix-row-title">下拉 · Select</td>
+								<td>
+									<SoftSelect
+										label="基底"
+										value={selectVal}
+										onChange={setSelectVal}
+										options={[
+											{ value: "paper", label: "水彩纸" },
+											{ value: "glass", label: "液态玻璃" },
+										]}
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover" style={{ width: "100%" }}>
+										<SoftSelect
+											label="悬停"
+											value="paper"
+											onChange={() => undefined}
+											options={[{ value: "paper", label: "水彩纸" }]}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus" style={{ width: "100%" }}>
+										<SoftSelect
+											label="聚焦"
+											value="paper"
+											onChange={() => undefined}
+											options={[{ value: "paper", label: "水彩纸" }]}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active" style={{ width: "100%" }}>
+										<SoftSelect
+											label="激活"
+											value="glass"
+											onChange={() => undefined}
+											options={[{ value: "glass", label: "液态玻璃" }]}
+										/>
+									</span>
+								</td>
+								<td>
+									<SoftSelect label="禁用" disabled placeholder="已锁定" options={[]} />
+								</td>
+							</tr>
+
+							{/* Row 11: SoftCard (Reflecting the active multi-material toggle) */}
+							<tr>
+								<td className="kitindex__matrix-row-title">卡片 · Card [{materialMode}]</td>
+								<td>
+									<SoftCard
+										material={cardMaterial}
+										look={cardLook}
+										tone={tone}
+										interactive
+										className="kitindex__card-cell"
+									>
+										默认卡片
+									</SoftCard>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftCard
+											material={cardMaterial}
+											look={cardLook}
+											tone={tone}
+											interactive
+											className="kitindex__card-cell"
+										>
+											悬停抬升微倾
+										</SoftCard>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftCard
+											material={cardMaterial}
+											look={cardLook}
+											tone={tone}
+											interactive
+											tabIndex={0}
+											className="kitindex__card-cell"
+										>
+											双层光晕聚焦
+										</SoftCard>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftCard
+											material={cardMaterial}
+											look={cardLook}
+											tone={tone}
+											interactive
+											className="kitindex__card-cell"
+										>
+											阻尼按压回弹
+										</SoftCard>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-disabled">
+										<SoftCard
+											material={cardMaterial}
+											look={cardLook}
+											tone={tone}
+											className="kitindex__card-cell"
+										>
+											禁用不可点击
+										</SoftCard>
+									</span>
+								</td>
+							</tr>
+
+							{/* Row 12: SoftTextarea */}
+							<tr>
+								<td className="kitindex__matrix-row-title">文本域 · Textarea</td>
+								<td>
+									<SoftTextarea
+										placeholder="未聚焦文本域"
+										rows={2}
+										material={cardMaterial}
+										tone={tone}
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover" style={{ width: "100%" }}>
+										<SoftTextarea
+											defaultValue="悬停编辑"
+											rows={2}
+											material={cardMaterial}
+											tone={tone}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus" style={{ width: "100%" }}>
+										<SoftTextarea
+											defaultValue="双层光晕获焦"
+											rows={2}
+											material={cardMaterial}
+											tone={tone}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active" style={{ width: "100%" }}>
+										<SoftTextarea
+											defaultValue="激活输入"
+											rows={2}
+											material={cardMaterial}
+											tone={tone}
+										/>
+									</span>
+								</td>
+								<td>
+									<SoftTextarea
+										defaultValue="已锁定禁用"
+										rows={2}
+										disabled
+										material={cardMaterial}
+										tone={tone}
+									/>
+								</td>
+							</tr>
+
+							{/* Row 13: PinkPaperButton (Flat) */}
+							<tr>
+								<td className="kitindex__matrix-row-title">按钮 · 扁平</td>
+								<td>
+									<PinkPaperButton tone={tone} variant="flat" size={dense ? "sm" : "md"}>
+										扁平按钮
+									</PinkPaperButton>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<PinkPaperButton tone={tone} variant="flat" size={dense ? "sm" : "md"}>
+											纸纹悬停
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<PinkPaperButton
+											tone={tone}
+											variant="flat"
+											size={dense ? "sm" : "md"}
+											tabIndex={0}
+										>
+											焦点环
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<PinkPaperButton tone={tone} variant="flat" size={dense ? "sm" : "md"}>
+											弹性按压
+										</PinkPaperButton>
+									</span>
+								</td>
+								<td>
+									<PinkPaperButton
+										tone={tone}
+										variant="flat"
+										size={dense ? "sm" : "md"}
+										disabled
+									>
+										已禁用
+									</PinkPaperButton>
+								</td>
+							</tr>
+
+							{/* Row 14: SoftToolbar */}
+							<tr>
+								<td className="kitindex__matrix-row-title">工具栏 · Toolbar</td>
+								<td>
+									<SoftToolbar
+										size="sm"
+										material={cardMaterial}
+										tone={tone}
+										label="绘图"
+										items={[
+											{
+												id: "brush",
+												label: "画笔",
+												icon: "🖌",
+												onSelect: () => undefined,
+												pressed: true,
+											},
+											{ id: "fill", label: "填充", icon: "🪣", onSelect: () => undefined },
+										]}
+									/>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftToolbar
+											size="sm"
+											material={cardMaterial}
+											tone={tone}
+											label="悬停"
+											items={[
+												{ id: "brush", label: "悬停", icon: "🖌", onSelect: () => undefined },
+												{ id: "fill", label: "填充", icon: "🪣", onSelect: () => undefined },
+											]}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<SoftToolbar
+											size="sm"
+											material={cardMaterial}
+											tone={tone}
+											label="聚焦"
+											items={[
+												{ id: "brush", label: "聚焦", icon: "🖌", onSelect: () => undefined },
+											]}
+										/>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftToolbar
+											size="sm"
+											material={cardMaterial}
+											tone={tone}
+											label="按压"
+											items={[
+												{
+													id: "brush",
+													label: "按下",
+													icon: "🖌",
+													onSelect: () => undefined,
+													pressed: true,
+												},
+											]}
+										/>
+									</span>
+								</td>
+								<td>
+									<SoftToolbar
+										size="sm"
+										material={cardMaterial}
+										tone={tone}
+										label="禁用"
+										items={[
+											{
+												id: "brush",
+												label: "锁定",
+												icon: "🖌",
+												onSelect: () => undefined,
+												disabled: true,
+											},
+										]}
+									/>
+								</td>
+							</tr>
+
+							{/* Row 15: SoftTag & BubbleBadge */}
+							<tr>
+								<td className="kitindex__matrix-row-title">标签 · Tag & Badge</td>
+								<td>
+									<SoftTag tone={tone} variant="soft">
+										默认标签
+									</SoftTag>
+								</td>
+								<td>
+									<span className="kitindex__sim-hover">
+										<SoftTag tone={tone} variant="solid">
+											悬停微倾
+										</SoftTag>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-focus">
+										<BubbleBadge tone={tone}>光晕聚焦</BubbleBadge>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-active">
+										<SoftTag tone={tone} variant="solid">
+											激活回弹
+										</SoftTag>
+									</span>
+								</td>
+								<td>
+									<span className="kitindex__sim-disabled">
+										<SoftTag tone={tone} variant="soft">
+											已禁用
+										</SoftTag>
+									</span>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
 			<section className="kitindex__grid" aria-label="可看的表面">
 				{SURFACES.map((surface) => (
 					<SoftCard
@@ -153,7 +1070,10 @@ export function KitIndexPage() {
 						seedName={surface.title}
 						className="kitindex__card"
 					>
-						<a className="kitindex__link" href={surface.href}>
+						<a
+							className="kitindex__link"
+							href={`${surface.href}&palette=${tone}&material=${materialMode}`}
+						>
 							<h2 className="kitindex__cardtitle">{surface.title}</h2>
 							<p className="kitindex__body">{surface.body}</p>
 							<p className="kitindex__look">

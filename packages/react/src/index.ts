@@ -28,6 +28,8 @@ export type { BubbleBadgeProps } from "./BubbleBadge.js";
 export { BubbleBadge } from "./BubbleBadge.js";
 export type { GlassStageStatus, GlassStageValue } from "./context.js";
 export { GlassStageContext, useGlassStage } from "./context.js";
+export type { FrostedGroundProps } from "./FrostedGround.js";
+export { FrostedGround } from "./FrostedGround.js";
 export type { FieldWiring } from "./field.js";
 export { useField } from "./field.js";
 export type { GlassPanelProps } from "./GlassPanel.js";
@@ -54,6 +56,25 @@ export {
 } from "./looks.js";
 export type { MagneticProps } from "./Magnetic.js";
 export { Magnetic } from "./Magnetic.js";
+export type {
+	GroundContrast,
+	MaterialOptions,
+	MaterialResult,
+	SoftMaterial,
+} from "./material.js";
+export {
+	computeEffectiveGroundLuminance,
+	MATERIAL_GROUND_CLASS,
+	srgbLuminance,
+	useMaterial,
+} from "./material.js";
+export type { SpringInteractionOptions, SpringInteractionResult } from "./motion.js";
+export {
+	FOCUS_HALO,
+	PRESS_DAMPING,
+	PRESS_EASING,
+	useSpringInteraction,
+} from "./motion.js";
 export { anchorNameFrom, usePopover } from "./overlay.js";
 export type { ParticleFieldProps } from "./ParticleField.js";
 export { ParticleField } from "./ParticleField.js";

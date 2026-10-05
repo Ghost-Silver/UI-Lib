@@ -96,6 +96,7 @@ const COMPONENTS = [
 	"combobox",
 	"toolbar",
 	"chip-stepper",
+	"matrix",
 ] as const;
 
 export type KitComponent = (typeof COMPONENTS)[number];
@@ -135,6 +136,8 @@ function readFlag(name: string, value: string): boolean {
 	return new URLSearchParams(window.location.search).get(name) === value;
 }
 
+export type MaterialMode = "solid" | "wash" | "tint" | "glass";
+
 export function IrisKitPage({ component, tone }: { component: KitComponent; tone: IrisTone }) {
 	const forceWebGL = readFlag("backend", "webgl");
 	const forceFallback = readFlag("fallback", "1");
@@ -151,12 +154,6 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 	 *                  output node `mix(baseSample, colour, 0)`, i.e. the input
 	 *                  unchanged.
 	 * default        — the library's own grade.
-	 *
-	 * The residual between the first two is the check: they should be the same
-	 * picture, because both are the composite with one output transform applied.
-	 * When they are not, the chain is reading something other than what the
-	 * scene wrote — which is exactly the failure that hid behind a green suite
-	 * once already.
 	 */
 	const postMode = new URLSearchParams(
 		typeof window === "undefined" ? "" : window.location.search,
@@ -164,9 +161,22 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 	const post =
 		postMode === "off" ? false : postMode === "passthrough" ? { enabled: false } : undefined;
 
+	const [activeMaterial, setActiveMaterial] = useState<MaterialMode>(() => {
+		if (typeof window !== "undefined") {
+			const m = new URLSearchParams(window.location.search).get("material");
+			if (m === "solid" || m === "wash" || m === "tint" || m === "glass") return m;
+		}
+		return "wash";
+	});
+	const [activeTone, setActiveTone] = useState<IrisTone>(tone);
+
 	useEffect(() => {
-		document.title = `IRIS kit · ${component} · ${tone}`;
-	}, [component, tone]);
+		setActiveTone(tone);
+	}, [tone]);
+
+	useEffect(() => {
+		document.title = `IRIS kit · ${component} · ${activeTone}`;
+	}, [component, activeTone]);
 
 	return (
 		<GlassStage
@@ -178,22 +188,145 @@ export function IrisKitPage({ component, tone }: { component: KitComponent; tone
 			forceFallback={forceFallback}
 			budget={budget}
 		>
+			<style>{`
+				.kit__header-bar {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					flex-wrap: wrap;
+					gap: 16px;
+					max-width: 980px;
+					margin: 0 auto 24px;
+					padding: 12px 18px;
+					border-radius: 18px;
+					background: var(--moe-card, rgba(255, 255, 255, 0.7));
+					backdrop-filter: blur(14px);
+					border: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+					box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+				}
+				.kit__toggles-group {
+					display: flex;
+					align-items: center;
+					gap: 8px;
+					flex-wrap: wrap;
+				}
+				.kit__toggles-label {
+					font-size: 12.5px;
+					font-weight: 700;
+					color: var(--moe-cocoa, #2c2523);
+					margin-right: 4px;
+				}
+				.kit__box--matrix {
+					width: 100% !important;
+					max-width: 980px !important;
+					height: auto !important;
+					min-height: 480px !important;
+					padding: 12px !important;
+				}
+				.kit__nav-link {
+					font-size: 12px;
+					font-weight: 600;
+					padding: 6px 12px;
+					border-radius: 999px;
+					text-decoration: none;
+					color: var(--moe-cocoa-soft, #6e645f);
+					background: rgba(0, 0, 0, 0.04);
+					transition: all 0.15s ease;
+				}
+				.kit__nav-link:hover, .kit__nav-link--active {
+					background: var(--moe-taro-500, #786fa6);
+					color: #fff;
+				}
+			`}</style>
+
+			<header className="kit__header-bar">
+				<div className="kit__toggles-group">
+					<span className="kit__toggles-label">陈列导航：</span>
+					<a
+						className={`kit__nav-link ${component === "matrix" ? "kit__nav-link--active" : ""}`}
+						href={`/?demo=iris-kit&component=matrix&tone=${activeTone}&material=${activeMaterial}`}
+					>
+						★ 5 态物理全矩阵
+					</a>
+					<a
+						className={`kit__nav-link ${component === "paper-button" ? "kit__nav-link--active" : ""}`}
+						href={`/?demo=iris-kit&component=paper-button&tone=${activeTone}&material=${activeMaterial}`}
+					>
+						按钮
+					</a>
+					<a
+						className={`kit__nav-link ${component === "material" ? "kit__nav-link--active" : ""}`}
+						href={`/?demo=iris-kit&component=material&tone=${activeTone}&material=${activeMaterial}`}
+					>
+						材质
+					</a>
+					<a
+						className={`kit__nav-link ${component === "input" ? "kit__nav-link--active" : ""}`}
+						href={`/?demo=iris-kit&component=input&tone=${activeTone}&material=${activeMaterial}`}
+					>
+						输入框
+					</a>
+					<a
+						className={`kit__nav-link ${component === "switch" ? "kit__nav-link--active" : ""}`}
+						href={`/?demo=iris-kit&component=switch&tone=${activeTone}&material=${activeMaterial}`}
+					>
+						开关
+					</a>
+					<a
+						className={`kit__nav-link ${component === "table" ? "kit__nav-link--active" : ""}`}
+						href={`/?demo=iris-kit&component=table&tone=${activeTone}&material=${activeMaterial}`}
+					>
+						表格
+					</a>
+				</div>
+
+				<div className="kit__toggles-group">
+					<span className="kit__toggles-label">多材质切换：</span>
+					{(
+						[
+							{ id: "solid", label: "纯色" },
+							{ id: "wash", label: "水彩" },
+							{ id: "tint", label: "微透" },
+							{ id: "glass", label: "玻璃" },
+						] as const
+					).map((m) => (
+						<SoftChip
+							key={m.id}
+							selected={activeMaterial === m.id}
+							onClick={() => setActiveMaterial(m.id)}
+						>
+							{m.label}
+						</SoftChip>
+					))}
+				</div>
+
+				<div className="kit__toggles-group">
+					<span className="kit__toggles-label">色调：</span>
+					{(["iris", "blossom", "mist"] as const).map((t) => (
+						<SoftChip key={t} selected={activeTone === t} onClick={() => setActiveTone(t)}>
+							{t}
+						</SoftChip>
+					))}
+				</div>
+			</header>
+
 			<div className="kit" data-ui-lib-acceptance="iris-kit">
 				{/* The measured box. Fixed size so every capture is comparable. */}
 				<div
-					className="kit__box"
+					className={`kit__box ${component === "matrix" ? "kit__box--matrix" : ""}`}
 					data-ui-lib-kit-box
 					data-ui-lib-wide={
 						component === "tabs" ||
 						component === "switch" ||
 						component === "slider" ||
 						component === "input" ||
-						component === "choice"
+						component === "choice" ||
+						component === "matrix"
 							? ""
 							: undefined
 					}
 				>
-					<KitSubject component={component} tone={tone} />
+					<KitSubject component={component} tone={activeTone} materialMode={activeMaterial} />
 				</div>
 			</div>
 		</GlassStage>
@@ -270,7 +403,7 @@ function ToolbarKit({ tone }: { tone: IrisTone }) {
 		<div className="kit__toolbar">
 			<SoftToolbar
 				label="画布"
-				material="tint"
+				material="wash"
 				tone={tone}
 				items={[
 					{
@@ -419,7 +552,7 @@ function ListKit({ tone }: { tone: IrisTone }) {
 		<div className="kit__list">
 			<SoftList
 				label="基底（单选）"
-				material="tint"
+				material="wash"
 				tone={tone}
 				items={items}
 				selected={one}
@@ -451,7 +584,7 @@ function TextareaKit({ tone }: { tone: IrisTone }) {
 		<div className="kit__textarea">
 			<SoftTextarea
 				label="说明"
-				material="tint"
+				material="wash"
 				tone={tone}
 				value={note}
 				onChange={(e) => setNote(e.target.value)}
@@ -1026,8 +1159,752 @@ function SwitchKit() {
 	);
 }
 
-function KitSubject({ component, tone }: { component: KitComponent; tone: IrisTone }) {
+/**
+ * Full Component State Matrix displaying 5 essential states:
+ * [默认 (default), 悬停 (hover), 聚焦 (focus), 激活 (active), 禁用 (disabled)]
+ * across core components, with dynamic multi-material switching [solid, wash, tint, glass].
+ */
+function MatrixKit({ tone, materialMode }: { tone: IrisTone; materialMode: MaterialMode }) {
+	const [switchVal, setSwitchVal] = useState(true);
+	const [checkVal, setCheckVal] = useState(true);
+	const [radioVal, setRadioVal] = useState("a");
+	const [sliderVal, setSliderVal] = useState(62);
+	const [segVal, setSegVal] = useState("clay");
+	const [chipSelected, setChipSelected] = useState(true);
+	const [selectVal, setSelectVal] = useState("paper");
+
+	const cardMaterial =
+		materialMode === "solid" ? "plain" : materialMode === "glass" ? "plain" : materialMode;
+	const cardLook = materialMode === "glass" ? ("slab" as const) : undefined;
+
+	return (
+		<div className={`iriskit__matrix-wrap iriskit__matrix--${materialMode}`}>
+			<style>{`
+				.iriskit__matrix-wrap {
+					width: 100%;
+					max-width: 960px;
+					padding: 24px;
+					border-radius: 20px;
+					background: var(--moe-canvas, #faf7f2);
+					border: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+					overflow-x: auto;
+					box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+				}
+				.iriskit__matrix-table {
+					width: 100%;
+					border-collapse: collapse;
+					min-width: 760px;
+					font-size: 13px;
+				}
+				.iriskit__matrix-table th {
+					padding: 12px 14px;
+					text-align: left;
+					background: var(--moe-sand-200, #eee6d8);
+					color: var(--moe-cocoa, #2c2523);
+					font-weight: 700;
+					border-bottom: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+				}
+				.iriskit__matrix-table td {
+					padding: 14px 14px;
+					border-bottom: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.06));
+					vertical-align: middle;
+				}
+				.iriskit__matrix-row-title {
+					font-weight: 700;
+					color: var(--moe-cocoa, #2c2523);
+					white-space: nowrap;
+					width: 120px;
+				}
+				.iriskit__cell-mat {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					padding: 6px;
+					border-radius: 12px;
+					transition: all 0.22s ease;
+				}
+				.iriskit__cell-mat--solid {
+					background: var(--moe-card, rgba(255, 255, 255, 0.9));
+					border: 1px solid var(--moe-stroke, rgba(0, 0, 0, 0.08));
+				}
+				.iriskit__cell-mat--wash {
+					background: radial-gradient(circle at 50% 50%, rgba(120, 111, 166, 0.08) 0%, rgba(120, 111, 166, 0.16) 75%, rgba(100, 85, 150, 0.26) 100%);
+					border: 1px solid rgba(120, 111, 166, 0.22);
+				}
+				.iriskit__cell-mat--tint {
+					background: rgba(120, 111, 166, 0.07);
+					border: 1px solid rgba(120, 111, 166, 0.14);
+				}
+				.iriskit__cell-mat--glass {
+					background: rgba(255, 255, 255, 0.45);
+					backdrop-filter: blur(14px);
+					border: 1px solid rgba(255, 255, 255, 0.65);
+					box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85);
+				}
+				.iriskit__sim-hover {
+					display: inline-block;
+					transform: translateY(-2px) rotate(-0.5deg);
+					filter: brightness(1.05);
+					box-shadow: 0 6px 14px rgba(120, 111, 166, 0.22);
+					border-radius: 12px;
+				}
+				.iriskit__sim-focus {
+					display: inline-block;
+					outline: 2px solid rgba(120, 111, 166, 0.85);
+					outline-offset: 3px;
+					box-shadow: 0 0 0 2px var(--moe-card, #fff), 0 0 14px 3px var(--moe-taro-500, #786fa6);
+					border-radius: 12px;
+				}
+				.iriskit__sim-active {
+					display: inline-block;
+					transform: scale(0.96) translateY(1px);
+					transition: transform 0.1s var(--moe-ease-press, cubic-bezier(0.28, 1.38, 0.48, 1));
+					filter: brightness(0.94);
+					border-radius: 12px;
+				}
+				.iriskit__sim-disabled {
+					display: inline-block;
+					opacity: 0.45;
+					pointer-events: none;
+					filter: grayscale(0.35);
+					border-radius: 12px;
+				}
+			`}</style>
+			<table className="iriskit__matrix-table">
+				<thead>
+					<tr>
+						<th scope="col">组件类别</th>
+						<th scope="col">1. 默认 (Default)</th>
+						<th scope="col">2. 悬停 (Hover)</th>
+						<th scope="col">3. 聚焦 (Focus)</th>
+						<th scope="col">4. 激活 (Active)</th>
+						<th scope="col">5. 禁用 (Disabled)</th>
+					</tr>
+				</thead>
+				<tbody>
+					{/* Row 1: PinkPaperButton (Clay) */}
+					<tr>
+						<td className="iriskit__matrix-row-title">按钮 · 粘土</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<PinkPaperButton tone={tone} variant="clay" size="sm">
+									粘土按钮
+								</PinkPaperButton>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<PinkPaperButton tone={tone} variant="clay" size="sm">
+										悬停微倾
+									</PinkPaperButton>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<PinkPaperButton tone={tone} variant="clay" size="sm" tabIndex={0}>
+										光晕聚焦
+									</PinkPaperButton>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<PinkPaperButton tone={tone} variant="clay" size="sm">
+										弹性按压
+									</PinkPaperButton>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<PinkPaperButton tone={tone} variant="clay" size="sm" disabled>
+									已禁用
+								</PinkPaperButton>
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 2: PinkPaperButton (Gummy) */}
+					<tr>
+						<td className="iriskit__matrix-row-title">按钮 · 软糖</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<PinkPaperButton tone={tone} variant="gummy" size="sm">
+									软糖按钮
+								</PinkPaperButton>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<PinkPaperButton tone={tone} variant="gummy" size="sm">
+										果冻微浮
+									</PinkPaperButton>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<PinkPaperButton tone={tone} variant="gummy" size="sm" tabIndex={0}>
+										双层焦点
+									</PinkPaperButton>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<PinkPaperButton tone={tone} variant="gummy" size="sm">
+										阻尼回弹
+									</PinkPaperButton>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<PinkPaperButton tone={tone} variant="gummy" size="sm" disabled>
+									已禁用
+								</PinkPaperButton>
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 3: SoftInput */}
+					<tr>
+						<td className="iriskit__matrix-row-title">输入框 · Input</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftInput placeholder="未聚焦输入框" />
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover" style={{ width: "100%" }}>
+									<SoftInput defaultValue="指针悬停" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus" style={{ width: "100%" }}>
+									<SoftInput defaultValue="键盘获焦" autoFocus={false} />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active" style={{ width: "100%" }}>
+									<SoftInput defaultValue="激活输入" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftInput defaultValue="已锁定禁用" disabled />
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 4: SoftSwitch */}
+					<tr>
+						<td className="iriskit__matrix-row-title">滑动开关 · Switch</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSwitch checked={switchVal} onChange={setSwitchVal} label="开" />
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<SoftSwitch checked={true} label="悬停" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<SoftSwitch checked={true} label="聚焦" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<SoftSwitch checked={true} label="按下" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSwitch checked softDisabled label="禁用" />
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 5: SoftCheckbox */}
+					<tr>
+						<td className="iriskit__matrix-row-title">复选框 · Checkbox</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftCheckbox
+									checked={checkVal}
+									onChange={(e) => setCheckVal(e.target.checked)}
+									label="水彩"
+								/>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<SoftCheckbox checked={true} readOnly label="悬停高亮" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<SoftCheckbox checked={true} readOnly label="焦点环" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<SoftCheckbox checked={true} readOnly label="弹性回弹" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftCheckbox disabled checked={false} label="不可选择" />
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 6: SoftRadio */}
+					<tr>
+						<td className="iriskit__matrix-row-title">单选框 · Radio</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftRadio
+									name="iriskit-radio"
+									value="a"
+									checked={radioVal === "a"}
+									onChange={() => setRadioVal("a")}
+									label="选项 A"
+								/>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<SoftRadio
+										name="iriskit-radio-h"
+										value="h"
+										checked={true}
+										readOnly
+										label="悬停态"
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<SoftRadio
+										name="iriskit-radio-f"
+										value="f"
+										checked={true}
+										readOnly
+										label="聚焦态"
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<SoftRadio
+										name="iriskit-radio-act"
+										value="act"
+										checked={true}
+										readOnly
+										label="激活态"
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftRadio name="iriskit-radio-dis" value="d" disabled label="已禁用" />
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 7: SoftSlider */}
+					<tr>
+						<td className="iriskit__matrix-row-title">滑块 · Slider</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSlider
+									value={sliderVal}
+									onChange={setSliderVal}
+									label="水分"
+									format={(v) => `${v}%`}
+								/>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover" style={{ width: "100%" }}>
+									<SoftSlider value={72} label="悬停" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus" style={{ width: "100%" }}>
+									<SoftSlider value={85} label="聚焦" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active" style={{ width: "100%" }}>
+									<SoftSlider value={92} label="拖拽" />
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSlider value={45} softDisabled label="禁用" />
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 8: SoftChip */}
+					<tr>
+						<td className="iriskit__matrix-row-title">纸片 · Chip</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftChip selected={chipSelected} onClick={() => setChipSelected((v) => !v)}>
+									默认纸片
+								</SoftChip>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<SoftChip selected={false}>悬停抬升</SoftChip>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<SoftChip selected={false} tabIndex={0}>
+										键盘聚焦
+									</SoftChip>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<SoftChip selected={true}>按压激活</SoftChip>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftChip disabled>已禁用</SoftChip>
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 9: SoftCard */}
+					<tr>
+						<td className="iriskit__matrix-row-title">卡片 · Card</td>
+						<td>
+							<SoftCard
+								material={cardMaterial}
+								look={cardLook}
+								tone={tone}
+								interactive
+								className="kitindex__card-cell"
+							>
+								默认卡片
+							</SoftCard>
+						</td>
+						<td>
+							<span className="iriskit__sim-hover">
+								<SoftCard
+									material={cardMaterial}
+									look={cardLook}
+									tone={tone}
+									interactive
+									className="kitindex__card-cell"
+								>
+									悬停抬升微倾
+								</SoftCard>
+							</span>
+						</td>
+						<td>
+							<span className="iriskit__sim-focus">
+								<SoftCard
+									material={cardMaterial}
+									look={cardLook}
+									tone={tone}
+									interactive
+									tabIndex={0}
+									className="kitindex__card-cell"
+								>
+									双层光晕聚焦
+								</SoftCard>
+							</span>
+						</td>
+						<td>
+							<span className="iriskit__sim-active">
+								<SoftCard
+									material={cardMaterial}
+									look={cardLook}
+									tone={tone}
+									interactive
+									className="kitindex__card-cell"
+								>
+									阻尼按压回弹
+								</SoftCard>
+							</span>
+						</td>
+						<td>
+							<span className="iriskit__sim-disabled">
+								<SoftCard
+									material={cardMaterial}
+									look={cardLook}
+									tone={tone}
+									className="kitindex__card-cell"
+								>
+									禁用不可点击
+								</SoftCard>
+							</span>
+						</td>
+					</tr>
+
+					{/* Row 10: SoftTextarea */}
+					<tr>
+						<td className="iriskit__matrix-row-title">文本域 · Textarea</td>
+						<td>
+							<SoftTextarea
+								placeholder="未聚焦文本域"
+								rows={2}
+								material={cardMaterial}
+								tone={tone}
+							/>
+						</td>
+						<td>
+							<span className="iriskit__sim-hover" style={{ width: "100%" }}>
+								<SoftTextarea
+									defaultValue="悬停编辑"
+									rows={2}
+									material={cardMaterial}
+									tone={tone}
+								/>
+							</span>
+						</td>
+						<td>
+							<span className="iriskit__sim-focus" style={{ width: "100%" }}>
+								<SoftTextarea
+									defaultValue="获焦输入"
+									rows={2}
+									material={cardMaterial}
+									tone={tone}
+								/>
+							</span>
+						</td>
+						<td>
+							<span className="iriskit__sim-active" style={{ width: "100%" }}>
+								<SoftTextarea
+									defaultValue="激活输入"
+									rows={2}
+									material={cardMaterial}
+									tone={tone}
+								/>
+							</span>
+						</td>
+						<td>
+							<SoftTextarea
+								defaultValue="已禁用"
+								rows={2}
+								disabled
+								material={cardMaterial}
+								tone={tone}
+							/>
+						</td>
+					</tr>
+
+					{/* Row 11: SoftSegmentedControl */}
+					<tr>
+						<td className="iriskit__matrix-row-title">分段 · Segments</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSegmentedControl
+									label="密度"
+									options={[
+										{ value: "clay", label: "粘土" },
+										{ value: "wash", label: "水彩" },
+									]}
+									value={segVal}
+									onChange={setSegVal}
+								/>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover">
+									<SoftSegmentedControl
+										label="悬停"
+										options={[
+											{ value: "clay", label: "粘土" },
+											{ value: "wash", label: "水彩" },
+										]}
+										value="clay"
+										onChange={() => undefined}
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus">
+									<SoftSegmentedControl
+										label="聚焦"
+										options={[
+											{ value: "clay", label: "粘土" },
+											{ value: "wash", label: "水彩" },
+										]}
+										value="clay"
+										onChange={() => undefined}
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active">
+									<SoftSegmentedControl
+										label="激活"
+										options={[
+											{ value: "clay", label: "粘土" },
+											{ value: "wash", label: "水彩" },
+										]}
+										value="wash"
+										onChange={() => undefined}
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSegmentedControl
+									label="禁用"
+									options={[
+										{ value: "clay", label: "锁定", disabled: true },
+										{ value: "wash", label: "禁用", disabled: true },
+									]}
+									value="clay"
+									onChange={() => undefined}
+								/>
+							</div>
+						</td>
+					</tr>
+
+					{/* Row 12: SoftSelect */}
+					<tr>
+						<td className="iriskit__matrix-row-title">下拉 · Select</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSelect
+									label="基底"
+									value={selectVal}
+									onChange={setSelectVal}
+									options={[
+										{ value: "paper", label: "水彩纸" },
+										{ value: "glass", label: "液态玻璃" },
+									]}
+								/>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-hover" style={{ width: "100%" }}>
+									<SoftSelect
+										label="悬停"
+										value="paper"
+										onChange={() => undefined}
+										options={[{ value: "paper", label: "水彩纸" }]}
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-focus" style={{ width: "100%" }}>
+									<SoftSelect
+										label="聚焦"
+										value="paper"
+										onChange={() => undefined}
+										options={[{ value: "paper", label: "水彩纸" }]}
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<span className="iriskit__sim-active" style={{ width: "100%" }}>
+									<SoftSelect
+										label="激活"
+										value="glass"
+										onChange={() => undefined}
+										options={[{ value: "glass", label: "液态玻璃" }]}
+									/>
+								</span>
+							</div>
+						</td>
+						<td>
+							<div className={`iriskit__cell-mat iriskit__cell-mat--${materialMode}`}>
+								<SoftSelect
+									label="禁用"
+									value="paper"
+									disabled
+									onChange={() => undefined}
+									options={[{ value: "paper", label: "水彩纸" }]}
+								/>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	);
+}
+
+function KitSubject({
+	component,
+	tone,
+	materialMode = "wash",
+}: {
+	component: KitComponent;
+	tone: IrisTone;
+	materialMode?: MaterialMode;
+}) {
 	switch (component) {
+		case "matrix":
+			return <MatrixKit tone={tone} materialMode={materialMode} />;
 		case "bubble-badge":
 			return <BubbleBadge tone={tone}>徽标</BubbleBadge>;
 		case "paper-button":

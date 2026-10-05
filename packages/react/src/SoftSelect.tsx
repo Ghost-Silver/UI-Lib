@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
 export interface SoftSelectOption {
@@ -19,6 +21,10 @@ export interface SoftSelectProps {
 	disabled?: boolean;
 	/** The id of the element that labels the control, if there is no `label`. */
 	ariaLabelledBy?: string;
+	/** Surface material for dropdown popover: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+	/** Pigment tone for the material ground. */
+	tone?: IrisTone;
 	className?: string;
 }
 
@@ -76,12 +82,15 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 		placeholder = "请选择",
 		disabled,
 		ariaLabelledBy,
+		material,
+		tone,
 		className,
 	},
 	ref,
 ) {
 	// The stylesheet is not injected by the GPU components alone; see useStyles.
 	useStyles();
+	const surface = useMaterial(material ? { material, tone } : {});
 	const [open, setOpen] = useState(false);
 	const generated = useId();
 	const labelId = `${generated}-label`;
@@ -357,8 +366,9 @@ export const SoftSelect = forwardRef<HTMLButtonElement, SoftSelectProps>(functio
 				id={listId}
 				role="listbox"
 				aria-labelledby={label ? labelId : ariaLabelledBy}
-				className="ui-lib-soft-select__list"
-				style={{ positionAnchor: anchorName } as React.CSSProperties}
+				className={["ui-lib-soft-select__list", surface.className].filter(Boolean).join(" ")}
+				data-ui-lib-material={material && material !== "plain" ? material : undefined}
+				style={{ positionAnchor: anchorName, ...surface.style } as React.CSSProperties}
 			>
 				{options.map((option, index) => (
 					<div

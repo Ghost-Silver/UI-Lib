@@ -34,6 +34,10 @@ export type {
 export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone, TONE_LABELS, TONES } from "./iris.js";
 export type { KubelkaMunkPigment, ProcessPigmentName } from "./kubelkaMunk.js";
 export {
+	interpolatePigments,
+	mixIrisTones,
+	mixMultiPigments,
+	mixMultiPigmentsToCss,
 	mixPigments,
 	mixToCss,
 	PROCESS_PIGMENTS,
@@ -41,6 +45,7 @@ export {
 	pigmentFromColour,
 	pigmentFromHex,
 	reflectanceFromKS,
+	toneToPigment,
 } from "./kubelkaMunk.js";
 export type { Disposable, Teardown } from "./lifecycle.js";
 export { Disposer, nextFrame } from "./lifecycle.js";

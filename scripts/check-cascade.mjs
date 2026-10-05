@@ -210,7 +210,6 @@ export function specificity(compound) {
 		if (/[a-zA-Z*]/.test(ch)) {
 			elements += 1;
 			while (i + 1 < compound.length && /[\w-]/.test(compound[i + 1])) i += 1;
-			continue;
 		}
 	}
 	return ids * 1_000_000 + classes * 1_000 + elements;

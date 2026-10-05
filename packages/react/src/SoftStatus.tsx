@@ -1,4 +1,6 @@
+import type { IrisTone } from "@ui-lib/core";
 import { forwardRef, useId } from "react";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
 export interface SoftAlertProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -6,8 +8,11 @@ export interface SoftAlertProps extends React.HTMLAttributes<HTMLDivElement> {
 	 * `info` and `success` are statements; `warn` and `danger` are problems. The
 	 * difference is carried by a shape and a word as well as by a colour, so it
 	 * survives greyscale and a reader who does not separate the hues.
+	 * Can also be an IrisTone ("iris" | "blossom" | "mist") when used with material.
 	 */
-	tone?: "info" | "success" | "warn" | "danger";
+	tone?: "info" | "success" | "warn" | "danger" | IrisTone;
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
 	/** A heading. Optional; without one the alert is a single line. */
 	title?: string;
 	/** Replaces the mark with a dismiss control. */
@@ -53,11 +58,13 @@ export interface SoftAlertProps extends React.HTMLAttributes<HTMLDivElement> {
 export const SoftAlert = forwardRef<HTMLDivElement, SoftAlertProps>(function SoftAlert(
 	{
 		tone = "info",
+		material,
 		title,
 		onDismiss,
 		dismissLabel = "关闭",
 		urgency = "static",
 		className,
+		style,
 		children,
 		...props
 	},
@@ -67,6 +74,9 @@ export const SoftAlert = forwardRef<HTMLDivElement, SoftAlertProps>(function Sof
 	useStyles();
 	const generated = useId();
 	const titleId = title ? `${generated}-title` : undefined;
+
+	const irisTone = tone === "iris" || tone === "blossom" || tone === "mist" ? tone : undefined;
+	const surface = useMaterial(material ? { material, tone: irisTone } : {});
 
 	/*
 	 * The live region, and only when there is one to declare.
@@ -94,8 +104,10 @@ export const SoftAlert = forwardRef<HTMLDivElement, SoftAlertProps>(function Sof
 			{...props}
 			{...liveProps}
 			ref={ref}
-			className={className ? `ui-lib-soft-alert ${className}` : "ui-lib-soft-alert"}
+			className={["ui-lib-soft-alert", surface.className, className].filter(Boolean).join(" ")}
+			style={{ ...style, ...surface.style }}
 			data-ui-lib-tone={tone}
+			data-ui-lib-material={material && material !== "plain" ? material : undefined}
 		>
 			<span className="ui-lib-soft-alert__mark" aria-hidden="true">
 				<AlertGlyph tone={tone} />
@@ -190,6 +202,10 @@ export interface SoftEmptyStateProps extends React.HTMLAttributes<HTMLDivElement
 	action?: React.ReactNode;
 	/** `sm` is for a panel, `md` for a page. */
 	size?: "sm" | "md";
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+	/** Pigment tone for the material ground. */
+	tone?: IrisTone;
 }
 
 /**
@@ -222,16 +238,34 @@ export interface SoftEmptyStateProps extends React.HTMLAttributes<HTMLDivElement
  */
 export const SoftEmptyState = forwardRef<HTMLDivElement, SoftEmptyStateProps>(
 	function SoftEmptyState(
-		{ title, body, art, action, size = "md", className, children, ...props },
+		{
+			title,
+			body,
+			art,
+			action,
+			size = "md",
+			material,
+			tone,
+			className,
+			style,
+			children,
+			...props
+		},
 		ref,
 	) {
+		const surface = useMaterial(material ? { material, tone } : {});
 		return (
 			<div
 				{...props}
 				ref={ref}
 				role="status"
 				data-ui-lib-size={size}
-				className={className ? `ui-lib-soft-empty ${className}` : "ui-lib-soft-empty"}
+				data-ui-lib-material={material && material !== "plain" ? material : undefined}
+				data-ui-lib-tone={tone}
+				className={["ui-lib-soft-empty", surface.className, className]
+					.filter(Boolean)
+					.join(" ")}
+				style={{ ...style, ...surface.style }}
 			>
 				{art && (
 					<div className="ui-lib-soft-empty__art" aria-hidden="true">

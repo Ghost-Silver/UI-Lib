@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mixIrisTones, mixMultiPigmentsToCss, toneToPigment } from "../src/kubelkaMunk.js";
 import { createWash, describeWash, paperNoise } from "../src/wash.js";
 
 /**
@@ -162,5 +163,67 @@ describe("the ground", () => {
 		const first = createWash({ hue: "#b79cf5", weight: 0.9, seed: 5 }).style["--wash-ground"];
 		const second = createWash({ hue: "#b79cf5", weight: 0.9, seed: 5 }).style["--wash-ground"];
 		expect(first).toBe(second);
+	});
+});
+
+describe("continuous capillary wash profile", () => {
+	it("inverts body concentration so center is lighter than edge", () => {
+		const wash = createWash({ hue: "#8b5cf6", weight: 1, seed: 1 });
+		const body = wash.style["--wash-body"]!;
+		const rgbMatches = [...body.matchAll(/rgb\((\d+)\s+(\d+)\s+(\d+)\)/g)].map((m) => [
+			Number(m[1]),
+			Number(m[2]),
+			Number(m[3]),
+		]);
+		expect(rgbMatches.length).toBeGreaterThanOrEqual(2);
+		const c = rgbMatches[0]!;
+		const e = rgbMatches[1]!;
+		const centreBrightness = (c[0] ?? 0) + (c[1] ?? 0) + (c[2] ?? 0);
+		const edgeBrightness = (e[0] ?? 0) + (e[1] ?? 0) + (e[2] ?? 0);
+		expect(centreBrightness).toBeGreaterThan(edgeBrightness);
+	});
+
+	it("exports grain angle in style for fiber flow", () => {
+		const wash = createWash({ hue: "#8b5cf6", fibre: true, fibreAngle: 45 });
+		expect(wash.style["--wash-grain-angle"]).toBe("45");
+	});
+});
+
+describe("mixIrisTones", () => {
+	it("interpolates tones in K/S space without mud", () => {
+		const pureIris = mixIrisTones("iris", "blossom", 0);
+		const pureBlossom = mixIrisTones("iris", "blossom", 1);
+		const midpoint = mixIrisTones("iris", "blossom", 0.5);
+
+		expect(pureIris).toMatch(/^rgb\(\d+ \d+ \d+\)$/);
+		expect(pureBlossom).toMatch(/^rgb\(\d+ \d+ \d+\)$/);
+		expect(midpoint).toMatch(/^rgb\(\d+ \d+ \d+\)$/);
+		expect(midpoint).not.toBe(pureIris);
+		expect(midpoint).not.toBe(pureBlossom);
+	});
+
+	it("supports alpha and shade options", () => {
+		const mixedWithAlpha = mixIrisTones("iris", "mist", 0.5, { alpha: 0.8, shade: 700 });
+		expect(mixedWithAlpha).toContain("/ 0.8");
+	});
+
+	it("toneToPigment derives pigments for all IRIS tones", () => {
+		for (const tone of ["iris", "blossom", "mist"] as const) {
+			const pigment = toneToPigment(tone);
+			expect(pigment.k).toHaveLength(3);
+			expect(pigment.s).toHaveLength(3);
+		}
+	});
+
+	it("mixMultiPigments blends multiple weighted pigments", () => {
+		const p1 = toneToPigment("iris");
+		const p2 = toneToPigment("blossom");
+		const p3 = toneToPigment("mist");
+		const css = mixMultiPigmentsToCss([
+			{ pigment: p1, weight: 0.5 },
+			{ pigment: p2, weight: 0.3 },
+			{ pigment: p3, weight: 0.2 },
+		]);
+		expect(css).toMatch(/^rgb\(\d+ \d+ \d+\)$/);
 	});
 });

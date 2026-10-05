@@ -29,3 +29,7 @@ _tmp_*
 # round of this work has been inspected, and twice a stray one has been
 # committed because it was written into the repo root rather than /tmp.
 *.log
+
+# Multi-agent teamwork artifacts
+.agents/
+

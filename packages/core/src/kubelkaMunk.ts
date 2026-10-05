@@ -1,3 +1,5 @@
+import { IRIS, type IrisTone } from "./iris.js";
+
 /**
  * Kubelka-Munk colour mixing.
  *
@@ -269,4 +271,101 @@ export function parseHex(hex: string): [number, number, number] {
  */
 export function pigmentFromHex(hex: string, scattering?: number) {
 	return pigmentFromColour(parseHex(hex), scattering === undefined ? {} : { scattering });
+}
+
+/** Derive a Kubelka-Munk pigment representation of an IRIS brand tone. */
+export function toneToPigment(
+	tone: IrisTone,
+	shade: 100 | 300 | 500 | 700 | 900 = 500,
+	scattering?: number,
+): KubelkaMunkPigment {
+	const toneSwatches = IRIS[tone] ?? IRIS.iris;
+	const hex = toneSwatches[shade] ?? toneSwatches[500];
+	return pigmentFromHex(hex, scattering);
+}
+
+/**
+ * Interpolate two pigments in K/S space before calculating reflectance.
+ *
+ * Linearly interpolates absorption (K) and scattering (S) coefficients
+ * rather than interpolating output RGB values.
+ */
+export function interpolatePigments(
+	pigmentA: KubelkaMunkPigment,
+	pigmentB: KubelkaMunkPigment,
+	ratio: number,
+): KubelkaMunkPigment {
+	const t = Math.max(0, Math.min(1, ratio));
+	const cA = pigmentA.concentration ?? 1;
+	const cB = pigmentB.concentration ?? 1;
+	const wA = (1 - t) * cA;
+	const wB = t * cB;
+	return {
+		k: [
+			pigmentA.k[0] * wA + pigmentB.k[0] * wB,
+			pigmentA.k[1] * wA + pigmentB.k[1] * wB,
+			pigmentA.k[2] * wA + pigmentB.k[2] * wB,
+		],
+		s: [
+			pigmentA.s[0] * wA + pigmentB.s[0] * wB,
+			pigmentA.s[1] * wA + pigmentB.s[1] * wB,
+			pigmentA.s[2] * wA + pigmentB.s[2] * wB,
+		],
+		concentration: 1,
+	};
+}
+
+/**
+ * Mix two IRIS brand tones in Kubelka-Munk K/S space before evaluating reflectance.
+ *
+ * @param toneA Starting IRIS tone (ratio = 0)
+ * @param toneB Ending IRIS tone (ratio = 1)
+ * @param ratio Blend weight between 0 and 1
+ * @param options Optional film thickness, backing reflectance, alpha and tone shade
+ * @returns CSS rgb / rgba string
+ */
+export function mixIrisTones(
+	toneA: IrisTone,
+	toneB: IrisTone,
+	ratio: number,
+	options: {
+		backing?: number;
+		thickness?: number;
+		alpha?: number;
+		shade?: 100 | 300 | 500 | 700 | 900;
+	} = {},
+): string {
+	const { backing = 1, thickness = 1, alpha, shade = 500 } = options;
+	const pigmentA = toneToPigment(toneA, shade);
+	const pigmentB = toneToPigment(toneB, shade);
+	const mixed = interpolatePigments(pigmentA, pigmentB, ratio);
+	return mixToCss([mixed], { backing, thickness, alpha });
+}
+
+/**
+ * Multi-pigment spatial or weighted mixing in K/S space.
+ */
+export function mixMultiPigments(
+	pigmentsWithWeights: ReadonlyArray<{ pigment: KubelkaMunkPigment; weight?: number }>,
+	options: { backing?: number; thickness?: number } = {},
+): [number, number, number] {
+	const weighted = pigmentsWithWeights.map(({ pigment, weight = 1 }) => ({
+		...pigment,
+		concentration: (pigment.concentration ?? 1) * weight,
+	}));
+	return mixPigments(weighted, options);
+}
+
+/**
+ * Multi-pigment mixing in K/S space directly to a CSS color string.
+ */
+export function mixMultiPigmentsToCss(
+	pigmentsWithWeights: ReadonlyArray<{ pigment: KubelkaMunkPigment; weight?: number }>,
+	options: { backing?: number; thickness?: number; alpha?: number } = {},
+): string {
+	const weighted = pigmentsWithWeights.map(({ pigment, weight = 1 }) => ({
+		...pigment,
+		concentration: (pigment.concentration ?? 1) * weight,
+	}));
+	return mixToCss(weighted, options);
 }

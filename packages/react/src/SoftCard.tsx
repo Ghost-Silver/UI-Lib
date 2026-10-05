@@ -188,6 +188,10 @@ export const SoftCard = forwardRef<HTMLDivElement, SoftCardProps>(function SoftC
 				{...glassLook}
 				ref={setHost}
 				className={`${classes} ui-lib-soft-card--glass`}
+				style={{
+					borderRadius: glassLook.radius,
+					...shared.style,
+				}}
 			>
 				{children}
 			</GlassPanel>

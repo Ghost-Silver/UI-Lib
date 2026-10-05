@@ -1,4 +1,5 @@
 import {
+	FrostedGround,
 	fieldOptions,
 	GLASS_LOOKS,
 	GlassStage,
@@ -61,7 +62,7 @@ function useProbeBackdrop(): BackdropSpec {
 }
 
 const TIERS: { id: string; label: string; look: keyof typeof GLASS_LOOKS; note: string }[] = [
-	{ id: "dew", label: "水珠", look: "dew", note: "毛面、厚边，雾气感" },
+	{ id: "dew", label: "水珠", look: "dew", note: "水滴倒角、高透光，清润质感" },
 	{ id: "pane", label: "窗玻璃", look: "pane", note: "日常厚度，能看清里面" },
 	{ id: "product", label: "原版", look: "product", note: "之前所有页面的玻璃" },
 	{ id: "slab", label: "厚板", look: "slab", note: "边缘占去四成，折射最强" },
@@ -97,7 +98,7 @@ export function GlassLabPage() {
 				camera={{ cameraPosition: [0, 0.1, 8.6], fov: 34 }}
 				options={fieldOptions("aurora", { count: 9000 })}
 			/>
-			<div className="glasslab">
+			<FrostedGround inset={14} radius={20} className="glasslab">
 				<header className="glasslab__head">
 					<p className="glasslab__kicker">材质研究 · 二</p>
 					<h1 className="glasslab__title">厚到什么程度算厚</h1>
@@ -169,7 +170,7 @@ export function GlassLabPage() {
 						<code>dispersion</code> 是位移分成颜色的程度。三个都大，才是厚的。
 					</p>
 				</footer>
-			</div>
+			</FrostedGround>
 		</GlassStage>
 	);
 }

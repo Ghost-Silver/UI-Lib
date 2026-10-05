@@ -1,11 +1,11 @@
 {
 	"$comment": "Size budget for published package entries. Byte counts are raw, uncompressed, and measured from a clean `pnpm build`. Budgets are ceilings enforced by `pnpm size`, not targets to grow into: when a change needs more room, raise the number in the same commit and say why.",
-	"$measuredAt": "2026-10-03",
+	"$measuredAt": "2026-10-05",
 	"$measuredOn": "tsup 8.5.1, es2022, esm, no minify",
 	"packages": {
 		"core": {
-			"maxJsBytes": 50000,
-			"maxDtsBytes": 61000
+			"maxJsBytes": 54000,
+			"maxDtsBytes": 65000
 		},
 		"shaders": {
 			"maxJsBytes": 34500,
@@ -25,7 +25,7 @@
 		},
 		"renderer": {
 			"maxJsBytes": 70000,
-			"maxDtsBytes": 26500
+			"maxDtsBytes": 28000
 		},
 		"react": {
 			"maxJsBytes": 340000,

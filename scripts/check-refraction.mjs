@@ -66,7 +66,6 @@
  *   node scripts/check-refraction.mjs --self-test    # is the metric live?
  */
 
-import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { decodePng } from "./check-pixels.mjs";
 
@@ -215,7 +214,9 @@ async function main() {
 				`  structured frame scores ${result.structured.toFixed(2)}, ` +
 					`same frame with its centre flattened scores ${result.flattened.toFixed(2)}`,
 			);
-			console.error("  an opaque region must destroy edge energy. Nothing here is trustworthy.\n");
+			console.error(
+				"  an opaque region must destroy edge energy. Nothing here is trustworthy.\n",
+			);
 			process.exit(1);
 		}
 		console.log(
@@ -355,7 +356,9 @@ async function main() {
 
 	console.log("");
 	for (const row of rows) {
-		const detail = row.worst ? `worst retention ${row.worst.retention.toFixed(3)}` : "not measured";
+		const detail = row.worst
+			? `worst retention ${row.worst.retention.toFixed(3)}`
+			: "not measured";
 		console.log(
 			`${row.ok ? "PASS" : "FAIL"}  ${row.demo.padEnd(12)} ${row.measured} panel(s)  ${detail}`,
 		);

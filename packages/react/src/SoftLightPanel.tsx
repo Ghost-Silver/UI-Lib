@@ -4,11 +4,15 @@ import { GlassPanel } from "./GlassPanel.js";
 import { irisClass, splitGlassProps } from "./irisPanel.js";
 import type { IrisPanelProps } from "./irisTypes.js";
 import { GLASS_LOOKS } from "./looks.js";
+import { type SoftMaterial, useMaterial } from "./material.js";
 import { useStyles } from "./useStyles.js";
 
 export interface SoftLightPanelProps
 	extends IrisPanelProps,
-		Omit<HTMLAttributes<HTMLDivElement>, "color"> {}
+		Omit<HTMLAttributes<HTMLDivElement>, "color"> {
+	/** Surface material: plain paper, wash ground, or light tint. */
+	material?: SoftMaterial;
+}
 
 /**
  * A pane that reads as light rather than as a window.
@@ -25,9 +29,13 @@ export interface SoftLightPanelProps
  * ```
  */
 export const SoftLightPanel = forwardRef<HTMLDivElement, SoftLightPanelProps>(
-	function SoftLightPanel({ tone = "iris", className, style, children, ...props }, ref) {
+	function SoftLightPanel(
+		{ tone = "iris", material, className, style, children, ...props },
+		ref,
+	) {
 		// The stylesheet is not injected by the GPU components alone; see useStyles.
 		useStyles();
+		const surface = useMaterial(material ? { material, tone } : {});
 		const { options, rest } = splitGlassProps(props, {
 			...GLASS_LOOKS.glow,
 			tint: IRIS[tone][100],
@@ -36,8 +44,11 @@ export const SoftLightPanel = forwardRef<HTMLDivElement, SoftLightPanelProps>(
 		return (
 			<GlassPanel
 				ref={ref}
-				className={irisClass("soft-light-panel", tone, className)}
-				style={style}
+				className={[irisClass("soft-light-panel", tone, className), surface.className]
+					.filter(Boolean)
+					.join(" ")}
+				style={{ ...style, ...surface.style }}
+				data-ui-lib-material={material && material !== "plain" ? material : undefined}
 				{...rest}
 				{...options}
 			>

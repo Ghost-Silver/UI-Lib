@@ -68,7 +68,11 @@ export const SoftChip = forwardRef<HTMLButtonElement, SoftChipProps>(function So
 	useStyles();
 	const toggle = selected !== undefined;
 	return (
-		<span className="ui-lib-soft-chip-wrap" data-ui-lib-variant={variant}>
+		<span
+			className="ui-lib-soft-chip-wrap"
+			data-ui-lib-variant={variant}
+			data-ui-lib-disabled={props.disabled ? "" : undefined}
+		>
 			<button
 				{...props}
 				ref={ref}
@@ -92,8 +96,9 @@ export const SoftChip = forwardRef<HTMLButtonElement, SoftChipProps>(function So
 				<button
 					type="button"
 					className="ui-lib-soft-chip__remove"
+					disabled={props.disabled}
 					aria-label={typeof children === "string" ? `${removeLabel} ${children}` : removeLabel}
-					onClick={onRemove}
+					onClick={props.disabled ? undefined : onRemove}
 				>
 					<svg viewBox="0 0 10 10" width="8" height="8" aria-hidden="true">
 						<path

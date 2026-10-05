@@ -78,6 +78,7 @@ const PRIMITIVES = new Set([
 	"BubbleBadge",
 	"CrystalText",
 	"LiquidGlass",
+	"FrostedGround",
 ]);
 
 /**

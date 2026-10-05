@@ -144,7 +144,15 @@ function HeroCrystal() {
 
 function Playground() {
 	const [params, setParams] = useState<Params>(DEFAULT_PARAMS);
-	const [palette, setPalette] = useState<PaletteId>("aurora");
+	const [palette, setPalette] = useState<PaletteId>(() => {
+		if (typeof window !== "undefined") {
+			const p = new URLSearchParams(window.location.search).get("palette");
+			if (p && (p === "aurora" || p === "ember" || p === "mint" || p === "ink")) {
+				return p;
+			}
+		}
+		return "aurora";
+	});
 	const [speed, setSpeed] = useState(0.25);
 	const [forceFallback, setForceFallback] = useState(false);
 	const [backend, setBackend] = useState<"auto" | "webgl">("auto");
@@ -255,6 +263,14 @@ function Scene(props: SceneProps) {
 		saturation: params.saturation,
 	};
 
+	const PALETTE_TO_TONE: Record<PaletteId, IrisTone> = {
+		aurora: "iris",
+		ember: "blossom",
+		mint: "mist",
+		ink: "iris",
+	};
+	const tone = PALETTE_TO_TONE[palette] ?? "iris";
+
 	const pill = { ...glass, radius: 999, bevel: 14, refraction: 18, frost: 12 };
 	const card = { ...glass, radius: 22, bevel: 18, refraction: 30 };
 
@@ -297,18 +313,42 @@ function Scene(props: SceneProps) {
 						</a>
 					</Magnetic>
 					{/*
-					 * The second line of this library, and it needs its own door.
-					 *
-					 * Everything in the nav above is a GPU surface: one canvas, one
-					 * renderer, and a page that is mostly shader. The component layer is
-					 * the other half — thirty-five accessible components, a watercolour
-					 * generator, spring physics that runs in CSS custom properties — and
-					 * none of it was reachable from here at all. A reader who landed on
-					 * this page concluded the library was six demos.
+					 * Core Showcase & Workbench Discovery Links (Preserving tone and palette context)
 					 */}
 					<Magnetic strength={0.4} radius={90}>
-						<a className="navlink navlink--moe" href="/?demo=kit-index">
-							Moe
+						<a
+							className="navlink navlink--moe"
+							href={`/?demo=kit-index&palette=${palette}&tone=${tone}`}
+							title="全景组件索引"
+						>
+							全景索引
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={90}>
+						<a
+							className="navlink navlink--moe"
+							href={`/?demo=glass-lab&palette=${palette}`}
+							title="液态玻璃实验室"
+						>
+							玻璃实验室
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={90}>
+						<a
+							className="navlink navlink--moe"
+							href={`/?demo=studio&palette=${palette}&tone=${tone}`}
+							title="水彩材质工作台"
+						>
+							水彩工作台
+						</a>
+					</Magnetic>
+					<Magnetic strength={0.4} radius={90}>
+						<a
+							className="navlink navlink--moe"
+							href={`/?demo=iris-kit&palette=${palette}&tone=${tone}`}
+							title="组件陈列室"
+						>
+							组件陈列室
 						</a>
 					</Magnetic>
 				</nav>
@@ -521,6 +561,180 @@ function Scene(props: SceneProps) {
 				</GlassPanel>
 			</section>
 
+			{/* M3 Feature F13: Homepage Discovery Navigation linking visitors to the 4 key surfaces */}
+			<section className="discovery-section" aria-label="核心展台与实验室导航">
+				<style>{`
+					.discovery-section {
+						margin: 48px 0 56px;
+					}
+					.discovery-header {
+						margin-bottom: 24px;
+					}
+					.discovery-title {
+						margin: 0 0 8px;
+						font-size: 26px;
+						font-weight: 700;
+						letter-spacing: -0.02em;
+						color: var(--ink, #fff);
+					}
+					.discovery-subtitle {
+						margin: 0;
+						font-size: 14px;
+						line-height: 1.6;
+						color: var(--muted, rgba(255, 255, 255, 0.65));
+						max-width: 720px;
+					}
+					.discovery-grid {
+						display: grid;
+						grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+						gap: 20px;
+						margin-top: 20px;
+					}
+					.discovery-card {
+						display: flex;
+						flex-direction: column;
+						padding: 24px 22px;
+						border-radius: 20px;
+						transition: transform 0.22s cubic-bezier(0.28, 1.38, 0.48, 1), box-shadow 0.22s ease;
+					}
+					.discovery-card:hover {
+						transform: translateY(-4px) scale(1.01);
+					}
+					.discovery-card__link {
+						display: flex;
+						flex-direction: column;
+						height: 100%;
+						text-decoration: none;
+						color: inherit;
+					}
+					.discovery-card__tag {
+						display: inline-flex;
+						align-self: flex-start;
+						font-size: 11px;
+						font-weight: 700;
+						letter-spacing: 0.08em;
+						text-transform: uppercase;
+						padding: 4px 10px;
+						border-radius: 999px;
+						background: rgba(255, 255, 255, 0.12);
+						color: var(--ink, #fff);
+						margin-bottom: 14px;
+						border: 1px solid rgba(255, 255, 255, 0.15);
+					}
+					.discovery-card__title {
+						margin: 0 0 10px;
+						font-size: 17px;
+						font-weight: 700;
+						color: var(--ink, #fff);
+					}
+					.discovery-card__desc {
+						margin: 0 0 20px;
+						font-size: 13px;
+						line-height: 1.65;
+						color: var(--muted, rgba(255, 255, 255, 0.65));
+						flex: 1;
+					}
+					.discovery-card__cta {
+						display: inline-flex;
+						align-items: center;
+						gap: 6px;
+						font-size: 12.5px;
+						font-weight: 600;
+						color: #a3e635;
+						letter-spacing: 0.04em;
+					}
+					.discovery-card:hover .discovery-card__cta {
+						text-decoration: underline;
+					}
+				`}</style>
+				<div className="discovery-header">
+					<p className="eyebrow" style={{ marginBottom: "8px" }}>
+						Showcase & Workbenches
+					</p>
+					<h2 className="discovery-title">全景展台与材质实验室导航</h2>
+					<p className="discovery-subtitle">
+						探索 UI-Lib 的两大支柱：GPU
+						液态玻璃光场渲染与宣纸水彩语义化组件体系，保留当前调色板与材质状态。
+					</p>
+				</div>
+				<div className="discovery-grid">
+					<Magnetic strength={0.25} radius={140}>
+						<GlassPanel className="panel discovery-card" {...card}>
+							<a
+								className="discovery-card__link"
+								href={`/?demo=kit-index&palette=${palette}&tone=${tone}`}
+							>
+								<div className="discovery-card__tag">35+ Soft Components</div>
+								<h3 className="discovery-card__title">全景组件索引 · Kit Index</h3>
+								<p className="discovery-card__desc">
+									全套 35+ 个 Soft 基础组件、5 态物理矩阵 [默认·悬停·聚焦·激活·禁用]
+									与多材质实时切换 [纯色·水彩·微透·玻璃]。
+								</p>
+								<div className="discovery-card__cta">
+									<span>进入全景索引</span>
+									<span aria-hidden="true">→</span>
+								</div>
+							</a>
+						</GlassPanel>
+					</Magnetic>
+
+					<Magnetic strength={0.25} radius={140}>
+						<GlassPanel className="panel discovery-card" {...card}>
+							<a className="discovery-card__link" href={`/?demo=glass-lab&palette=${palette}`}>
+								<div className="discovery-card__tag">GPU Refraction SDF</div>
+								<h3 className="discovery-card__title">液态玻璃实验室 · Glass Lab</h3>
+								<p className="discovery-card__desc">
+									真实物理光折射与磨砂透镜模拟，多尺度硬边背景与拉普拉斯边缘能量保持率测试台。
+								</p>
+								<div className="discovery-card__cta">
+									<span>探索玻璃实验室</span>
+									<span aria-hidden="true">→</span>
+								</div>
+							</a>
+						</GlassPanel>
+					</Magnetic>
+
+					<Magnetic strength={0.25} radius={140}>
+						<GlassPanel className="panel discovery-card" {...card}>
+							<a
+								className="discovery-card__link"
+								href={`/?demo=studio&palette=${palette}&tone=${tone}`}
+							>
+								<div className="discovery-card__tag">Physics & Pigment</div>
+								<h3 className="discovery-card__title">水彩材质工作台 · Studio</h3>
+								<p className="discovery-card__desc">
+									Lucas-Washburn 毛细润湿前沿推进、水分蒸发干燥演化过程与 Kubelka-Munk
+									减色调色盘。
+								</p>
+								<div className="discovery-card__cta">
+									<span>进入水彩工作台</span>
+									<span aria-hidden="true">→</span>
+								</div>
+							</a>
+						</GlassPanel>
+					</Magnetic>
+
+					<Magnetic strength={0.25} radius={140}>
+						<GlassPanel className="panel discovery-card" {...card}>
+							<a
+								className="discovery-card__link"
+								href={`/?demo=iris-kit&palette=${palette}&tone=${tone}`}
+							>
+								<div className="discovery-card__tag">WAI-ARIA & Fixture</div>
+								<h3 className="discovery-card__title">组件陈列室 · Iris Kit</h3>
+								<p className="discovery-card__desc">
+									逐像素视觉验证基准面、无障碍 WAI-ARIA 语义契约与全状态独立标定展示。
+								</p>
+								<div className="discovery-card__cta">
+									<span>访问组件陈列室</span>
+									<span aria-hidden="true">→</span>
+								</div>
+							</a>
+						</GlassPanel>
+					</Magnetic>
+				</div>
+			</section>
+
 			<section className="stats">
 				<GlassPanel className="panel panel--stat" {...card}>
 					<span className="stat__value">{stats ? stats.fps.toFixed(0) : "—"}</span>
@@ -602,6 +816,68 @@ function Scene(props: SceneProps) {
 				</GlassPanel>
 			</section>
 
+			<section className="row" aria-label="Iris Design System & Surfaces">
+				<GlassPanel className="panel" {...card}>
+					<h2 className="panel__title">Kit Index · 全景索引</h2>
+					<p>
+						三十五个高无障碍标准应用组件的五态并排物理矩阵（默认、悬停、聚焦、激活、禁用），配合纯色、水彩、微透与液态玻璃四重材质基底切换。
+					</p>
+					<div style={{ marginTop: "16px" }}>
+						<a
+							className="navlink"
+							href="/?demo=kit-index"
+							style={{ color: "var(--ink)", fontWeight: 700 }}
+						>
+							进入全景索引 →
+						</a>
+					</div>
+				</GlassPanel>
+				<GlassPanel className="panel" {...card}>
+					<h2 className="panel__title">Studio · 物理工作台</h2>
+					<p>
+						Lucas-Washburn 毛细润湿动力学扩散进程、非线性水分蒸发模拟与 Kubelka-Munk
+						真实减性光谱混色实验台。
+					</p>
+					<div style={{ marginTop: "16px" }}>
+						<a
+							className="navlink"
+							href="/?demo=studio"
+							style={{ color: "var(--ink)", fontWeight: 700 }}
+						>
+							进入水彩工作台 →
+						</a>
+					</div>
+				</GlassPanel>
+				<GlassPanel className="panel" {...card}>
+					<h2 className="panel__title">Glass Lab · 水墨玻璃</h2>
+					<p>
+						宣纸毛细润湿水痕、纤维肌理与顶层液态玻璃物理折射光学校准，验证页面滚动时水墨底座的高清保真。
+					</p>
+					<div style={{ marginTop: "16px" }}>
+						<a
+							className="navlink"
+							href="/?demo=glass-lab"
+							style={{ color: "var(--ink)", fontWeight: 700 }}
+						>
+							进入玻璃实验室 →
+						</a>
+					</div>
+				</GlassPanel>
+				<GlassPanel className="panel" {...card}>
+					<h2 className="panel__title">Iris Kit · 单件陈列室</h2>
+					<p>全套组件单体精密测量箱，固定尺寸视口、零光污染基底与极端对比度光学检验。</p>
+					<div style={{ marginTop: "16px" }}>
+						<a
+							className="navlink"
+							href="/?demo=iris-kit"
+							style={{ color: "var(--ink)", fontWeight: 700 }}
+						>
+							进入单件陈列室 →
+						</a>
+					</div>
+				</GlassPanel>
+			</section>
+
 			<footer className="foot">
 				<span>UI-Lib · milestone 1 · liquid glass</span>
 				<span>three.js r186 · TSL · WebGPU with WebGL 2 fallback</span>
@@ -642,10 +918,11 @@ export default function App() {
 		if (demo === "iris-kit") {
 			const component = query.get("component") ?? "";
 			const tone = query.get("tone") ?? "iris";
-			if (isKitComponent(component) && (IRIS_TONES as readonly string[]).includes(tone)) {
-				return <IrisKitPage component={component} tone={tone as IrisTone} />;
-			}
-			return <IrisKitPage component="bubble-badge" tone="iris" />;
+			const targetTone = (IRIS_TONES as readonly string[]).includes(tone)
+				? (tone as IrisTone)
+				: "iris";
+			const targetComponent = isKitComponent(component) ? component : "matrix";
+			return <IrisKitPage component={targetComponent} tone={targetTone} />;
 		}
 		if (demo && isAcceptanceDemo(demo)) return <AcceptanceDemo id={demo} />;
 	}

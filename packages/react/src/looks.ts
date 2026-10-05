@@ -347,7 +347,14 @@ export function fieldOptions(
 	};
 }
 
-/** DOM glass that can sit on a product page without a wall of props. */
+/**
+ * DOM glass that can sit on a product page without a wall of props.
+ *
+ * Parameters are calibrated against a 200px reference card (`Math.min(w, h) = 200`).
+ * At runtime, `bevel` and `refraction` auto-scale proportionally by
+ * `Math.max(1, Math.min(width, height)) / 200` to maintain consistent relative glass
+ * thickness across chips and large hero panels alike.
+ */
 export const GLASS_LOOKS = {
 	/*
 	 * A slab of glass rather than a pane of it.
@@ -389,9 +396,10 @@ export const GLASS_LOOKS = {
 		bevel: 46,
 		refraction: 96,
 		dispersion: 0.34,
-		roughness: 0.08,
-		frost: 6,
-		specular: 0.72,
+		roughness: 0,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.42,
 	},
 	/* A pane: real refraction, a modest edge, and a flat interior. The everyday
 	   glass for a card that has to stay readable. */
@@ -400,30 +408,31 @@ export const GLASS_LOOKS = {
 		bevel: 30,
 		refraction: 52,
 		dispersion: 0.24,
-		roughness: 0.12,
-		frost: 10,
-		specular: 0.55,
+		roughness: 0,
+		frost: 0,
+		specular: 0.75,
+		edgeGlow: 0.36,
 	},
-	/* Droplets: a wide soft edge and a heavy blur, as if the surface were beaded
-	   with condensation. For a hero panel, not for a form. */
+	/* Droplets: a wide soft edge, clear water drop curve. */
 	dew: {
-		radius: 96,
+		radius: 28,
 		bevel: 40,
 		refraction: 38,
 		dispersion: 0.16,
-		roughness: 0.3,
-		frost: 30,
-		specular: 0.66,
+		roughness: 0,
+		frost: 0,
+		specular: 0.82,
+		edgeGlow: 0.48,
 	},
 	product: {
 		radius: 28,
 		bevel: 22,
 		refraction: 36,
 		dispersion: 0.22,
-		roughness: 0.2,
-		frost: 16,
-		specular: 0.45,
-		edgeGlow: 0.28,
+		roughness: 0,
+		frost: 0,
+		specular: 0.68,
+		edgeGlow: 0.38,
 		tintAmount: 0.05,
 		pointerStrength: 0.4,
 		pointerRadius: 280,
@@ -434,8 +443,8 @@ export const GLASS_LOOKS = {
 		bevel: 22,
 		refraction: 32,
 		dispersion: 0.2,
-		roughness: 0.18,
-		frost: 10,
+		roughness: 0,
+		frost: 0,
 		specular: 0.5,
 		edgeGlow: 0.34,
 		tintAmount: 0.04,
