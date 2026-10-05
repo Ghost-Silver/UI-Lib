@@ -139,5 +139,7 @@ export type { SoftToolbarItem, SoftToolbarProps } from "./SoftToolbar.js";
 export { SoftToolbar } from "./SoftToolbar.js";
 export { pageRange } from "./softNavigationRange.js";
 export { useFrame } from "./useFrame.js";
+export type { WatercolorBoardProps } from "./WatercolorBoard.js";
+export { WatercolorBoard } from "./WatercolorBoard.js";
 export type { WatercolorCardProps } from "./WatercolorCard.js";
 export { WatercolorCard } from "./WatercolorCard.js";

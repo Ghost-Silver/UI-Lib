@@ -5859,6 +5859,65 @@ const CSS = `
 		inset 0 1px 0 rgba(255, 255, 255, 0.6);
 	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.ui-lib-watercolor-board {
+	position: relative;
+	border-radius: 28px;
+	padding: 36px 32px;
+	margin: 40px 0;
+	background:
+		radial-gradient(120% 100% at 90% 10%, rgba(243, 235, 255, 0.45) 0%, transparent 60%),
+		radial-gradient(100% 90% at 10% 90%, rgba(230, 245, 255, 0.4) 0%, transparent 60%),
+		linear-gradient(165deg, rgba(254, 252, 249, 0.94) 0%, rgba(248, 244, 238, 0.88) 100%);
+	border: 0 solid rgba(215, 200, 185, 0.4);
+	box-shadow:
+		0 24px 60px -20px rgba(18, 12, 36, 0.35),
+		0 1px 0 rgba(255, 255, 255, 0.9) inset;
+	overflow: hidden;
+}
+
+.ui-lib-watercolor-board--bordered {
+	border-width: 1px;
+}
+
+[data-theme="dark"] .ui-lib-watercolor-board,
+.theme-dark .ui-lib-watercolor-board {
+	background:
+		radial-gradient(120% 100% at 85% 15%, rgba(123, 47, 247, 0.16) 0%, transparent 65%),
+		radial-gradient(100% 90% at 15% 85%, rgba(0, 212, 255, 0.12) 0%, transparent 60%),
+		linear-gradient(165deg, rgba(20, 22, 38, 0.85) 0%, rgba(13, 15, 28, 0.92) 100%);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	box-shadow:
+		0 28px 70px -20px rgba(0, 0, 0, 0.65),
+		0 1px 0 rgba(255, 255, 255, 0.18) inset;
+}
+
+.ui-lib-watercolor-board--blossom {
+	background:
+		radial-gradient(120% 100% at 90% 10%, rgba(255, 235, 245, 0.5) 0%, transparent 60%),
+		radial-gradient(100% 90% at 10% 90%, rgba(255, 245, 240, 0.4) 0%, transparent 60%),
+		linear-gradient(165deg, rgba(255, 250, 252, 0.94) 0%, rgba(252, 242, 246, 0.88) 100%);
+}
+
+.ui-lib-watercolor-board--mist {
+	background:
+		radial-gradient(120% 100% at 90% 10%, rgba(230, 245, 255, 0.5) 0%, transparent 60%),
+		radial-gradient(100% 90% at 10% 90%, rgba(240, 250, 255, 0.4) 0%, transparent 60%),
+		linear-gradient(165deg, rgba(250, 253, 255, 0.94) 0%, rgba(242, 247, 252, 0.88) 100%);
+}
+
+.ui-lib-watercolor-board__deckle {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	border-radius: 28px;
+	box-shadow: inset 0 0 32px rgba(130, 95, 175, calc(var(--ui-lib-moisture, 0.65) * 0.15));
+}
+
+.ui-lib-watercolor-board__content {
+	position: relative;
+	z-index: 1;
+}
 `;
 
 /**

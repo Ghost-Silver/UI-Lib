@@ -79,6 +79,7 @@ const PRIMITIVES = new Set([
 	"CrystalText",
 	"LiquidGlass",
 	"FrostedGround",
+	"WatercolorBoard",
 ]);
 
 /**
