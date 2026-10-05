@@ -295,7 +295,7 @@ export function createWash(options: WashOptions): WashResult {
 	const pigment = pigmentFromHex(hue);
 	const bodyCentre = mixToCss([pigment], { thickness: weight * 0.7, backing: 1 });
 	const bodyEdge = mixToCss([pigment], { thickness: weight * 1.25, backing: 1 });
-	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, ${bodyCentre} 0%, ${bodyEdge} 76%, transparent 95%)`;
+	const body = `radial-gradient(72% 66% at ${(48 + random() * 4).toFixed(1)}% ${(45 + random() * 4).toFixed(1)}%, ${bodyCentre} 0%, ${bodyEdge} 86%, transparent 95%)`;
 
 	/*
 	 * The same pigment as a **fill**, for a surface rather than a mark.
@@ -400,8 +400,8 @@ export function createWash(options: WashOptions): WashResult {
 	 * saturates. Mixed in K-M rather than darkened in RGB, so it stays the same
 	 * hue instead of heading toward grey.
 	 */
-	const rim = mixToCss([pigment, { ...PROCESS_PIGMENTS.black, concentration: 0.06 * weight }], {
-		thickness: Math.max(weight, 0.25) * 4,
+	const rim = mixToCss([pigment, { ...PROCESS_PIGMENTS.black, concentration: 0.012 * weight }], {
+		thickness: Math.max(weight, 0.25) * 2.4,
 		backing: 1,
 	});
 

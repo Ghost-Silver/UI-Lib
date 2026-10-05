@@ -231,7 +231,7 @@ export function MaterialSynthesizerDeck(props: MaterialSynthesizerDeckProps) {
 									<div className="iris-choice-wrap">
 										<span className="iris-sublabel">物理动力学策略</span>
 										<SoftCheckbox
-											label="无量纲阻尼回弹 (\u03B6 = 0.55)"
+											label="无量纲阻尼回弹 (ζ = 0.55)"
 											checked={forceSensing}
 											onChange={(e) => setForceSensing(e.target.checked)}
 										/>

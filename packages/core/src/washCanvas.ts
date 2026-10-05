@@ -253,7 +253,7 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 		 * 76% to 95%, the deposit ring ramps up into the rim (0.86 - 0.95), producing a
 		 * continuous pigment transition without a hollow transparent gap.
 		 */
-		const ringOuter = Math.max(radiusX, 1) / 0.9;
+		const ringOuter = Math.max(radiusX, 1);
 		const ringAspect = Math.max(radiusY / Math.max(radiusX, 1e-6), 1e-6);
 
 		const ringCanvas = document.createElement("canvas");
@@ -283,10 +283,10 @@ export async function washToCanvas(options: WashCanvasOptions): Promise<HTMLCanv
 
 			const band = ring.createRadialGradient(0, 0, 0, 0, 0, ringOuter);
 			band.addColorStop(0, "rgba(0,0,0,0)");
-			band.addColorStop(0.65, "rgba(0,0,0,0)");
-			band.addColorStop(0.86, rim);
-			band.addColorStop(0.95, rim);
-			band.addColorStop(1, "rgba(0,0,0,0)");
+			band.addColorStop(0.78, "rgba(0,0,0,0)");
+			band.addColorStop(0.88, rim);
+			band.addColorStop(0.94, rim);
+			band.addColorStop(0.99, "rgba(0,0,0,0)");
 
 			ring.fillStyle = band;
 			ring.globalAlpha = 1;

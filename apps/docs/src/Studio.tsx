@@ -992,7 +992,7 @@ function WashProgress() {
 						setWetting(true);
 					}}
 				>
-					{wetting ? "毛细浸润中..." : done ? "再铺一次" : "开始铺纸 (Lucas-Washburn)"}
+					{wetting ? "毛细浸润中..." : done ? "重新铺纸" : "开始毛细铺纸"}
 				</SoftButton>
 				<div style={{ flex: 1, minWidth: "160px" }}>
 					<SoftSlider

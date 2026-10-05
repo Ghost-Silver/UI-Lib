@@ -2137,10 +2137,10 @@ const CSS = `
 	border-radius: inherit;
 	background: var(--wash-rim);
 	-webkit-mask-image:
-		radial-gradient(closest-side, transparent 72%, rgb(0 0 0 / 1) 86%, rgb(0 0 0 / 1) 97%, transparent 100%),
+		radial-gradient(closest-side, transparent 80%, rgb(0 0 0 / 0.5) 88%, rgb(0 0 0 / 1) 93%, rgb(0 0 0 / 0.85) 96%, transparent 100%),
 		var(--wash-deposit-mask);
 	mask-image:
-		radial-gradient(closest-side, transparent 72%, rgb(0 0 0 / 1) 86%, rgb(0 0 0 / 1) 97%, transparent 100%),
+		radial-gradient(closest-side, transparent 80%, rgb(0 0 0 / 0.5) 88%, rgb(0 0 0 / 1) 93%, rgb(0 0 0 / 0.85) 96%, transparent 100%),
 		var(--wash-deposit-mask);
 	mask-composite: intersect;
 	-webkit-mask-composite: source-in;
@@ -5767,10 +5767,10 @@ const CSS = `
 	border-radius: inherit;
 	background: var(--wash-rim);
 	-webkit-mask-image:
-		radial-gradient(closest-side, transparent 72%, rgb(0 0 0 / 1) 86%, rgb(0 0 0 / 1) 97%, transparent 100%),
+		radial-gradient(closest-side, transparent 80%, rgb(0 0 0 / 0.5) 88%, rgb(0 0 0 / 1) 93%, rgb(0 0 0 / 0.85) 96%, transparent 100%),
 		var(--wash-deposit-mask);
 	mask-image:
-		radial-gradient(closest-side, transparent 72%, rgb(0 0 0 / 1) 86%, rgb(0 0 0 / 1) 97%, transparent 100%),
+		radial-gradient(closest-side, transparent 80%, rgb(0 0 0 / 0.5) 88%, rgb(0 0 0 / 1) 93%, rgb(0 0 0 / 0.85) 96%, transparent 100%),
 		var(--wash-deposit-mask);
 	/* The two masks intersect, which is what keeps the angular variation in the
 	   rim band and the middle flat. */
