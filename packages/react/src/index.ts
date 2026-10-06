@@ -32,6 +32,21 @@ export type { FrostedGroundProps } from "./FrostedGround.js";
 export { FrostedGround } from "./FrostedGround.js";
 export type { FieldWiring } from "./field.js";
 export { useField } from "./field.js";
+export type {
+	FloatingAlign,
+	FloatingOptions,
+	FloatingPlacement,
+	FloatingRect,
+	FloatingResult,
+	FloatingSide,
+	UseFloatingProps,
+} from "./floating.js";
+export {
+	computeFloatingPosition,
+	getOppositeSide,
+	parsePlacement,
+	useFloatingPosition,
+} from "./floating.js";
 export type { GlassPanelProps } from "./GlassPanel.js";
 export { GlassPanel } from "./GlassPanel.js";
 export type { GlassStageProps } from "./GlassStage.js";
@@ -128,8 +143,9 @@ export type {
 	SoftPaginationProps,
 } from "./SoftNavigation.js";
 export { SoftBreadcrumb, SoftPagination } from "./SoftNavigation.js";
-export type { SoftToastData, SoftToastProps, SoftTooltipProps } from "./SoftOverlay.js";
-export { SoftToast, SoftTooltip } from "./SoftOverlay.js";
+export type { SoftToastData } from "./SoftOverlay.js";
+export type { SoftPopoverProps } from "./SoftPopover.js";
+export { SoftPopover } from "./SoftPopover.js";
 export type { SoftSegmentedControlProps, SoftSegmentOption } from "./SoftSegmentedControl.js";
 export { SoftSegmentedControl } from "./SoftSegmentedControl.js";
 export type { SoftSelectOption, SoftSelectProps } from "./SoftSelect.js";
@@ -146,9 +162,29 @@ export type { SoftTabsProps } from "./SoftTabs.js";
 export { SoftTabs } from "./SoftTabs.js";
 export type { SoftTextareaProps } from "./SoftTextarea.js";
 export { SoftTextarea } from "./SoftTextarea.js";
+export type {
+	SoftToasterProps,
+	SoftToastProps,
+	SoftToastProviderProps,
+} from "./SoftToast.js";
+export {
+	SoftToast,
+	SoftToaster,
+	SoftToastProvider,
+} from "./SoftToast.js";
 export type { SoftToolbarItem, SoftToolbarProps } from "./SoftToolbar.js";
 export { SoftToolbar } from "./SoftToolbar.js";
+export type { SoftTooltipProps } from "./SoftTooltip.js";
+export { SoftTooltip } from "./SoftTooltip.js";
 export { pageRange } from "./softNavigationRange.js";
+export type {
+	ToastContextValue,
+	ToastData,
+	ToastOptions,
+	ToastPosition,
+	ToastVariant,
+} from "./toast.js";
+export { ToastContext, toast, useToast } from "./toast.js";
 export { useFrame } from "./useFrame.js";
 export type { WatercolorBoardProps } from "./WatercolorBoard.js";
 export { WatercolorBoard } from "./WatercolorBoard.js";

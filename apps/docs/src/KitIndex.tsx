@@ -13,6 +13,7 @@ import {
 	type SoftDataTableColumn,
 	SoftInput,
 	SoftList,
+	SoftPopover,
 	SoftProgress,
 	SoftRadio,
 	SoftSegmentedControl,
@@ -22,7 +23,10 @@ import {
 	SoftSwitch,
 	SoftTag,
 	SoftTextarea,
+	SoftToaster,
 	SoftToolbar,
+	SoftTooltip,
+	toast,
 } from "@ui-lib/react";
 import { useState } from "react";
 
@@ -1166,6 +1170,88 @@ export function KitIndexPage() {
 					onSelectionChange={setSelectedRows}
 					caption="液态玻璃与水彩物理参数一览表"
 				/>
+			</section>
+
+			{/* Instant Feedback & Micro-Context: SoftTooltip, SoftPopover, and SoftToast */}
+			<section
+				className="kitindex__matrix-section"
+				aria-label="即时反馈与微观上下文：气泡、弹出卡片与通知栈"
+			>
+				<div className="kitindex__matrix-head">
+					<h2 className="kitindex__matrix-title">即时反馈与微观上下文 · 气泡、卡片与通知栈</h2>
+					<p className="kitindex__matrix-desc">
+						基于自研零依赖物理吸附引擎（<code>floating.ts</code>），驱动具备视口避让与折射箭头的{" "}
+						<code>SoftTooltip</code>、富交互弹出卡片 <code>SoftPopover</code>，以及具备 &zeta; =
+						0.55 阻尼弹簧出入场、手势划走与卡片堆叠物理的 <code>SoftToast</code>。
+					</p>
+				</div>
+				<div
+					style={{
+						display: "flex",
+						flexWrap: "wrap",
+						gap: "16px",
+						alignItems: "center",
+						marginBottom: "16px",
+					}}
+				>
+					<SoftTooltip content="这是遵循 WAI-ARIA 规范的液态玻璃微气泡" placement="top">
+						<PinkPaperButton tone={tone}>悬停查看 Tooltip</PinkPaperButton>
+					</SoftTooltip>
+
+					<SoftPopover
+						trigger={<PinkPaperButton tone={tone}>点击展开 Popover</PinkPaperButton>}
+						title="物理材质参数配置"
+						actions={
+							<PinkPaperButton tone={tone} onClick={() => toast.success("参数已保存至物理层")}>
+								保存设置
+							</PinkPaperButton>
+						}
+					>
+						<p style={{ margin: 0, fontSize: "13px" }}>
+							自研视口避让吸附算法，支持全键盘 Escape 键快速退出并自动复位焦点。
+						</p>
+					</SoftPopover>
+
+					<div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+						<PinkPaperButton tone="iris" onClick={() => toast.info("水墨沉降与扩散速度已同步")}>
+							派发 Info Toast
+						</PinkPaperButton>
+						<PinkPaperButton
+							tone="mist"
+							onClick={() => toast.success("液态玻璃折射图层编译完成！")}
+						>
+							派发 Success Toast
+						</PinkPaperButton>
+						<PinkPaperButton
+							tone="blossom"
+							onClick={() => toast.warning("显存占用已达 85%，自适应降频")}
+						>
+							派发 Warning Toast
+						</PinkPaperButton>
+						<PinkPaperButton
+							tone="blossom"
+							onClick={() => toast.error("WebGPU 渲染管线检测到异常")}
+						>
+							派发 Error Toast
+						</PinkPaperButton>
+						<PinkPaperButton
+							tone={tone}
+							onClick={() => {
+								toast.promise(
+									new Promise((resolve) => setTimeout(() => resolve("100%"), 1800)),
+									{
+										loading: "正在烘焙物理焦散图层...",
+										success: "焦散光斑烘焙完成！",
+										error: "烘焙中断",
+									},
+								);
+							}}
+						>
+							派发 Promise Toast
+						</PinkPaperButton>
+					</div>
+				</div>
+				<SoftToaster position="top-right" />
 			</section>
 
 			<SoftCommandPalette
