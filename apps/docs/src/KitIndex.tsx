@@ -25,6 +25,7 @@ import {
 	SoftSwitch,
 	SoftTag,
 	SoftTextarea,
+	SoftTimeline,
 	SoftToaster,
 	SoftToolbar,
 	SoftTooltip,
@@ -1321,7 +1322,7 @@ export function KitIndexPage() {
 										},
 										{
 											key: "react",
-											label: "react (48 个语义化组件)",
+											label: "react (49 个语义化组件)",
 											children: [
 												{ key: "index", label: "index.ts", isLeaf: true },
 												{
@@ -1340,6 +1341,16 @@ export function KitIndexPage() {
 													isLeaf: true,
 													badge: (
 														<SoftTag tone="blossom" variant="soft">
+															新
+														</SoftTag>
+													),
+												},
+												{
+													key: "timeline",
+													label: "SoftTimeline.tsx",
+													isLeaf: true,
+													badge: (
+														<SoftTag tone="mist" variant="soft">
 															新
 														</SoftTag>
 													),
@@ -1399,6 +1410,49 @@ export function KitIndexPage() {
 							<SoftBadge status="warning" text="显存处于高位" />
 							<SoftBadge status="error" text="管线故障捕获" />
 						</div>
+					</div>
+
+					<div
+						style={{
+							padding: "16px",
+							borderRadius: "12px",
+							background: "rgba(255, 255, 255, 0.45)",
+							border: "1px solid rgba(0, 0, 0, 0.08)",
+							display: "flex",
+							flexDirection: "column",
+							gap: "14px",
+						}}
+					>
+						<h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
+							历程时间轴 (SoftTimeline)
+						</h3>
+						<SoftTimeline
+							label="构建历程"
+							tone={tone}
+							items={[
+								{
+									key: "optics",
+									title: "WebGPU 双面折射光路",
+									description: "SDF 倒角无直角 Voronoi 接缝，柯西色散光斑求解完成",
+									timestamp: "09:30",
+									status: "completed",
+								},
+								{
+									key: "wash",
+									title: "宣纸水墨毛细润湿",
+									description: "Kubelka-Munk 真实减色沉降，边界水痕干燥扩散",
+									timestamp: "10:15",
+									status: "completed",
+								},
+								{
+									key: "tree",
+									title: "49 个语义化 Soft 组件",
+									description: "全键盘 WAI-ARIA 漫游与 ζ = 0.55 物理阻尼弹簧驱动",
+									timestamp: "11:00",
+									status: "processing",
+								},
+							]}
+						/>
 					</div>
 				</div>
 			</section>

@@ -164,6 +164,8 @@ export type { SoftTabsProps } from "./SoftTabs.js";
 export { SoftTabs } from "./SoftTabs.js";
 export type { SoftTextareaProps } from "./SoftTextarea.js";
 export { SoftTextarea } from "./SoftTextarea.js";
+export type { SoftTimelineItem, SoftTimelineProps } from "./SoftTimeline.js";
+export { SoftTimeline } from "./SoftTimeline.js";
 export type {
 	SoftToasterProps,
 	SoftToastProps,

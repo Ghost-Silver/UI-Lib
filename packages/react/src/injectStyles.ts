@@ -7019,6 +7019,146 @@ const CSS = `
 		box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
 	}
 }
+
+/* =========================================================================
+   SoftTimeline: sequential timeline with capillary lineage and status beads
+   ========================================================================= */
+
+.ui-lib-soft-timeline {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	position: relative;
+	font-family: inherit;
+	color: var(--moe-text, #1e1e24);
+}
+
+.ui-lib-soft-timeline--vertical {
+	display: flex;
+	flex-direction: column;
+}
+
+.ui-lib-soft-timeline--horizontal {
+	display: flex;
+	flex-direction: row;
+	overflow-x: auto;
+}
+
+.ui-lib-soft-timeline--left {
+	/* Standard left-aligned beads */
+}
+
+.ui-lib-soft-timeline--right {
+	/* Right-aligned beads */
+}
+
+.ui-lib-soft-timeline--alternate {
+	/* Alternate zigzag layout */
+}
+
+.ui-lib-soft-timeline__item {
+	position: relative;
+	display: flex;
+	padding-bottom: 24px;
+	min-height: 48px;
+}
+
+.ui-lib-soft-timeline__item--last {
+	padding-bottom: 0;
+}
+
+.ui-lib-soft-timeline__item--completed {
+	/* Completed status */
+}
+
+.ui-lib-soft-timeline__item--processing {
+	/* Processing status */
+}
+
+.ui-lib-soft-timeline__item--pending {
+	opacity: 0.6;
+}
+
+.ui-lib-soft-timeline__item--error {
+	/* Error status */
+}
+
+.ui-lib-soft-timeline__line {
+	position: absolute;
+	top: 14px;
+	left: 8px;
+	bottom: -4px;
+	width: 2px;
+	background: rgba(0, 0, 0, 0.12);
+	border-radius: 1px;
+}
+
+.ui-lib-soft-timeline__bead {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #4f46e5;
+	color: #ffffff;
+	flex-shrink: 0;
+	box-shadow: 0 0 0 2px #ffffff;
+	transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ui-lib-soft-timeline__bead--custom {
+	background: transparent;
+	box-shadow: none;
+}
+
+.ui-lib-soft-timeline__bead--processing {
+	animation: ui-lib-badge-pulse 1.8s infinite ease-in-out;
+}
+
+.ui-lib-soft-timeline__dot {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.ui-lib-soft-timeline__content {
+	margin-left: 14px;
+	flex: 1;
+}
+
+.ui-lib-soft-timeline__header {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+}
+
+.ui-lib-soft-timeline__title {
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.ui-lib-soft-timeline__time {
+	font-size: 0.8rem;
+	color: rgba(0, 0, 0, 0.45);
+}
+
+.ui-lib-soft-timeline__description {
+	margin-top: 4px;
+	font-size: 0.85rem;
+	line-height: 1.5;
+	color: rgba(0, 0, 0, 0.65);
+}
+
+.ui-lib-soft-timeline__extra {
+	margin-top: 8px;
+}
 `;
 
 /**
