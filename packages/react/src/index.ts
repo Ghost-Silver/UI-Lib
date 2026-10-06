@@ -105,6 +105,8 @@ export type { ScrollPinProps, ScrollTrackProps } from "./ScrollTrack.js";
 export { ScrollPin, ScrollTrack, useScrollTrack, useScrollTrackHandle } from "./ScrollTrack.js";
 export type { SoftAccordionItem, SoftAccordionProps } from "./SoftAccordion.js";
 export { SoftAccordion } from "./SoftAccordion.js";
+export type { SoftBadgeProps } from "./SoftBadge.js";
+export { SoftBadge } from "./SoftBadge.js";
 export type { SoftCardProps } from "./SoftCard.js";
 export { SoftCard } from "./SoftCard.js";
 export type { SoftChipProps, SoftStep, SoftStepperProps } from "./SoftChipStepper.js";
@@ -176,6 +178,8 @@ export type { SoftToolbarItem, SoftToolbarProps } from "./SoftToolbar.js";
 export { SoftToolbar } from "./SoftToolbar.js";
 export type { SoftTooltipProps } from "./SoftTooltip.js";
 export { SoftTooltip } from "./SoftTooltip.js";
+export type { SoftTreeNode, SoftTreeProps } from "./SoftTree.js";
+export { SoftTree } from "./SoftTree.js";
 export { pageRange } from "./softNavigationRange.js";
 export type {
 	ToastContextValue,

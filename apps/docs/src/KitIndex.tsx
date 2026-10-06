@@ -4,6 +4,8 @@ import {
 	PinkPaperButton,
 	SoftAccordion,
 	SoftAlert,
+	SoftAvatar,
+	SoftBadge,
 	SoftCard,
 	SoftCheckbox,
 	SoftChip,
@@ -26,6 +28,7 @@ import {
 	SoftToaster,
 	SoftToolbar,
 	SoftTooltip,
+	SoftTree,
 	toast,
 } from "@ui-lib/react";
 import { useState } from "react";
@@ -1252,6 +1255,152 @@ export function KitIndexPage() {
 					</div>
 				</div>
 				<SoftToaster position="top-right" />
+			</section>
+
+			{/* Hierarchical Tree & Status Badge: SoftTree & SoftBadge */}
+			<section
+				className="kitindex__matrix-section"
+				aria-label="树形层级与状态角标：SoftTree 与 SoftBadge"
+			>
+				<div className="kitindex__matrix-head">
+					<h2 className="kitindex__matrix-title">树形层级与状态角标 · Tree & Status Badge</h2>
+					<p className="kitindex__matrix-desc">
+						符合 WAI-ARIA Tree APG 规范的层级导航 <code>SoftTree</code>
+						，具备全键盘漫游、复选框级联状态与宣纸毛细连线； 搭配支持数值截断与流光脉冲的{" "}
+						<code>SoftBadge</code> 状态角标。
+					</p>
+				</div>
+				<div
+					style={{
+						display: "grid",
+						gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+						gap: "24px",
+						alignItems: "start",
+					}}
+				>
+					<div
+						style={{
+							padding: "16px",
+							borderRadius: "12px",
+							background: "rgba(255, 255, 255, 0.45)",
+							border: "1px solid rgba(0, 0, 0, 0.08)",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+								marginBottom: "12px",
+							}}
+						>
+							<h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
+								代码工程目录树 (SoftTree)
+							</h3>
+							<SoftBadge status="processing" text="实时同步" />
+						</div>
+						<SoftTree
+							label="工程目录"
+							tone={tone}
+							showLines
+							checkable
+							defaultExpandedKeys={["packages", "react"]}
+							defaultCheckedKeys={["index"]}
+							nodes={[
+								{
+									key: "packages",
+									label: "packages",
+									children: [
+										{
+											key: "core",
+											label: "core (宣纸物理底座)",
+											children: [
+												{ key: "km", label: "kubelkaMunk.ts", isLeaf: true },
+												{ key: "wash", label: "washCanvas.ts", isLeaf: true },
+											],
+										},
+										{
+											key: "react",
+											label: "react (48 个语义化组件)",
+											children: [
+												{ key: "index", label: "index.ts", isLeaf: true },
+												{
+													key: "tree",
+													label: "SoftTree.tsx",
+													isLeaf: true,
+													badge: (
+														<SoftTag tone={tone} variant="soft">
+															新
+														</SoftTag>
+													),
+												},
+												{
+													key: "badge",
+													label: "SoftBadge.tsx",
+													isLeaf: true,
+													badge: (
+														<SoftTag tone="blossom" variant="soft">
+															新
+														</SoftTag>
+													),
+												},
+												{ key: "toast", label: "SoftToast.tsx", isLeaf: true },
+											],
+										},
+										{
+											key: "shaders",
+											label: "shaders (WebGPU 物理流体)",
+											children: [{ key: "liquid", label: "liquidGlass.ts", isLeaf: true }],
+										},
+									],
+								},
+								{
+									key: "apps",
+									label: "apps (展示系统)",
+									children: [{ key: "docs", label: "docs (实时演练场)", isLeaf: true }],
+								},
+							]}
+						/>
+					</div>
+
+					<div
+						style={{
+							padding: "16px",
+							borderRadius: "12px",
+							background: "rgba(255, 255, 255, 0.45)",
+							border: "1px solid rgba(0, 0, 0, 0.08)",
+							display: "flex",
+							flexDirection: "column",
+							gap: "18px",
+						}}
+					>
+						<h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
+							状态徽标指示器 (SoftBadge)
+						</h3>
+						<div
+							style={{ display: "flex", gap: "20px", alignItems: "center", flexWrap: "wrap" }}
+						>
+							<SoftBadge count={8} tone={tone}>
+								<SoftAvatar name="陈奕帆" size={40} tone={tone} />
+							</SoftBadge>
+
+							<SoftBadge count={128} maxCount={99} tone="blossom">
+								<PinkPaperButton tone="blossom">未读通知</PinkPaperButton>
+							</SoftBadge>
+
+							<SoftBadge dot tone="mist">
+								<PinkPaperButton tone="mist">新动态</PinkPaperButton>
+							</SoftBadge>
+						</div>
+
+						<div style={{ display: "flex", gap: "16px", flexWrap: "wrap", paddingTop: "8px" }}>
+							<SoftBadge status="success" text="GPU 编译就绪" />
+							<SoftBadge status="processing" text="水墨毛细推进中" />
+							<SoftBadge status="warning" text="显存处于高位" />
+							<SoftBadge status="error" text="管线故障捕获" />
+						</div>
+					</div>
+				</div>
 			</section>
 
 			<SoftCommandPalette
