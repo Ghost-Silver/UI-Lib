@@ -4,7 +4,7 @@
 
 UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
 
-> **状态：实验性 `0.0.1`。** 渲染底座、Liquid Glass、GPU 粒子、TSL 后处理、section stage 和共享时钟都已落地。六张旗舰页都已接上文档站。Node 侧 typecheck 与 Vitest 不能代替真机画面——真机画面已经有了按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），它暴露出的**四个缺陷现已全部修复**，其中最关键的一条是**post 链在两条后端上其实都没在干活**（WebGL2 画面全黑，WebGPU 的管线根本编译不过、链路静默空转），修好之后又暴露出**自有 render target 的 UV 上下翻转**。修复后复测：WebGPU 在 2880×2000 上六页守住 120 fps，WebGL2 在同分辨率下明显吃不住。细节见[真机基线](#3-真机基线)。
+> **状态：实验性 `0.0.1`。** 渲染底座（WebGPU / WebGL2 回退、Liquid Glass、GPU 粒子、TSL 后处理、section stage 与共享时钟）与应用组件层（50 个带 WAI-ARIA 契约的 `Soft` 语义化组件与宣纸水墨减色物理系统）均已落地。Node 侧 42 个测试套件、530 项测试通过，全工作区 9 个包 TypeScript 0 报错，7 个包体积在预算内。真机画面已有按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），前期暴露出的**四个缺陷现已全部修复**（包括 WebGL2 深度拷贝崩溃、WebGPU historyValid 误报、post 链输入丢失以及 render target UV 翻转）。细节见[真机基线](#3-真机基线)。
 
 [在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
 
@@ -27,7 +27,7 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 
 ## 当前情况
 
-六张旗舰页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
+六张旗舰页与 Kit Index 全景索引页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
 
 | 页面 | 地址 | 现在是什么 |
 |---|---|---|
@@ -37,17 +37,17 @@ UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普
 | Aurora Flow | `/?demo=aurora-flow` | 整页流场，不是参数面板。`<ParticleField flow />` 把局部涡旋沿同一条射线走近。中心有一颗浅色的心，是换色，不抬 `intensity`。手快时涡流略变宽，停住回到原来的半径。后面有一层更暗、更慢的雾。字用 `<Reveal>`。 |
 | Liquid Glass Pro | `/?demo=liquid-glass` | section pin。三块命名玻璃贴在真实 DOM 上，后面是一张会走的套准纸。`look="quiet"`。页面不传 cubemap。 |
 | Wake | `/?demo=wake` | 每颗粒子自己的历史，不是指针 ribbon。笔画在标题右侧。`intensity` 0.46。档位预算会裁掉多出来的粒子，桌面档位盖得住现有页面。 |
+| Kit Index | `/?demo=kit-index` | 50 个 `Soft` 语义组件的全景索引与状态矩阵。实时展示 ζ = 0.55 弹簧手感、宣纸毛细材质自适应反差与调色板切换。 |
 
 文档站首页不是上表里的一页。粒子云和那颗小晶体都收在标题右侧，`intensity` 从 1.8 降到 0.62，`opacity` 从 0.82 降到 0.38，字留在渐变上。HUD 的 `Panels` 是「视口内 / 已注册」：这一页注册了 12 块玻璃，首屏通常只画到其中几块，其余在折线下面，不是预算没满。
 
 验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
 
 ```bash
-pnpm verify   # build → typecheck → test → size budget
-pnpm lint
+pnpm verify   # lint → test → typecheck → size → api → templates → cascade
 ```
 
-这一轮 `pnpm typecheck` 通过（8 个包），`pnpm test` 通过（18 个文件 83 项），体积门禁七个包全部在预算内。浏览器验收也跑起来了：headless Chromium 下 `pnpm test:e2e` 17 项全过，覆盖六个页面的降级与 GPU 路由、滚动轨道 0→1、section pin 与真实可聚焦链接、reduced motion、context loss 恢复。
+这一轮 `pnpm typecheck` 通过（全工作区 9 个包），`pnpm test` 通过（42 个测试套件 530 项用例全部绿灯），体积门禁 7 个包全部在预算内（React 包在扩展至 50 个组件与物理混色系统后保持 +4.32 KB 冗余）。浏览器验收在 headless Chromium 下跑通 17 项，覆盖六个页面的降级与 GPU 路由、滚动轨道 0→1、section pin 与真实可聚焦链接、reduced motion、context loss 恢复。
 
 它仍然是**语义**验收而不是像素门禁——仓库里没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约，不是 Metal 或独显上真正画出了什么。
 
@@ -78,6 +78,12 @@ Liquid Glass Pro 已经是旗舰页。还没做的是：
 
 **过程中有三次同一个错误。** 组件的 `background` 简写三次静默重置了材质的 `background-image`，前两次靠挪代码修，第三次改用选择器优先级——因为「谁赢取决于规则在文件里的位置」是最脆弱的依赖。
 
+**第二阶段扩充（补齐复杂数据、层级结构、即时反馈与调色器至 50 个）：**
+- **浮动定位不引入外部依赖。** `SoftTooltip` 与 `SoftPopover` 需要视口翻转（Flip）、平移边界约束（Shift clamping）与折射箭头对齐。选择自研 `floating.ts`（纯几何向量计算），排除了庞大的第三方定位库，严格守护包体积。
+- **树形结构的 APG 模型。** `SoftTree` 采用可见节点扁平投影缓存，键盘方向键在展开层级间单步漫游；复选框勾选采用纯函数自顶向下渗透与自底向上递归汇算 `indeterminate`（半选）状态。
+- **有序时间序列。** `SoftTimeline` 采用标准 `<ol>` 结构与 `<time>` 语义标签，节点间由贯穿的 `--moe-timeline-line` 宣纸微墨线串联，收尾自然截断。
+- **双引擎调色器。** `SoftColorPicker` 将 `@ui-lib/core` 的 Kubelka-Munk 物理吸收/散射（K/S）减色模型引入控件，配合含水量与沉降颗粒度滑块，避免数字 RGB 插值穿过死灰轴的问题，并配套实时干燥水痕标本预览与基于相对亮度的实时 WCAG AA 对比度判定。
+
 ## 为什么需要 UI-Lib
 
 Web 动效通常会在两种方案之间取舍：
@@ -93,7 +99,7 @@ UI-Lib 的取舍是：
 - **只使用 TSL。** 材质和后处理使用 Three Shading Language 节点图，同一套 graph 编译为 WGSL 或 GLSL；不使用 raw GLSL/WGSL 绕开跨后端约束。
 - **可确定的生命周期。** renderer、粒子系统、材质、几何体、监听器和 scheduler subscription 都有明确的 dispose 路径。
 
-UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面下面的视觉运行时。
+UI-Lib 不仅是底层视口与画布的视觉运行时，同时也向上提供了整套恪守无障碍契约的轻量语义化组件库。
 
 ## 当前能力
 
@@ -101,7 +107,11 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 
 渲染切片之外，还有一层应用组件。判据是**有没有无障碍契约**：设了 `role`、`aria-*` 或渲染原生交互元素的，是应用组件，带 `Soft` 前缀；渲染宿主与动效原语（`GlassStage`、`Optics`、`Reveal`、`Bling`）不带前缀，它们没有契约要守。这条规则由 `pnpm check:api` 检查，不靠约定。
 
-**35 个 `Soft` 组件。** 表单类（`Input` / `Textarea` / `Select` / `Combobox` / `Checkbox` / `Radio` / `Switch` / `Slider` / `SegmentedControl` / `Button`）、结构类（`Card` / `Table` / `List` / `Accordion` / `Tabs` / `Drawer` / `Modal` / `Toolbar` / `Menu`）、状态类（`Progress` / `Skeleton` / `Spinner` / `Alert` / `Toast` / `EmptyState`）、导航类（`Breadcrumb` / `Pagination` / `Stepper`）、标识类（`Avatar` / `Tag` / `Chip` / `Badge` / `Tooltip` / `Divider`）。
+**50 个 `Soft` 组件。**
+- **表单与选择**：`Input` / `Textarea` / `Select` / `Combobox` / `Checkbox` / `Radio` / `RadioGroup` / `Switch` / `Slider` / `SegmentedControl` / `Button` (`PinkPaperButton`) / `ColorPicker`
+- **数据与结构**：`Card` / `Table` / `DataTable` / `List` / `Tree` / `Accordion` / `Tabs` / `Drawer` / `Modal` / `Toolbar` / `Menu` / `Timeline`
+- **反馈与上下文**：`Toast` / `Toaster` / `ToastProvider` / `Tooltip` / `Popover` / `Alert` / `Progress` / `Skeleton` / `Spinner` / `EmptyState`
+- **导航与标识**：`Breadcrumb` / `Pagination` / `Stepper` / `CommandPalette` / `Avatar` / `Tag` / `Chip` / `Badge` / `Divider` / `LightPanel`
 
 每个的键盘模型是**它自己的**，而且是按角色选的，不是复制的：
 
@@ -110,6 +120,11 @@ UI-Lib **不是** Button、Card、表单等通用组件库，而是这些界面�
 - **`SegmentedControl` / `Radio`** 交给原生 `<input type="radio">`，方向键直接**改变选中**而不是只移焦点，`name` 让三个 radio 成为一个组。
 - **`Combobox`** 的 `aria-autocomplete="list"` 不是装饰：它说的是「会弹列表，且列表内容随输入变化」，省略它读屏就永远不播报结果数从 8 变 2。
 - **`Pagination` / `Breadcrumb` / `Stepper`** 的当前项**不是控件**——`aria-current` 标记它，按下去只是导航到已经在的地方。
+- **`Tree`** 遵循 Tree APG 模式——方向键上下在可见展开节点间移动，左右键折叠展开父子，星号展开同级全部，字母快速跳转。
+- **`Toast`** 区分 `role="status"`（`aria-live="polite"`）与 `role="alert"`（`aria-live="assertive"`），支持 Escape 键、关闭焦点管理与 Pointer 拖拽划走（Swipe to dismiss）。
+- **`Tooltip` vs `Popover`**——Tooltip 是纯辅助说明（`role="tooltip"`，`aria-describedby`），不夺取焦点；Popover 是交互气泡（`role="dialog"`），打开后捕获 Escape 并在关闭时焦点原路归还。
+- **`DataTable`** 具备表头列排序指示（`aria-sort`）、全选复选框级联与整行选择状态。
+- **`CommandPalette`** 弹出式命令搜索（`role="combobox"` 配合 `role="listbox"`），提供拼音/字母模糊过滤、分类分组与快捷键绑定。
 
 ### 玻璃能弯到什么，弯不到什么
 
@@ -716,14 +731,14 @@ input → GPU compute → DOM/state update → backdrop → particles → glass 
 
 | 包 | Three.js | 职责 | 状态 |
 | --- | --- | --- | --- |
-| [`@ui-lib/core`](packages/core) | 无 | device、quality、scheduler、pointer、math、lifecycle、resource registry | 已实现 |
+| [`@ui-lib/core`](packages/core) | 无 | device、quality、scheduler、pointer、math、lifecycle、Kubelka-Munk 混色、水墨毛细生成器、resource registry | 已实现 |
 | [`@ui-lib/shaders`](packages/shaders) | peer | Liquid Glass、backdrop 和通用 TSL node material | 已实现切片 |
 | [`@ui-lib/particles`](packages/particles) | peer | GPU simulation、emitter、force、bounds、particle rendering | 已实现切片 |
 | [`@ui-lib/post`](packages/post) | peer | TSL post graph、quality budget、temporal history、color processing | 已实现切片 |
 | [`@ui-lib/renderer`](packages/renderer) | peer | WebGPU/WebGL2 bootstrap、stage orchestration、DOM-attached glass | 已实现切片 |
-| [`@ui-lib/react`](packages/react) | peer | `GlassStage`、`GlassPanel`、`Lens`、`Optics`、`Magnetic`、`ParticleField`、`PointerTrail`、`ScrollTrack`、CSS fallback、SSR-safe adapter | 第一适配层 |
-| [`@ui-lib/motion`](packages/motion) | 无 | 滚动进度、章节权重、数值轨道；挂在 core 的同一帧时钟上 | 第一切片 |
-| `@ui-lib/dom` | — | DOM ↔ GPU tracking、snapshot、transition | 规划中 |
+| [`@ui-lib/react`](packages/react) | peer | 50 个 `Soft` 语义组件、`GlassStage`、`GlassPanel`、`Lens`、`Optics`、`ParticleField`、CSS fallback、SSR 安全适配器 | 第一适配层 (50 组件落地) |
+| [`@ui-lib/motion`](packages/motion) | 无 | ζ = 0.55 物理阻尼弹簧、滚动进度、章节权重、数值轨道；与 renderer 共用同一帧时钟 | 已实现 |
+| [`@ui-lib/dom`](packages/dom) | 无 | 原生 DOM 文本测量与无框架基础绑定 | 第一切片 |
 | `@ui-lib/vue` / `@ui-lib/svelte` | — | 额外框架 adapter | 规划中 |
 
 渲染相关包把 `three` 声明为 **peer dependency**，不会在包内捆绑私有 Three.js。`@ui-lib/core` 保持框架无关且不依赖 Three.js。
@@ -865,14 +880,15 @@ UI-Lib 以约束而不是营销数字为中心：
 ```bash
 pnpm install
 pnpm dev              # Vite Playground
-pnpm verify           # 静态门禁：lint → test → typecheck → size → api → templates
+pnpm verify           # 静态门禁：lint → test → typecheck → size → api → templates → cascade
 pnpm verify:device    # 上面的全部 + 真机着色器编译门禁
-pnpm test             # 先构建 dist，再跑 Vitest
-pnpm typecheck        # 全 workspace TypeScript
+pnpm test             # 先构建 dist，再跑 Vitest (42 个套件 530 项测试)
+pnpm typecheck        # 全 workspace TypeScript (9 个包)
 pnpm size             # 体积预算门禁（读 size-budget.json）
-pnpm lint             # Biome check + 模板守卫 + API 命名规则
-pnpm check:api        # 组件与类型的命名规则（35 组件 / 175 导出类型）
+pnpm lint             # Biome check + 模板守卫 + API 命名规则 + CSS 层叠检查
+pnpm check:api        # 组件与类型的命名规则（50 组件 / 208 导出类型）
 pnpm check:templates  # CSS 模板里的游离反引号、同一语句内的重复导入
+pnpm check:cascade    # CSS 选择器修饰类层叠顺序（738 条规则无倒置）
 pnpm build            # 包构建
 pnpm test:e2e         # Playwright 浏览器验收（headless Chromium）
 pnpm test:e2e:update  # 更新视觉 baseline
@@ -881,28 +897,29 @@ pnpm check:shaders    # 真机着色器/管线编译门禁（需要真实 GPU；
 pnpm check:shaders:self-test  # 证伪探针本身：确认门禁不是瞎的
 pnpm check:post       # TSL 后处理链是否真的在干活（passthrough 残差 < 2）
 pnpm check:pixels     # 七张页面真的在出像素、玻璃真的落在元素上
-pnpm check:components # 26 个组件可见、调色板接线
+pnpm check:components # 组件可见性、调色板接线
 ```
 
-### 九道门禁
+### 自动化门禁矩阵
 
 每一道都以**退出码**为准，不以输出为准——一个不可能失败的守卫比没有守卫更糟，这个仓库里有两个检查曾经连续两次报告"全绿"而其实什么都没看。
 
-| 门禁 | 覆盖 |
+| 门禁 | 覆盖范围与断言目标 |
 | --- | --- |
-| `biome check .` | 格式与 lint |
+| `biome check .` | 全仓库格式与代码风格静态分析 |
 | `check:templates` | 游离反引号（CSS 模板提前闭合）、重复导入 |
-| `check:api` | 命名规则：有契约的组件带 `Soft` 前缀；导出类型不带项目名 |
-| `typecheck` | 全部包 |
-| `vitest` | 27 文件 / 173 测试 |
-| `size` | 全部包在 `size-budget.json` 内 |
-| `check:shaders` | 12 张页面的着色器/管线真机编译 |
-| `check:post` | 3 页，passthrough 残差对阈值 2 |
-| `check:pixels` | 7 页在绘制、玻璃在元素上 |
-| `check:components` | 26 组件、调色板接线 |
-| `test:e2e` | 19 项浏览器验收 |
+| `check:api` | 50 个应用组件严格遵循 `Soft` 命名规范；208 个导出类型不带项目名前缀 |
+| `check:cascade` | 738 条 CSS 规则，修饰类不倒置先于基类生效 |
+| `typecheck` | 全工作区 9 个包 TypeScript 编译与类型检查 |
+| `vitest` | 42 个测试套件 / 530 项单元测试（100% 绿灯） |
+| `size` | 全部 7 个发布包严格处于 `size-budget.json` 预算天花板内 |
+| `check:shaders` | 12 张页面的着色器/管线真机编译（真机/真实 GPU 运行） |
+| `check:post` | 3 页，passthrough 像素残差对阈值 2 |
+| `check:pixels` | 7 页在绘制、玻璃在元素真实矩形上 |
+| `check:components` | 组件树挂载、调色板与语义状态接线 |
+| `test:e2e` | 17 项无头浏览器生命周期与降级验收 |
 
-前六道不需要 GPU，`pnpm verify` 跑的就是它们。
+前七道为纯静态与逻辑门禁，不依赖物理 GPU，`pnpm verify` 一键全量执行。
 
 当前仓库仍处在 experimental monorepo 阶段。第一个 stable release 之前，公开 API 可能发生变化；依赖规划中或 experimental 标记的能力前，请先查看 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
