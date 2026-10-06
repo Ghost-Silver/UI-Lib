@@ -9,6 +9,7 @@ import {
 	SoftCard,
 	SoftCheckbox,
 	SoftChip,
+	SoftColorPicker,
 	type SoftCommandItem,
 	SoftCommandPalette,
 	SoftDataTable,
@@ -162,6 +163,7 @@ export function KitIndexPage() {
 
 	const [paletteOpen, setPaletteOpen] = useState(false);
 	const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set(["crystal", "dew"]));
+	const [customColor, setCustomColor] = useState("#8b5cf6");
 
 	const paletteCommands: SoftCommandItem[] = [
 		{
@@ -1322,9 +1324,19 @@ export function KitIndexPage() {
 										},
 										{
 											key: "react",
-											label: "react (49 个语义化组件)",
+											label: "react (50 个语义化组件)",
 											children: [
 												{ key: "index", label: "index.ts", isLeaf: true },
+												{
+													key: "colorPicker",
+													label: "SoftColorPicker.tsx",
+													isLeaf: true,
+													badge: (
+														<SoftTag tone="blossom" variant="soft">
+															第50个
+														</SoftTag>
+													),
+												},
 												{
 													key: "tree",
 													label: "SoftTree.tsx",
@@ -1446,12 +1458,45 @@ export function KitIndexPage() {
 								},
 								{
 									key: "tree",
-									title: "49 个语义化 Soft 组件",
+									title: "50 个语义化 Soft 组件",
 									description: "全键盘 WAI-ARIA 漫游与 ζ = 0.55 物理阻尼弹簧驱动",
 									timestamp: "11:00",
-									status: "processing",
+									status: "completed",
 								},
 							]}
+						/>
+					</div>
+
+					<div
+						style={{
+							padding: "16px",
+							borderRadius: "12px",
+							background: "rgba(255, 255, 255, 0.45)",
+							border: "1px solid rgba(0, 0, 0, 0.08)",
+							display: "flex",
+							flexDirection: "column",
+							gap: "14px",
+						}}
+					>
+						<div
+							style={{
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+							}}
+						>
+							<h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
+								宣纸水彩调色器 (SoftColorPicker)
+							</h3>
+							<SoftBadge status="success" text="第50号里程碑" />
+						</div>
+						<SoftColorPicker
+							label="水墨与数字调色器"
+							tone={tone}
+							value={customColor}
+							onChange={(hex) => setCustomColor(hex)}
+							showSpecimen
+							showPresets
 						/>
 					</div>
 				</div>

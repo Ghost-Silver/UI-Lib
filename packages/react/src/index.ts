@@ -113,6 +113,8 @@ export type { SoftChipProps, SoftStep, SoftStepperProps } from "./SoftChipSteppe
 export { SoftChip, SoftStepper } from "./SoftChipStepper.js";
 export type { SoftCheckboxProps, SoftRadioGroupProps, SoftRadioProps } from "./SoftChoice.js";
 export { SoftCheckbox, SoftRadio, SoftRadioGroup } from "./SoftChoice.js";
+export type { SoftColorPickerMode, SoftColorPickerProps } from "./SoftColorPicker.js";
+export { SoftColorPicker } from "./SoftColorPicker.js";
 export type { SoftComboboxOption, SoftComboboxProps } from "./SoftCombobox.js";
 export { SoftCombobox } from "./SoftCombobox.js";
 export type { SoftCommandItem, SoftCommandPaletteProps } from "./SoftCommandPalette.js";

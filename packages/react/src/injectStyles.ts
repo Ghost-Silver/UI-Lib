@@ -7159,6 +7159,233 @@ const CSS = `
 .ui-lib-soft-timeline__extra {
 	margin-top: 8px;
 }
+
+/* =========================================================================
+   SoftColorPicker: physical watercolor pigment mixer and optical color picker
+   ========================================================================= */
+
+.ui-lib-soft-color-picker {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 18px;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.72);
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.08);
+	font-family: inherit;
+	color: var(--moe-text, #1e1e24);
+	max-width: 440px;
+}
+
+.ui-lib-soft-color-picker__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.ui-lib-soft-color-picker__title {
+	font-size: 0.95rem;
+	font-weight: 600;
+}
+
+.ui-lib-soft-color-picker__modes {
+	display: inline-flex;
+	padding: 3px;
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.05);
+	gap: 2px;
+}
+
+.ui-lib-soft-color-picker__mode-btn {
+	padding: 4px 10px;
+	font-size: 0.78rem;
+	font-weight: 500;
+	border: none;
+	border-radius: 6px;
+	background: transparent;
+	color: rgba(0, 0, 0, 0.6);
+	cursor: pointer;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ui-lib-soft-color-picker__mode-btn:hover {
+	color: rgba(0, 0, 0, 0.9);
+}
+
+.ui-lib-soft-color-picker__mode-btn--active {
+	background: #ffffff;
+	color: #4f46e5;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	font-weight: 600;
+}
+
+.ui-lib-soft-color-picker__body {
+	display: flex;
+	gap: 18px;
+	align-items: center;
+}
+
+.ui-lib-soft-color-picker__specimen-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	flex-shrink: 0;
+}
+
+.ui-lib-soft-color-picker__specimen {
+	position: relative;
+	width: 90px;
+	height: 90px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 35% 35%, var(--specimen-color), rgba(0, 0, 0, 0.2));
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.08),
+		0 8px 24px -4px rgba(0, 0, 0, 0.18);
+	overflow: hidden;
+}
+
+.ui-lib-soft-color-picker__specimen-rim {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	border: 3px solid var(--specimen-color);
+	filter: blur(1px);
+	opacity: 0.85;
+}
+
+.ui-lib-soft-color-picker__specimen-core {
+	position: absolute;
+	inset: 8px;
+	border-radius: 50%;
+	background: var(--specimen-color);
+	filter: blur(var(--specimen-bleed, 8px));
+	opacity: 0.9;
+}
+
+.ui-lib-soft-color-picker__specimen-glass {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 55%);
+}
+
+.ui-lib-soft-color-picker__specimen-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+.ui-lib-soft-color-picker__hex-badge {
+	font-family: monospace;
+	font-size: 0.85rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+.ui-lib-soft-color-picker__contrast-badge {
+	font-size: 0.7rem;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: rgba(0, 0, 0, 0.06);
+	color: rgba(0, 0, 0, 0.55);
+}
+
+.ui-lib-soft-color-picker__contrast-badge--pass {
+	background: rgba(16, 185, 129, 0.12);
+	color: #059669;
+	font-weight: 600;
+}
+
+.ui-lib-soft-color-picker__controls {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.ui-lib-soft-color-picker__wash-sliders,
+.ui-lib-soft-color-picker__digital-sliders {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.ui-lib-soft-color-picker__slider-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.ui-lib-soft-color-picker__slider-label {
+	display: flex;
+	justify-content: space-between;
+	font-size: 0.78rem;
+	color: rgba(0, 0, 0, 0.65);
+}
+
+.ui-lib-soft-color-picker__slider-val {
+	font-weight: 600;
+	color: rgba(0, 0, 0, 0.85);
+}
+
+.ui-lib-soft-color-picker__range {
+	width: 100%;
+	height: 6px;
+	border-radius: 3px;
+	accent-color: #4f46e5;
+	cursor: pointer;
+}
+
+.ui-lib-soft-color-picker__range--hue {
+	background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.ui-lib-soft-color-picker__presets {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.ui-lib-soft-color-picker__presets-title {
+	font-size: 0.78rem;
+	color: rgba(0, 0, 0, 0.55);
+}
+
+.ui-lib-soft-color-picker__swatches {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 6px;
+}
+
+.ui-lib-soft-color-picker__swatch {
+	position: relative;
+	width: 100%;
+	height: 24px;
+	border-radius: 6px;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #ffffff;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-lib-soft-color-picker__swatch:hover {
+	transform: scale(1.08);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.ui-lib-soft-color-picker__swatch--active {
+	box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #4f46e5;
+}
 `;
 
 /**
