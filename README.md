@@ -1,27 +1,28 @@
+<div align="center">
+
 # UI-Lib
 
-<p align="center">
-  <b>GPU-First Visual Effects Runtime & 50 Semantic Soft Components with Physical Watercolor for the Web</b><br>
-  面向 Web 的 GPU 优先动效视觉运行时 · 物理宣纸水墨渲染 · 50 个高阶语义化 Soft 无障碍组件
-</p>
+**GPU-First Visual Effects Runtime & 50 Semantic Soft Components with Physical Watercolor for the Web**
 
-<p align="center">
-  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square" alt="Build Passing" /></a>
-  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/tests-530%2F530%20passed-brightgreen.svg?style=flat-square" alt="Tests Passed" /></a>
-  <a href="docs/components/README.md"><img src="https://img.shields.io/badge/components-50%20Soft-ff69b4.svg?style=flat-square" alt="Soft Components" /></a>
-  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/TypeScript-Strict-blue.svg?style=flat-square" alt="TypeScript Strict" /></a>
-  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/backends-WebGPU%20%7C%20WebGL2%20%7C%20CSS-blueviolet.svg?style=flat-square" alt="Backends" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square" alt="License: MIT" /></a>
-</p>
+面向 Web 的 GPU 优先动效视觉运行时 · 物理宣纸水墨渲染 · 50 个高阶语义化 Soft 无障碍组件
+
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square)](#质量门禁)
+[![Tests Passed](https://img.shields.io/badge/tests-530%2F530%20passed-brightgreen.svg?style=flat-square)](#质量门禁)
+[![Soft Components](https://img.shields.io/badge/components-50%20Soft-ff69b4.svg?style=flat-square)](docs/components/README.md)
+[![TypeScript Strict](https://img.shields.io/badge/TypeScript-Strict-blue.svg?style=flat-square)](#质量门禁)
+[![Backends](https://img.shields.io/badge/backends-WebGPU%20%7C%20WebGL2%20%7C%20CSS%20Fallback-blueviolet.svg?style=flat-square)](#架构体系)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 <p align="center">
   <a href="#在线演示">在线演示</a> &nbsp;·&nbsp;
   <a href="#快速上手">快速上手</a> &nbsp;·&nbsp;
-  <a href="#双支柱架构体系">双支柱架构</a> &nbsp;·&nbsp;
-  <a href="#50-个-soft-语义组件图谱">组件图谱</a> &nbsp;·&nbsp;
-  <a href="#质量门禁矩阵">质量门禁</a> &nbsp;·&nbsp;
-  <a href="#深度技术文档">深度文档</a>
+  <a href="#组件图谱">组件图谱</a> &nbsp;·&nbsp;
+  <a href="#架构体系">架构体系</a> &nbsp;·&nbsp;
+  <a href="#质量门禁">质量门禁</a> &nbsp;·&nbsp;
+  <a href="#深度文档">深度文档</a>
 </p>
+
+</div>
 
 ---
 
@@ -35,9 +36,9 @@ UI-Lib 将实时液态玻璃（Liquid Glass）、GPU 粒子模拟、3D 光学世
 
 七大旗舰交互展示页已完成静态构建并部署上线：
 
-**https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run**
+> **在线预览实例**：`https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run`（亦可通过 `pnpm dev` 在 `http://localhost:5173` 本地体验）
 
-| 演示项目 | 在线链接 | 场景与核心技术特征 |
+| 演示项目 | 访问路径 | 场景与核心技术特征 |
 |---|---|---|
 | **Liquid Glass Pro** | [`/?demo=liquid-glass`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=liquid-glass) | Section Pin 钉住，真实 DOM 绑定液态玻璃，屏幕空间折射与 RGB 色散，背景走纸校对 |
 | **Lumen** | [`/?demo=product-hero`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=product-hero) | 产品展示旗舰页，相机平滑轨道，`look="product"`，安静的工作室环境光反射探针 |
@@ -51,76 +52,11 @@ UI-Lib 将实时液态玻璃（Liquid Glass）、GPU 粒子模拟、3D 光学世
 
 ---
 
-## 双支柱架构体系
-
-```text
-                  ┌───────────────────────────────────────────────┐
-                  │          语义化 DOM / 现代前端应用             │
-                  └───────────────────────┬───────────────────────┘
-                                          │
-                   ┌──────────────────────┴──────────────────────┐
-                   ▼                                             ▼
-       【支柱 1：GPU 视觉效果运行时】               【支柱 2：宣纸水墨与 50 个 Soft 组件】
-  ┌─────────────────────────────────┐           ┌─────────────────────────────────┐
-  │   @ui-lib/renderer (共享舞台)   │           │    50 个语义组件 (@ui-lib/react) │
-  │   - 单一 Canvas / 单一 Renderer │           │    - 严格遵循 WAI-ARIA APG      │
-  │   - Viewport / Section Stage    │           │    - 完整键盘模型与焦点捕获闭环  │
-  ├─────────────────────────────────┤           ├─────────────────────────────────┤
-  │   渲染图层与材质 (@ui-lib/shaders)│           │    宣纸水彩物理 (@ui-lib/core)   │
-  │   - 实时 Liquid Glass 折射/色散 │           │    - Kubelka-Munk 物理减色混色  │
-  │   - GPU Compute 粒子模拟系统    │           │    - 宣纸毛细管浸润扩散生成器   │
-  ├─────────────────────────────────┤           ├─────────────────────────────────┤
-  │   TSL 后处理管线 (@ui-lib/post) │           │    物理动效手感 (@ui-lib/motion) │
-  │   - Bloom / 色散 / 运动重投影   │           │    - ζ = 0.55 黄金欠阻尼微交互  │
-  │   - WebGPU / WebGL2 统一 Node 图│           │    - 自适应 --moe-on-material   │
-  └─────────────────────────────────┘           └─────────────────────────────────┘
-```
-
-### 支柱 1：GPU 视觉效果运行时
-
-1. **DOM 仍然是 DOM**：所有文字、输入框、链接与语义布局完全保留在普通 HTML 文档树中，不以全屏 Canvas 绑架用户体验。
-2. **单一共享渲染实例**：全页共用一个 canvas、一个 renderer 和一个 `FrameScheduler`，杜绝多个 requestAnimationFrame 循环与 WebGPU 上下文超限。
-3. **渐进增强与全自动降级**：
-   - 优先激活高性能 WebGPU Compute 路径；
-   - 自动回退至 WebGL2 Transform Feedback 与 TSL 编译管线；
-   - 无 GPU 或用户配置 `prefers-reduced-motion` 时，平滑切换至轻量 CSS `backdrop-filter` 静态形态。
-4. **全链路纯 TSL（Three Shading Language）**：所有着色器与后处理均通过 TSL 节点图构建，同一套 Graph 跨后端自动转译为 WGSL 或 GLSL，绝不依赖裸语言规避约束。
-5. **确定性生命周期治理**：显式追踪所有 Buffer、RenderTarget、粒子系统与事件监听，杜绝内存泄漏。
-
-### 支柱 2：宣纸水墨物理与 50 个 Soft 语义组件
-
-1. **Kubelka-Munk 物理减色混色模型**：
-   传统前端的数字 RGB 插值（如 CSS `color-mix`）在互补色相交时会穿过发暗的“死灰轴（Dead Grey Mud Axis）”。UI-Lib 在 `@ui-lib/core` 中实现了基于物理吸收与散射系数（$K/S$）的减色融合，呈现温润通透的东方水彩质感。
-2. **宣纸毛细管浸润微结构（Capillary Wash）**：
-   通过分形扰动参数与程序化流体方程生成宣纸边缘沉积水痕，支持 `wash`（浓彩）、`tint`（淡染）与 `plain`（素面）三种材质层级。
-3. **50 个遵守 WAI-ARIA APG 的高阶组件**：
-   拒绝无语义的 `div` 堆砌。涵盖树形导航、多列排序网格、命令面板等复杂形态，具备完整的键盘漫游、读屏器标记与焦点管理。
-4. **$\zeta = 0.55$ 物理阻尼手感**：
-   组件按下、回弹与拖拽微交互严格遵照二阶微分阻尼方程，微欠阻尼手感灵动自然；系统要求减弱动效时位移瞬时归零。
-5. **动态基底对比度适配**：
-   内置 `computeEffectiveGroundLuminance`，能实时汇算湿水痕基底的相对明度，动态调节 `--moe-on-material` 文字前景色，坚守 WCAG AA 级可访问性反差标准。
-
----
-
-## 50 个 Soft 语义组件图谱
-
-组件库包含 50 个带有无障碍契约的应用组件，分为 5 大核心维度。完整键盘快捷键、焦点契约与属性规范请阅读 [**Soft 组件规范与 WAI-ARIA 体系指南**](docs/components/README.md)。
-
-| 维度 | 包含组件与说明 | 核心 WAI-ARIA 契约 |
-|---|---|---|
-| **表单与选择**<br>*(12 Components)* | `SoftButton`, `SoftInput`, `SoftTextarea`, `SoftSelect`, `SoftCombobox`, `SoftCheckbox`, `SoftRadio`, `SoftRadioGroup`, `SoftSwitch`, `SoftSlider`, `SoftSegmentedControl`, `SoftColorPicker` | `role="button"`, `role="combobox"`, `role="listbox"`, `role="switch"`, `role="slider"`, `role="radiogroup"`, `aria-activedescendant`, `aria-checked` |
-| **数据与结构**<br>*(12 Components)* | `SoftCard`, `SoftTable`, `SoftDataTable`, `SoftList`, `SoftTree`, `SoftAccordion`, `SoftTabs`, `SoftDrawer`, `SoftModal`, `SoftToolbar`, `SoftMenu`, `SoftTimeline` | `role="tree"`, `role="treeitem"`, `role="dialog"`, `role="toolbar"`, `role="tablist"`, `aria-sort`, `aria-modal="true"`, 焦点陷阱 (Focus Trap) |
-| **反馈与上下文**<br>*(10 Components)* | `SoftToast`, `SoftToaster`, `SoftToastProvider`, `SoftTooltip`, `SoftPopover`, `SoftAlert`, `SoftProgress`, `SoftSkeleton`, `SoftSpinner`, `SoftEmptyState` | `role="status"` / `role="alert"` 动态活区 (`aria-live`), `role="tooltip"` (不抢焦点), `role="progressbar"`, Swipe-to-dismiss 手势划走 |
-| **导航与控制**<br>*(8 Components)* | `SoftBreadcrumb`, `SoftPagination`, `SoftStepper`, `SoftCommandPalette`, `SoftFloating`, `SoftOverlay`, `SoftNavigation`, `SoftChipStepper` | `<nav>` 地标导航, `aria-current="page"|"step"`, 纯几何向量自研浮动引擎 (Flip / Shift clamping), Cmd+K 搜索 |
-| **标识与表面**<br>*(8 Components)* | `SoftAvatar`, `SoftTag`, `SoftChip`, `SoftBadge`, `SoftDivider`, `SoftLightPanel`, `BubbleBadge`, `WatercolorBoard` | `role="img"`, `role="separator"`, 可交互筛选胶囊 (`aria-pressed`), 状态数值播报, 真实倒角微毛玻璃背板 |
-
----
-
 ## 快速上手
 
 ### 环境要求
 - Node.js `>=20.19`
-- pnpm `12.x`
+- pnpm `>=10.0`
 - 硬件加速支持：WebGPU 或 WebGL2 兼容浏览器
 
 ### 1. GPU 渲染层：液态玻璃与折射舞台
@@ -223,6 +159,71 @@ export function DesignWorkbench() {
 
 ---
 
+## 组件图谱
+
+UI-Lib 交付了一套完整的 50 个带有无障碍契约的高阶语义化应用组件（`Soft` 系列），分为 5 大维度。点击组件名即可直达 [**Soft 组件规范与 WAI-ARIA 体系指南**](docs/components/README.md) 查看键盘模型与属性规范：
+
+| 维度 | 包含组件（点击直达规范） | 核心 WAI-ARIA 契约与交互行为 |
+|---|---|---|
+| **表单与选择**<br>*(12 Components)* | [`SoftButton`](docs/components/README.md#softbutton) · [`SoftInput`](docs/components/README.md#softinput) · [`SoftTextarea`](docs/components/README.md#softtextarea) · [`SoftSelect`](docs/components/README.md#softselect) · [`SoftCombobox`](docs/components/README.md#softcombobox) · [`SoftCheckbox`](docs/components/README.md#softcheckbox) · [`SoftRadio`](docs/components/README.md#softradio) · [`SoftRadioGroup`](docs/components/README.md#softradiogroup) · [`SoftSwitch`](docs/components/README.md#softswitch) · [`SoftSlider`](docs/components/README.md#softslider) · [`SoftSegmentedControl`](docs/components/README.md#softsegmentedcontrol) · [`SoftColorPicker`](docs/components/README.md#softcolorpicker) | `role="button"`, `role="combobox"`, `role="listbox"`, `role="switch"`, `role="slider"`, `role="radiogroup"`, `aria-activedescendant`, `aria-checked`, Kubelka-Munk 物理减色调色盘 |
+| **数据与结构**<br>*(12 Components)* | [`SoftCard`](docs/components/README.md#softcard) · [`SoftTable`](docs/components/README.md#softtable) · [`SoftDataTable`](docs/components/README.md#softdatatable) · [`SoftList`](docs/components/README.md#softlist) · [`SoftTree`](docs/components/README.md#softtree) · [`SoftAccordion`](docs/components/README.md#softaccordion) · [`SoftTabs`](docs/components/README.md#softtabs) · [`SoftDrawer`](docs/components/README.md#softdrawer) · [`SoftModal`](docs/components/README.md#softmodal) · [`SoftToolbar`](docs/components/README.md#softtoolbar) · [`SoftMenu`](docs/components/README.md#softmenu) · [`SoftTimeline`](docs/components/README.md#softtimeline) | `role="tree"`, `role="treeitem"`, `role="dialog"`, `role="toolbar"`, `role="tablist"`, `aria-sort`, `aria-modal="true"`, Tree APG 展开投影与多选级联，焦点陷阱 (Focus Trap) |
+| **反馈与上下文**<br>*(10 Components)* | [`SoftToast`](docs/components/README.md#softtoast) · [`SoftToaster`](docs/components/README.md#softtoaster) · [`SoftToastProvider`](docs/components/README.md#softtoastprovider) · [`SoftTooltip`](docs/components/README.md#softtooltip) · [`SoftPopover`](docs/components/README.md#softpopover) · [`SoftAlert`](docs/components/README.md#softalert) · [`SoftProgress`](docs/components/README.md#softprogress) · [`SoftSkeleton`](docs/components/README.md#softskeleton) · [`SoftSpinner`](docs/components/README.md#softspinner) · [`SoftEmptyState`](docs/components/README.md#softemptystate) | `role="status"` / `role="alert"` 动态活区 (`aria-live`), `role="tooltip"` (严格不争夺焦点), `role="progressbar"`, Swipe-to-dismiss 手势划走与队列调度 |
+| **导航与控制**<br>*(8 Components)* | [`SoftBreadcrumb`](docs/components/README.md#softbreadcrumb) · [`SoftPagination`](docs/components/README.md#softpagination) · [`SoftStepper`](docs/components/README.md#softstepper) · [`SoftCommandPalette`](docs/components/README.md#softcommandpalette) · [`SoftFloating`](docs/components/README.md#softfloating) · [`SoftOverlay`](docs/components/README.md#softoverlay) · [`SoftNavigation`](docs/components/README.md#softnavigation) · [`SoftChipStepper`](docs/components/README.md#softchipstepper) | `<nav>` 地标导航, `aria-current="page"|"step"`, 纯几何向量自研浮动引擎 (Flip / Shift clamping), Cmd+K 全局搜索与模糊过滤 |
+| **标识与表面**<br>*(8 Components)* | [`SoftAvatar`](docs/components/README.md#softavatar) · [`SoftTag`](docs/components/README.md#softtag) · [`SoftChip`](docs/components/README.md#softchip) · [`SoftBadge`](docs/components/README.md#softbadge) · [`SoftDivider`](docs/components/README.md#softdivider) · [`SoftLightPanel`](docs/components/README.md#softlightpanel) · [`BubbleBadge`](docs/components/README.md#bubblebadge) · [`WatercolorBoard`](docs/components/README.md#watercolorboard) | `role="img"`, `role="separator"`, 可交互筛选胶囊 (`aria-pressed`), 状态数值播报, 真实倒角微毛玻璃背板, 全景毛细水痕底板 |
+
+---
+
+## 架构体系
+
+```text
+                  ┌───────────────────────────────────────────────┐
+                  │          语义化 DOM / 现代前端应用             │
+                  └───────────────────────┬───────────────────────┘
+                                          │
+                   ┌──────────────────────┴──────────────────────┐
+                   ▼                                             ▼
+       【支柱 1：GPU 视觉效果运行时】               【支柱 2：宣纸水墨与 50 个 Soft 组件】
+  ┌─────────────────────────────────┐           ┌─────────────────────────────────┐
+  │   @ui-lib/renderer (共享舞台)   │           │    50 个语义组件 (@ui-lib/react) │
+  │   - 单一 Canvas / 单一 Renderer │           │    - 严格遵循 WAI-ARIA APG      │
+  │   - Viewport / Section Stage    │           │    - 完整键盘模型与焦点捕获闭环  │
+  ├─────────────────────────────────┤           ├─────────────────────────────────┤
+  │   渲染图层与材质 (@ui-lib/shaders)│           │    宣纸水彩物理 (@ui-lib/core)   │
+  │   - 实时 Liquid Glass 折射/色散 │           │    - Kubelka-Munk 物理减色混色  │
+  │   - GPU Compute 粒子模拟系统    │           │    - 宣纸毛细管浸润扩散生成器   │
+  ├─────────────────────────────────┤           ├─────────────────────────────────┤
+  │   TSL 后处理管线 (@ui-lib/post) │           │    物理动效手感 (@ui-lib/motion) │
+  │   - Bloom / 色散 / 运动重投影   │           │    - ζ = 0.55 黄金欠阻尼微交互  │
+  │   - WebGPU / WebGL2 统一 Node 图│           │    - 自适应 --moe-on-material   │
+  └─────────────────────────────────┘           └─────────────────────────────────┘
+```
+
+### 支柱 1：GPU 视觉效果运行时
+
+1. **DOM 仍然是 DOM**：所有文字、输入框、链接与语义布局完全保留在普通 HTML 文档树中，不以全屏 Canvas 绑架用户体验。
+2. **单一共享渲染实例**：全页共用一个 canvas、一个 renderer 和一个 `FrameScheduler`，杜绝多个 requestAnimationFrame 循环与 WebGPU 上下文超限。
+3. **渐进增强与全自动降级**：
+   - 优先激活高性能 WebGPU Compute 路径；
+   - 自动回退至 WebGL2 Transform Feedback 与 TSL 编译管线；
+   - 无 GPU 或用户配置 `prefers-reduced-motion` 时，平滑切换至轻量 CSS `backdrop-filter` 静态形态。
+4. **全链路纯 TSL（Three Shading Language）**：所有着色器与后处理均通过 TSL 节点图构建，同一套 Graph 跨后端自动转译为 WGSL 或 GLSL，绝不依赖裸语言规避约束。
+5. **确定性生命周期治理**：显式追踪所有 Buffer、RenderTarget、粒子系统与事件监听，杜绝内存泄漏。
+
+### 支柱 2：宣纸水墨物理与 50 个 Soft 语义组件
+
+1. **Kubelka-Munk 物理减色混色模型**：
+   传统前端的数字 RGB 插值（如 CSS `color-mix`）在互补色相交时会穿过发暗的“死灰轴（Dead Grey Mud Axis）”。UI-Lib 在 `@ui-lib/core` 中实现了基于物理吸收与散射系数（$K/S$）的减色融合，呈现温润通透的东方水彩质感。
+2. **宣纸毛细管浸润微结构（Capillary Wash）**：
+   通过分形扰动参数与程序化流体方程生成宣纸边缘沉积水痕，支持 `wash`（浓彩）、`tint`（淡染）与 `plain`（素面）三种材质层级。
+3. **50 个遵守 WAI-ARIA APG 的高阶组件**：
+   拒绝无语义的 `div` 堆砌。涵盖树形导航、多列排序网格、命令面板等复杂形态，具备完整的键盘漫游、读屏器标记与焦点管理。
+4. **$\zeta = 0.55$ 物理阻尼手感**：
+   组件按下、回弹与拖拽微交互严格遵照二阶微分阻尼方程，微欠阻尼手感灵动自然；系统要求减弱动效时位移瞬时归零。
+5. **动态基底对比度适配**：
+   内置 `computeEffectiveGroundLuminance`，能实时汇算湿水痕基底的相对明度，动态调节 `--moe-on-material` 文字前景色，坚守 WCAG AA 级可访问性反差标准。
+
+---
+
 ## 工作区包结构
 
 仓库由 8 个高内聚、低耦合的子包组成，整体采用 MIT 开源协议：
@@ -242,7 +243,7 @@ export function DesignWorkbench() {
 
 ---
 
-## 质量门禁矩阵
+## 质量门禁
 
 UI-Lib 秉持**以可证伪的退出码为准**的自动化质量体系。全套门禁严格杜绝“永远全绿的瞎探针”，分为静态逻辑门禁与真机物理图形门禁：
 
@@ -268,7 +269,7 @@ pnpm verify:device   # 静态门禁 + 真机 WebGPU/WebGL2 着色器与管线编
 
 ---
 
-## 深度技术文档
+## 深度文档
 
 - 📘 [**渲染管线缺陷剖析与真机调试复盘**](docs/internals/render-pipeline-debugging.md)：深度复盘 WebGL2 深度拷贝崩溃、WebGPU historyValid 误报、Post 链静默空转、自有 Render Target UV 翻转 4 大底层 Bug 的排查全过程，以及 CrystalText 剔除/双重 Alpha 故障与图形度量方法学。
 - 📗 [**Soft 组件规范与 WAI-ARIA 体系指南**](docs/components/README.md)：详述 50 个 Soft 组件的角色定义、WAI-ARIA APG 键盘模型、焦点管理闭环与 $\zeta = 0.55$ 物理阻尼微交互规范。

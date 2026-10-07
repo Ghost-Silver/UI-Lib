@@ -144,3 +144,62 @@ UI-Lib 的 `CrystalText` 组件将文字渲染为 3D 空间内的距离场（SDF
    若同时隐藏多个对称分布的面板，在居中对称布局下，镜像错误会映射到自身并产生欺骗性的重合度。必须逐个面板单点激活测试。
 4. **禁止依赖绝对阈值扫描**：
    环境光和色散造成的像素级扰动与微弱信号在绝对灰度阈值上高度重合，只有使用无量纲的比值指标才能形成稳定的二值判定门禁。
+
+---
+
+## 4. 平台档位预算与面板上限治理（maxPanels Advisory vs Enforcement）
+
+### 4.1 故障现象与现状
+
+- `QUALITY_PRESETS` 为每个硬件档位（Tier 0–3）声明了 `maxPanels` 上限约束。
+- 然而早期实现中，`register()` 面板超限时仅在控制台打印一条警告：“`new panel will not render`”，但底层实际上照常创建、分配 Render Target 并参与每帧渲染。
+- 警告信息与真实渲染行为脱节，且缺乏程序化可检测的度量指标。
+
+### 4.2 为什么未在初期立即强行截断
+
+- 在无头浏览器（Headless）测试与低配设备上，系统稳定判定为 Tier 1（`maxPanels = 8`）。
+- 但在全景 Playground 等集成展示场景中，页面往往挂载了 12 个以上的玻璃面板。
+- 若在未建立逐页视口几何遮挡剔除前直接硬性抛弃超额面板，会导致关键 UI 面板在低配或 CI 视口下静默丢失。
+
+### 4.3 治理方案
+
+- 先实现**严谨可度量**：将警告日志更正为真实描述，并将超额注册面板数量显式暴露：
+  - 挂载至 DOM 属性：`data-ui-lib-panels-over-budget`
+  - 注入运行时性能指标：`stats.panelsOverBudget`
+- 明确区分声明式预算与环境探测：
+  - 宿主显式声明的字段不被自适应降档静默篡改；未显式声明的字段（如 `blurTaps`、`dprCap`）随环境动态适配。
+  - 来源透明化：通过 `data-ui-lib-budget-host` / `data-ui-lib-budget-source` 确保验收时可分离声明约束与探测限制。
+
+---
+
+## 5. API 命名约定与同名不同义审计（Homonym Collision Audits）
+
+在视觉库重构过程中，对全部 `*Options` 接口字段以及 Look 注册表键进行了全量机器扫描。
+
+### 5.1 光学参数一致性
+
+机器审计确认全库光学概念的拼写与物理语义保持绝对统一：
+- `refraction`（折射率系数）
+- `dispersion`（色散强度）
+- `roughness`（微表面粗糙度）
+- `frost`（磨砂雾化度）
+- `tint` / `tintAmount`（吸光底色与浓度）
+- `specular` / `shininess`（镜面高光强度与锐度）
+- `fresnel`（菲涅尔边缘增益）
+- `highlight` / `lightDirection`（高光与平行光矢量）
+- `pointerStrength` / `pointerRadius`（指针扰动幅度与衰减半径）
+- `environment`（反射探针纹理）
+
+以上字段在 `GlassPanelOptions`、`LiquidGlassOptions` 与 `WorldLensOptions` 中语义和行为完全对齐。
+
+### 5.2 两处同名不同义（Homonym Collision）记录
+
+审计发现两处“同名但物理语义不同”的字段（比“同义不同名”更易引发静默逻辑 Bug），统一记录并锁定待 1.0 重构：
+
+| 字段名 | 所在接口 | 实际类型与含义 | 潜在风险与约束 |
+|---|---|---|---|
+| `size` | `LiquidGlassOptions.size` | `[number, number]`，**CSS 像素**，面板物理尺寸 | 开发者容易误传为归一化或视口比例 |
+| `size` | `ParticleSystemOptions.size` | `[number, number]`，**世界坐标单位**，粒子精灵最小/最大半径 | 与 DOM 像素单位脱节 |
+| `colors` | `GradientBackdropOptions.colors` | `string[]`，**恰好 4 色**，按屏幕象限位置插值 | 传入不同数量会影响四角渐变映射 |
+| `colors` | `ParticleSystemOptions.colors` | `[string, string, string]`，**严格 3 色**，按粒子生命周期 `life` 插值 | 着色器硬件插值硬约束，多传第 4 色会被着色器静默丢弃 |
+
