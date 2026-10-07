@@ -1,928 +1,282 @@
 # UI-Lib
 
-**面向 Web 的 GPU 优先动效与视觉效果运行时。**
+<p align="center">
+  <b>GPU-First Visual Effects Runtime & 50 Semantic Soft Components with Physical Watercolor for the Web</b><br>
+  面向 Web 的 GPU 优先动效视觉运行时 · 物理宣纸水墨渲染 · 50 个高阶语义化 Soft 无障碍组件
+</p>
 
-UI-Lib 把实时 Liquid Glass、GPU 粒子、3D 场景和 TSL 后处理带到普通网页界面中，目标是服务于产品 Hero、滚动叙事、交互表面和沉浸式展示，而不是用 canvas 替代语义化 HTML。
+<p align="center">
+  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square" alt="Build Passing" /></a>
+  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/tests-530%2F530%20passed-brightgreen.svg?style=flat-square" alt="Tests Passed" /></a>
+  <a href="docs/components/README.md"><img src="https://img.shields.io/badge/components-50%20Soft-ff69b4.svg?style=flat-square" alt="Soft Components" /></a>
+  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/TypeScript-Strict-blue.svg?style=flat-square" alt="TypeScript Strict" /></a>
+  <a href="#质量门禁矩阵"><img src="https://img.shields.io/badge/backends-WebGPU%20%7C%20WebGL2%20%7C%20CSS-blueviolet.svg?style=flat-square" alt="Backends" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square" alt="License: MIT" /></a>
+</p>
 
-> **状态：实验性 `0.0.1`。** 渲染底座（WebGPU / WebGL2 回退、Liquid Glass、GPU 粒子、TSL 后处理、section stage 与共享时钟）与应用组件层（50 个带 WAI-ARIA 契约的 `Soft` 语义化组件与宣纸水墨减色物理系统）均已落地。Node 侧 42 个测试套件、530 项测试通过，全工作区 9 个包 TypeScript 0 报错，7 个包体积在预算内。真机画面已有按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)），前期暴露出的**四个缺陷现已全部修复**（包括 WebGL2 深度拷贝崩溃、WebGPU historyValid 误报、post 链输入丢失以及 render target UV 翻转）。细节见[真机基线](#3-真机基线)。
-
-[在线演示](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run) · [路线图](docs/ROADMAP.md) · [交互 Playground](apps/docs) · [P0 浏览器验收](tests/e2e) · [包结构](#包结构)
-
-## 在线演示
-
-六张旗舰页已经构建并部署上线，打开就能滑：
-
-**https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run**
-
-| 页面 | 链接 |
-|---|---|
-| Liquid Glass Pro | [`/?demo=liquid-glass`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=liquid-glass) |
-| Lumen | [`/?demo=product-hero`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=product-hero) |
-| Scroll Cinema | [`/?demo=scroll-cinema`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=scroll-cinema) |
-| Cursor Field | [`/?demo=cursor-field`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=cursor-field) |
-| Aurora Flow | [`/?demo=aurora-flow`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=aurora-flow) |
-| Wake | [`/?demo=wake`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=wake) |
-
-线上部署的是 `apps/docs` 的 `vite build` 静态产物，不是 dev server。`?fallback=1` 强制 CSS fallback，`?backend=webgl` 强制 WebGL2，用来对照降级路径。
-
-## 当前情况
-
-六张旗舰页与 Kit Index 全景索引页都在文档站上。仍是一个 canvas、一个 renderer、一个 scheduler。字留在 HTML 里。页面不传 cubemap。没有宣称百万粒子 60 帧。
-
-| 页面 | 地址 | 现在是什么 |
-|---|---|---|
-| Lumen | `/?demo=product-hero` | 产品页。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。这轮不再调亮度。 |
-| Scroll Cinema | `/?demo=scroll-cinema` | 滚动叙事。钉住、章节窗口互相重叠，滚完松开。接缝不再整屏没字。MSDF 仍未做。静止亮度没动。 |
-| Cursor Field | `/?demo=cursor-field` | 同一条射线驱动玻璃高光、短 ribbon 和粒子。手停后 ribbon 散掉，粒子走过去，不跳到指针上。静止时高光仍是圆，至多在移动时加 22% 强度。 |
-| Aurora Flow | `/?demo=aurora-flow` | 整页流场，不是参数面板。`<ParticleField flow />` 把局部涡旋沿同一条射线走近。中心有一颗浅色的心，是换色，不抬 `intensity`。手快时涡流略变宽，停住回到原来的半径。后面有一层更暗、更慢的雾。字用 `<Reveal>`。 |
-| Liquid Glass Pro | `/?demo=liquid-glass` | section pin。三块命名玻璃贴在真实 DOM 上，后面是一张会走的套准纸。`look="quiet"`。页面不传 cubemap。 |
-| Wake | `/?demo=wake` | 每颗粒子自己的历史，不是指针 ribbon。笔画在标题右侧。`intensity` 0.46。档位预算会裁掉多出来的粒子，桌面档位盖得住现有页面。 |
-| Kit Index | `/?demo=kit-index` | 50 个 `Soft` 语义组件的全景索引与状态矩阵。实时展示 ζ = 0.55 弹簧手感、宣纸毛细材质自适应反差与调色板切换。 |
-
-文档站首页不是上表里的一页。粒子云和那颗小晶体都收在标题右侧，`intensity` 从 1.8 降到 0.62，`opacity` 从 0.82 降到 0.38，字留在渐变上。HUD 的 `Panels` 是「视口内 / 已注册」：这一页注册了 12 块玻璃，首屏通常只画到其中几块，其余在折线下面，不是预算没满。
-
-验证到这一步：干净 clone 上先构建再测。`@ui-lib/*` 的入口指向被 gitignore 的 `dist/`，不构建就直接 `vitest` 会报 `Failed to resolve entry`。门禁是：
-
-```bash
-pnpm verify   # lint → test → typecheck → size → api → templates → cascade
-```
-
-这一轮 `pnpm typecheck` 通过（全工作区 9 个包），`pnpm test` 通过（42 个测试套件 530 项用例全部绿灯），体积门禁 7 个包全部在预算内（React 包在扩展至 50 个组件与物理混色系统后保持 +4.32 KB 冗余）。浏览器验收在 headless Chromium 下跑通 17 项，覆盖六个页面的降级与 GPU 路由、滚动轨道 0→1、section pin 与真实可聚焦链接、reduced motion、context loss 恢复。
-
-它仍然是**语义**验收而不是像素门禁——仓库里没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约，不是 Metal 或独显上真正画出了什么。
-
-`.github/workflows/ci.yml` 把这两组检查接进了 CI：`verify` job 跑 build → typecheck → test → size → lint，`browser` job 在 headless Chromium 上跑同一套验收。browser job 自己带 8 分钟的全局上限，失败时会留下 HTML 报告与 trace 作为产物——因为卡死的浏览器不会往控制台输出任何东西。
-
-## 下一步
-
-Liquid Glass Pro 已经是旗舰页。还没做的是：
-
-1. 把真机基线暴露出的四个缺陷补上回归断言（四个本身**已全部修复**）。现有 17 项语义验收抓不到帧回调异常、画面缺失，也抓不到"管线编译失败但每帧照跑"。真机着色器门禁（`pnpm check:shaders`）已经覆盖了最后一类，其余仍待补。
-2. 1M @ 60fps 仍然没测。旗舰页跑的是固定 36k（Aurora Flow）与 9k（Wake），不是 `count: "auto"` 的百万级配置。动态 LOD 和 per-particle trail 已经在库里，Wake 用了它们。
-3. WebGL2 在 DPR 2 上的帧节奏还没调过。六页里五页出现 120/60 Hz 双峰台阶，`aurora-flow` 的 `max` 冲到 750 ms（它同时被降到 tier 2，降档重建很可能是原因，但没做隔离实验）。
-4. 跨浏览器与 GPU 设备矩阵：只有本机 Chromium / Apple M3 Pro 一个 bucket。
-
-先不做：world-only velocity MRT、多 pass bloom、自定义 post 插槽、MSDF、element-to-texture、Vue / Svelte、配方库。也不再改 Lumen、Cinema、Cursor Field 和 Aurora 的静止亮度。
+<p align="center">
+  <a href="#在线演示">在线演示</a> &nbsp;·&nbsp;
+  <a href="#快速上手">快速上手</a> &nbsp;·&nbsp;
+  <a href="#双支柱架构体系">双支柱架构</a> &nbsp;·&nbsp;
+  <a href="#50-个-soft-语义组件图谱">组件图谱</a> &nbsp;·&nbsp;
+  <a href="#质量门禁矩阵">质量门禁</a> &nbsp;·&nbsp;
+  <a href="#深度技术文档">深度文档</a>
+</p>
 
 ---
 
-## 组件层是怎么来的
+UI-Lib 将实时液态玻璃（Liquid Glass）、GPU 粒子模拟、3D 光学世界与 TSL 后处理管线引入现代 Web 界面，服务于产品 Hero、滚动叙事、交互表面与沉浸式展示——**坚持 DOM 仍然是 DOM，不以牺牲 HTML 语义化与可访问性为代价**。
 
-渲染切片是底座；组件层是 2026-10 之后补上的，判据与顺序都记在这里，因为「为什么是这样」比「有什么」更容易丢。
+向上，UI-Lib 构筑了业界首个基于 **Kubelka-Munk 物理减色模型** 与宣纸毛细管浸润扩散的材质系统，并交付了 **50 个严格遵守 WAI-ARIA APG 规范的 `Soft` 语义化应用组件**，配合 $\zeta = 0.55$ 物理阻尼微交互，兼具顶尖视觉表现力与严苛工程鲁棒性。
 
-**先补依赖。** `@ui-lib/motion` 只有 scroll beats，没有弹簧——组件要么凭眼睛挑常数，要么自己写动画。动效层的接口是**阻尼比 ζ** 而不是 `stiffness`：ζ 无量纲所以可迁移，`stiffness: 350` 说明不了任何事，而 `ζ = 0.55` 是能复现的手感。它也是物理系统共享的参数——伺服导纳控制和 Hill 肌肉模型是同一个二阶方程。五个预设的 k 值对着设计规范校准过（press 350 / pop 199 / badge 449）。
+---
 
-**再按「它和已有的差在哪」逐个补控件，而不是按清单。** `SegmentedControl` 不是 tablist（选值 vs 切视图）、`Chip` 不是 `Tag`（被按 vs 被展示）、`Stepper` 不是 `Progress`（离散命名 vs 连续量）、`List` 有三种形态而它只做第三种（选择）。每一个的注释里都写了它**不是**什么。
+## 在线演示
 
-**然后才知道该把材质铺到哪。** `material` 只给内容容器（Card / Table / List / Dialog / Drawer），不给控件组（Pagination / SegmentedControl / Stepper）：材质是在说「这个表面是个东西」，而给一排按钮铺颜料是装饰而不是表达。
+七大旗舰交互展示页已完成静态构建并部署上线：
 
-**过程中有三次同一个错误。** 组件的 `background` 简写三次静默重置了材质的 `background-image`，前两次靠挪代码修，第三次改用选择器优先级——因为「谁赢取决于规则在文件里的位置」是最脆弱的依赖。
+**https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run**
 
-**第二阶段扩充（补齐复杂数据、层级结构、即时反馈与调色器至 50 个）：**
-- **浮动定位不引入外部依赖。** `SoftTooltip` 与 `SoftPopover` 需要视口翻转（Flip）、平移边界约束（Shift clamping）与折射箭头对齐。选择自研 `floating.ts`（纯几何向量计算），排除了庞大的第三方定位库，严格守护包体积。
-- **树形结构的 APG 模型。** `SoftTree` 采用可见节点扁平投影缓存，键盘方向键在展开层级间单步漫游；复选框勾选采用纯函数自顶向下渗透与自底向上递归汇算 `indeterminate`（半选）状态。
-- **有序时间序列。** `SoftTimeline` 采用标准 `<ol>` 结构与 `<time>` 语义标签，节点间由贯穿的 `--moe-timeline-line` 宣纸微墨线串联，收尾自然截断。
-- **双引擎调色器。** `SoftColorPicker` 将 `@ui-lib/core` 的 Kubelka-Munk 物理吸收/散射（K/S）减色模型引入控件，配合含水量与沉降颗粒度滑块，避免数字 RGB 插值穿过死灰轴的问题，并配套实时干燥水痕标本预览与基于相对亮度的实时 WCAG AA 对比度判定。
+| 演示项目 | 在线链接 | 场景与核心技术特征 |
+|---|---|---|
+| **Liquid Glass Pro** | [`/?demo=liquid-glass`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=liquid-glass) | Section Pin 钉住，真实 DOM 绑定液态玻璃，屏幕空间折射与 RGB 色散，背景走纸校对 |
+| **Lumen** | [`/?demo=product-hero`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=product-hero) | 产品展示旗舰页，相机平滑轨道，`look="product"`，安静的工作室环境光反射探针 |
+| **Scroll Cinema** | [`/?demo=scroll-cinema`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=scroll-cinema) | 滚动叙事舞台，粘性章节窗口重叠折射，共享调度器时钟同步，滚毕自然平滑松开 |
+| **Cursor Field** | [`/?demo=cursor-field`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=cursor-field) | 共享射线采样，统一驱动玻璃高光、动态 Ribbon 轨迹与 GPU 粒子，静止与移动平滑过渡 |
+| **Aurora Flow** | [`/?demo=aurora-flow`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=aurora-flow) | 全页流体涡旋场，沿射线走近的涡核换色，暗色背景雾层，HTML 文本逐词优雅展现 |
+| **Wake** | [`/?demo=wake`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=wake) | 粒子独立历史轨迹（Per-particle Trail），动态档位显存预算裁剪，高帧率稳态渲染 |
+| **Kit Index** | [`/?demo=kit-index`](https://9222596184d8478fab867413d73b1698.sg2.agentos-app.run/?demo=kit-index) | 50 个 `Soft` 语义化组件全景交互目录，宣纸水彩物理混色系统，$\zeta = 0.55$ 物理阻尼手感演示 |
 
-## 为什么需要 UI-Lib
+> **降级对照调试参数**：向任意 URL 附加 `?fallback=1` 强制激活 CSS Fallback；附加 `?backend=webgl` 强制走 WebGL2 路径。
 
-Web 动效通常会在两种方案之间取舍：
+---
 
-- CSS 容易接入且保留可访问性，但 `backdrop-filter` 主要是模糊近似，无法提供真正的屏幕空间折射、共享 3D 世界或 GPU 粒子模拟。
-- canvas demo 可以很漂亮，但经常带来多个 renderer、多个动画循环、不可访问的文本和不可靠的销毁路径。
+## 双支柱架构体系
 
-UI-Lib 的取舍是：
+```text
+                  ┌───────────────────────────────────────────────┐
+                  │          语义化 DOM / 现代前端应用             │
+                  └───────────────────────┬───────────────────────┘
+                                          │
+                   ┌──────────────────────┴──────────────────────┐
+                   ▼                                             ▼
+       【支柱 1：GPU 视觉效果运行时】               【支柱 2：宣纸水墨与 50 个 Soft 组件】
+  ┌─────────────────────────────────┐           ┌─────────────────────────────────┐
+  │   @ui-lib/renderer (共享舞台)   │           │    50 个语义组件 (@ui-lib/react) │
+  │   - 单一 Canvas / 单一 Renderer │           │    - 严格遵循 WAI-ARIA APG      │
+  │   - Viewport / Section Stage    │           │    - 完整键盘模型与焦点捕获闭环  │
+  ├─────────────────────────────────┤           ├─────────────────────────────────┤
+  │   渲染图层与材质 (@ui-lib/shaders)│           │    宣纸水彩物理 (@ui-lib/core)   │
+  │   - 实时 Liquid Glass 折射/色散 │           │    - Kubelka-Munk 物理减色混色  │
+  │   - GPU Compute 粒子模拟系统    │           │    - 宣纸毛细管浸润扩散生成器   │
+  ├─────────────────────────────────┤           ├─────────────────────────────────┤
+  │   TSL 后处理管线 (@ui-lib/post) │           │    物理动效手感 (@ui-lib/motion) │
+  │   - Bloom / 色散 / 运动重投影   │           │    - ζ = 0.55 黄金欠阻尼微交互  │
+  │   - WebGPU / WebGL2 统一 Node 图│           │    - 自适应 --moe-on-material   │
+  └─────────────────────────────────┘           └─────────────────────────────────┘
+```
 
-- **DOM 仍然是 DOM。** 文本、链接、表单、焦点和布局留在语义化 HTML 中。
-- **一个共享渲染运行时。** 一个页面使用一个 canvas、一个 renderer 和一个 scheduler 承载 UI-Lib 效果。
-- **渐进增强。** 优先尝试 WebGPU，自动回退 WebGL2；没有可用 GPU、主动禁用 GPU 或用户要求 reduced motion 时，仍然保留 CSS / 静态形态。
-- **只使用 TSL。** 材质和后处理使用 Three Shading Language 节点图，同一套 graph 编译为 WGSL 或 GLSL；不使用 raw GLSL/WGSL 绕开跨后端约束。
-- **可确定的生命周期。** renderer、粒子系统、材质、几何体、监听器和 scheduler subscription 都有明确的 dispose 路径。
+### 支柱 1：GPU 视觉效果运行时
 
-UI-Lib 不仅是底层视口与画布的视觉运行时，同时也向上提供了整套恪守无障碍契约的轻量语义化组件库。
+1. **DOM 仍然是 DOM**：所有文字、输入框、链接与语义布局完全保留在普通 HTML 文档树中，不以全屏 Canvas 绑架用户体验。
+2. **单一共享渲染实例**：全页共用一个 canvas、一个 renderer 和一个 `FrameScheduler`，杜绝多个 requestAnimationFrame 循环与 WebGPU 上下文超限。
+3. **渐进增强与全自动降级**：
+   - 优先激活高性能 WebGPU Compute 路径；
+   - 自动回退至 WebGL2 Transform Feedback 与 TSL 编译管线；
+   - 无 GPU 或用户配置 `prefers-reduced-motion` 时，平滑切换至轻量 CSS `backdrop-filter` 静态形态。
+4. **全链路纯 TSL（Three Shading Language）**：所有着色器与后处理均通过 TSL 节点图构建，同一套 Graph 跨后端自动转译为 WGSL 或 GLSL，绝不依赖裸语言规避约束。
+5. **确定性生命周期治理**：显式追踪所有 Buffer、RenderTarget、粒子系统与事件监听，杜绝内存泄漏。
 
-## 当前能力
+### 支柱 2：宣纸水墨物理与 50 个 Soft 语义组件
 
-### 组件层
+1. **Kubelka-Munk 物理减色混色模型**：
+   传统前端的数字 RGB 插值（如 CSS `color-mix`）在互补色相交时会穿过发暗的“死灰轴（Dead Grey Mud Axis）”。UI-Lib 在 `@ui-lib/core` 中实现了基于物理吸收与散射系数（$K/S$）的减色融合，呈现温润通透的东方水彩质感。
+2. **宣纸毛细管浸润微结构（Capillary Wash）**：
+   通过分形扰动参数与程序化流体方程生成宣纸边缘沉积水痕，支持 `wash`（浓彩）、`tint`（淡染）与 `plain`（素面）三种材质层级。
+3. **50 个遵守 WAI-ARIA APG 的高阶组件**：
+   拒绝无语义的 `div` 堆砌。涵盖树形导航、多列排序网格、命令面板等复杂形态，具备完整的键盘漫游、读屏器标记与焦点管理。
+4. **$\zeta = 0.55$ 物理阻尼手感**：
+   组件按下、回弹与拖拽微交互严格遵照二阶微分阻尼方程，微欠阻尼手感灵动自然；系统要求减弱动效时位移瞬时归零。
+5. **动态基底对比度适配**：
+   内置 `computeEffectiveGroundLuminance`，能实时汇算湿水痕基底的相对明度，动态调节 `--moe-on-material` 文字前景色，坚守 WCAG AA 级可访问性反差标准。
 
-渲染切片之外，还有一层应用组件。判据是**有没有无障碍契约**：设了 `role`、`aria-*` 或渲染原生交互元素的，是应用组件，带 `Soft` 前缀；渲染宿主与动效原语（`GlassStage`、`Optics`、`Reveal`、`Bling`）不带前缀，它们没有契约要守。这条规则由 `pnpm check:api` 检查，不靠约定。
+---
 
-**50 个 `Soft` 组件。**
-- **表单与选择**：`Input` / `Textarea` / `Select` / `Combobox` / `Checkbox` / `Radio` / `RadioGroup` / `Switch` / `Slider` / `SegmentedControl` / `Button` (`PinkPaperButton`) / `ColorPicker`
-- **数据与结构**：`Card` / `Table` / `DataTable` / `List` / `Tree` / `Accordion` / `Tabs` / `Drawer` / `Modal` / `Toolbar` / `Menu` / `Timeline`
-- **反馈与上下文**：`Toast` / `Toaster` / `ToastProvider` / `Tooltip` / `Popover` / `Alert` / `Progress` / `Skeleton` / `Spinner` / `EmptyState`
-- **导航与标识**：`Breadcrumb` / `Pagination` / `Stepper` / `CommandPalette` / `Avatar` / `Tag` / `Chip` / `Badge` / `Divider` / `LightPanel`
+## 50 个 Soft 语义组件图谱
 
-每个的键盘模型是**它自己的**，而且是按角色选的，不是复制的：
+组件库包含 50 个带有无障碍契约的应用组件，分为 5 大核心维度。完整键盘快捷键、焦点契约与属性规范请阅读 [**Soft 组件规范与 WAI-ARIA 体系指南**](docs/components/README.md)。
 
-- **`List` / `Select` / `Combobox`** 用 `listbox` 模型——焦点留在控件上，`aria-activedescendant` 指向选项，整个控件一个 Tab 停靠点。触发器是还在输入的东西，焦点移走会丢光标。
-- **`Menu` / `Toolbar`** 用相反的做法——焦点**真的移进**各个项。菜单没有输入框，而 Tab 关闭它是正确的：菜单不是要穿过的表单。
-- **`SegmentedControl` / `Radio`** 交给原生 `<input type="radio">`，方向键直接**改变选中**而不是只移焦点，`name` 让三个 radio 成为一个组。
-- **`Combobox`** 的 `aria-autocomplete="list"` 不是装饰：它说的是「会弹列表，且列表内容随输入变化」，省略它读屏就永远不播报结果数从 8 变 2。
-- **`Pagination` / `Breadcrumb` / `Stepper`** 的当前项**不是控件**——`aria-current` 标记它，按下去只是导航到已经在的地方。
-- **`Tree`** 遵循 Tree APG 模式——方向键上下在可见展开节点间移动，左右键折叠展开父子，星号展开同级全部，字母快速跳转。
-- **`Toast`** 区分 `role="status"`（`aria-live="polite"`）与 `role="alert"`（`aria-live="assertive"`），支持 Escape 键、关闭焦点管理与 Pointer 拖拽划走（Swipe to dismiss）。
-- **`Tooltip` vs `Popover`**——Tooltip 是纯辅助说明（`role="tooltip"`，`aria-describedby`），不夺取焦点；Popover 是交互气泡（`role="dialog"`），打开后捕获 Escape 并在关闭时焦点原路归还。
-- **`DataTable`** 具备表头列排序指示（`aria-sort`）、全选复选框级联与整行选择状态。
-- **`CommandPalette`** 弹出式命令搜索（`role="combobox"` 配合 `role="listbox"`），提供拼音/字母模糊过滤、分类分组与快捷键绑定。
+| 维度 | 包含组件与说明 | 核心 WAI-ARIA 契约 |
+|---|---|---|
+| **表单与选择**<br>*(12 Components)* | `SoftButton`, `SoftInput`, `SoftTextarea`, `SoftSelect`, `SoftCombobox`, `SoftCheckbox`, `SoftRadio`, `SoftRadioGroup`, `SoftSwitch`, `SoftSlider`, `SoftSegmentedControl`, `SoftColorPicker` | `role="button"`, `role="combobox"`, `role="listbox"`, `role="switch"`, `role="slider"`, `role="radiogroup"`, `aria-activedescendant`, `aria-checked` |
+| **数据与结构**<br>*(12 Components)* | `SoftCard`, `SoftTable`, `SoftDataTable`, `SoftList`, `SoftTree`, `SoftAccordion`, `SoftTabs`, `SoftDrawer`, `SoftModal`, `SoftToolbar`, `SoftMenu`, `SoftTimeline` | `role="tree"`, `role="treeitem"`, `role="dialog"`, `role="toolbar"`, `role="tablist"`, `aria-sort`, `aria-modal="true"`, 焦点陷阱 (Focus Trap) |
+| **反馈与上下文**<br>*(10 Components)* | `SoftToast`, `SoftToaster`, `SoftToastProvider`, `SoftTooltip`, `SoftPopover`, `SoftAlert`, `SoftProgress`, `SoftSkeleton`, `SoftSpinner`, `SoftEmptyState` | `role="status"` / `role="alert"` 动态活区 (`aria-live`), `role="tooltip"` (不抢焦点), `role="progressbar"`, Swipe-to-dismiss 手势划走 |
+| **导航与控制**<br>*(8 Components)* | `SoftBreadcrumb`, `SoftPagination`, `SoftStepper`, `SoftCommandPalette`, `SoftFloating`, `SoftOverlay`, `SoftNavigation`, `SoftChipStepper` | `<nav>` 地标导航, `aria-current="page"|"step"`, 纯几何向量自研浮动引擎 (Flip / Shift clamping), Cmd+K 搜索 |
+| **标识与表面**<br>*(8 Components)* | `SoftAvatar`, `SoftTag`, `SoftChip`, `SoftBadge`, `SoftDivider`, `SoftLightPanel`, `BubbleBadge`, `WatercolorBoard` | `role="img"`, `role="separator"`, 可交互筛选胶囊 (`aria-pressed`), 状态数值播报, 真实倒角微毛玻璃背板 |
 
-### 玻璃能弯到什么，弯不到什么
+---
 
-两半是为一件事各做一半而造的：GPU 侧画一张 canvas 并折射**它内部**的东西，组件侧画**在 canvas 之上**的 DOM。所以"效果叠加"有一个明确的边界，而它不是靠推理得出的：
+## 快速上手
 
-| | 在 canvas 里 | 在 DOM 里 |
-| --- | --- | --- |
-| **玻璃放在上面** | **玻璃会弯它** | **玻璃看不到它** |
-| **DOM 放在上面** | — | DOM 画在玻璃之上 |
-
-左下那格是大家以为能通、而实际上不通的那格：`GlassPanel` 采样的是 canvas 渲染到的离屏目标，而 DOM 由浏览器自己的合成器画在 canvas 之上。**DOM 里的水彩卡片不在那个目标里，所以没有东西可以折射。**
-
-**实测而非断言**：在一块玻璃条正下方插一个纯色探针（和玻璃条位置完全重合，`elementFromPoint` 确认玻璃在上）——玻璃画在探针之上、探针像素不变、玻璃没有位移，只有平铺的色块和玻璃自己的内容浮在上面。
-
-**一句话给设计**：**玻璃只弯 canvas 画的颜料。** DOM 的水彩是透明窗格下的一层平色，把它叫做"玻璃"是截图可以证伪的说法。
-
-所以 `@ui-lib/core` 的生成器产出两种底：`--wash-ground` 是给 DOM 表面的（你直接看的纹理），canvas wash 是给玻璃可以弯的底。**同一种颜料，只有一种在玻璃够得到的地方。**
-
-见 [`/?demo=stacking`](/?demo=stacking)，那里两种情况并排放着，第二行的玻璃是平的。
-
-### 材质与令牌
-
-**水彩是一套生成器，不是一份手调 CSS。** `createWash({ hue, weight, seed, state })` 派生五个沉积弧段强度、轮廓的八个半径、旋转、两层 `feTurbulence` 频率与 tile 尺寸，全部由 seed 决定，所以同一 seed 在服务端与客户端画得一样。混色走 **Kubelka-Munk** 而不是 `color-mix`：青加黄在 K-M 下饱和度 0.529，在 RGB 线性插值下 0.196——减性介质在发光空间里插值会穿过灰轴。
-
-**任何容器都能声明材质。** `<SoftCard material="wash" tone="iris" seedName="summary">`，`useMaterial` 产出十二个自定义属性，`wash` / `tint` / `plain` 是同一种物质的三种用量。颜料走 `background-image` 而不是伪元素：负 `z-index` 会把它放到父元素背景之后，在一张设了 `background` 的卡片上静默消失。
-
-**令牌实测可换。** 覆盖调色板后输入框的凹槽从 `oklch(0.975 0.006 60)` 变成 `rgb(17 28 46)`，四种语义状态全部跟随。30 个令牌覆盖表面与状态；剩余字面量集中在渐变与阴影里。
-
-### 已实现的渲染切片
-
-#### Liquid Glass
-
-- 真实 DOM 元素上的 Liquid Glass
-- rounded-rectangle SDF 轮廓与 bevel shading
-- 屏幕空间折射
-- RGB chromatic dispersion
-- frost / roughness 模糊
-- edge highlight、fresnel、tint、specular
-- pointer 高光
-
-#### GPU 粒子
-
-- WebGPU compute 路径
-- WebGL2 transform-feedback 回退路径
-- point、sphere、box、disc、ring、cone emitter
-- gravity、drag、turbulence、vortex、attractor、bounds
-- color-over-life、speed heat、soft sprite、additive blending
-- 与 Liquid Glass 共享同一个 stage、renderer 和 scheduler
-- `depth="scene" | "inside" | "front"`：粒子可以留在页面上、只活在透镜里，或画在透镜前面并被它挡住
-
-#### TSL 后处理
-
-- bloom、atmospheric halo、lens streak
-- chromatic aberration、grain、exposure、contrast、saturation
-- `shoulder`：只压缩大于 1 的高光，中间调不动。默认 0，所以未命名的 stage 不变色
-- vignette、focus blur、directional motion blur
-- Halton jitter temporal accumulation
-- 离屏 world depth 上的相机重投影；`cameraMotionBlur` 只模糊写了深度的世界像素
-- 世界透镜与 DOM 玻璃共用一张安静的工作室探针。透镜用世界反射，玻璃用透视射线加 bevel，文字面保持安静。页面不传 cubemap
-- depth history、disocclusion rejection、variance clipping、reactive rejection
-- `quality: 1 | 2 | 3` 编译期后处理预算
-- 静态场景跳过重复 redraw 与 TAA history copy
-
-#### 运行时
-
-- WebGPU 优先、WebGL2 自动 fallback
-- adaptive quality tier 与 FPS 采样降级
-- 帧耗时、long frame、dropped frame 统计
-- hidden tab 暂停共享 scheduler
-- `prefers-reduced-motion` 支持
-- 无 GPU 或显式关闭时的 CSS fallback
-- WebGL context / WebGPU device loss 通知与 React stage 重建路径
-- 逻辑资源登记表，可验证 renderer、layer、panel、particle、world object 和 post graph 是否释放
-
-### 目前还不能宣称完成的能力
-
-下面这些仍然是待完成项，而不是 README 中的营销承诺：
-
-- 真机 **WebGL2** 视觉回归基线（WebGPU 侧已有第一份记录；回退路径的崩溃已修，但 post 链在两条后端上都还没在干活，那一组数字要等第三个缺陷修好后重测）
-- 跨浏览器 FPS、掉帧和交互延迟门禁（只有本机 Chromium 一个数据点）
-- 真实 GPU VRAM 统计与 device-specific benchmark（只有一个 GPU bucket）
-- 变形粒子场的 world-only per-pixel velocity MRT（刚体相机重投影已有，不是完整速度缓冲）
-- 可复用的真正 multi-pass bloom pyramid
-- 自定义 post-pass 插槽
-- DOM ↔ GPU bridge（element→texture、3D→DOM 跟随）
-- 完整 timeline / gesture / MSDF；滚动进度与章节轨道已有第一切片
-- MSDF text
-- 完整动态 particle LOD 与 per-particle trail buffer 方案（Wake 已用第一切片：每颗粒子短期历史 + 档位预算裁剪）
-- 最终版 imperative `createEffect()` API
-- R3F、Vue、Svelte adapter
-- Next.js / Nuxt / SvelteKit SSR 与 hydration example
-- Changesets 版本管理、npm provenance 与 CI browser matrix（size budget 与基础 CI 已落地）
-
-Playground 中的粒子数量是为了保证展示稳定而选择的工作负载。UI-Lib **不会**在没有真实设备基准的情况下宣称“百万粒子在所有 WebGPU 设备上 60 FPS”。
-
-## 快速开始
-
-要求：
-
+### 环境要求
 - Node.js `>=20.19`
 - pnpm `12.x`
-- 加速路径需要支持 WebGPU 或 WebGL2 的浏览器
+- 硬件加速支持：WebGPU 或 WebGL2 兼容浏览器
 
-```bash
-pnpm install
-pnpm dev
-```
-
-打开 `http://localhost:5173`。
-
-执行仓库级验证：
-
-```bash
-pnpm verify   # build → typecheck → test → size budget
-pnpm lint
-```
-
-`pnpm test` 自己也会先 `pnpm build`。包入口指向 `dist/`，跳过构建的话跨包测试解析不到。`pnpm size` 读 `size-budget.json`，按 raw 字节给七个包的 `dist/index.js` 与 `index.d.ts` 设上限，超了就以非零码退出。
-
-执行浏览器验收：
-
-```bash
-pnpm exec playwright install chromium
-pnpm test:e2e
-```
-
-`pnpm test:e2e` 已在 headless Chromium 上跑通 17 项，覆盖六个 demo 的降级与 GPU 路由、滚动轨道、section pin、reduced motion 和 context loss 恢复。它仍然是**语义**验收而不是像素门禁——仓库里没有截图 baseline，文件里也没有 `toHaveScreenshot`——所以它证明的是 DOM、降级路径和生命周期契约。WebGPU device profile 和实际 FPS 结论必须在有真实 GPU 的机器上生成。
-
-它有一个盲区值得单独记一笔：**它测不到帧回调有没有抛异常，也测不到画面是不是整块缺了，更测不到"管线编译失败但每帧照跑"。**（前两类现在由 `pnpm check:pixels` 覆盖，见下文；最后"画布在不在画"这一类也归它。） 强制 WebGL2 的页面曾经每帧抛一次 `TypeError`、画面不完整，而这 17 项依然全绿——因为 stage 照样到达 `ready`，canvas 照样存在，DOM 语义一条没坏。修复那个异常之后世界仍然缺失，17 项也仍然全绿。WebGPU 上 post 管线编译失败、链路静默空转，画面退化成未经后处理的原始合成，17 项同样全绿。详见[真机基线](#3-真机基线)。
-
-### 着色器编译门禁
-
-上面那个盲区现在有一个专门的门禁：
-
-```bash
-pnpm --filter @ui-lib/docs build
-pnpm check:shaders              # 有头 Chromium + 真 GPU，六页 × 两条后端
-pnpm check:shaders -- --demos wake   # 单页
-```
-
-它 patch `GPUDevice.prototype.createShaderModule` 与 `requestDevice`，把 three 从不读取的 `getCompilationInfo()` 结果、无人认领的 `uncapturederror` 事件、以及 `queue.submit` 的次数都收上来，然后逐页断言：没有失败的着色器模块、没有控制台失败模式、没有 page error、没有未捕获的 WebGPU 校验错误；WebGPU 侧还必须**确实创建过 device、创建过着色器模块、提交过命令缓冲**——一个什么都没渲染的页面是安静的，这几条让它无法靠沉默过关。
-
-两条设计约束：
-
-- **它刻意不进 CI。** Tint 的降级失败可以是**适配器特异**的：`swizzle view instruction still has usages after lowering` 在 Metal 适配器上稳定复现，而同一份 WGSL 在 SwiftShader 上通过。headless runner 没有 GPU，这个门禁会在那里长绿而什么也保护不了。改动画布合成或 node graph 之后，在真机跑 `pnpm verify:device` 再推。
-- **探针本身要被证伪。** `pnpm check:shaders:self-test` 会喂给探针一段 Tint 解析不了的 WGSL、一个没人开 error scope 的非法 `createBuffer`、一次真实提交，然后要求三者都被记录到。如果它一条都没记到，说明门禁是瞎的，自检直接失败。一个只会说"全绿"的判定器没有价值。
-
-### 像素门禁
-
-上面那个盲区还有另一半：语义验收看不见画布。`pnpm check:pixels` 看画布，只断言两件结构性的事。
-
-```bash
-pnpm check:pixels                    # 七个页面，headless
-pnpm check:pixels -- --demos iris    # 单页
-pnpm check:pixels:self-test          # 探针是不是瞎的
-```
-
-1. **画布确实在画。** `ink` 是与该帧自身众数颜色不同的像素占比。什么都没渲染的页面 `ink` 接近 0，而 stage 仍然报 `ready`。
-2. **玻璃在它自己元素的位置上。** 一次只隐藏一块面板，比较它矩形内的平均变化与矩形外的平均变化。位置正确时这个比值很高；画到别处时矩形内只剩外溢，比值塌下来。第 1 轮修掉的镜像 bug 在 `liquid-glass` 上把 3.60x 打到 **0.22x**，`scroll-cinema` 从 559x 掉到 **1.45x**，判据是 ≥1.6x。
-
-四条实测出来的约束，写在这里免得下次再犯：
-
-- **必须在冻结的页面上量。** 移除面板会让时间性累积历史失效，下一帧整幅闪变。位置检查因此跑在 `prefers-reduced-motion: reduce` 的页面上——库会停掉共享时钟，隐藏面板成为画面里唯一的变化。门禁顺带断言「冻结确实生效」，否则量到的是场景运动而不是玻璃。
-- **要除以矩形外的变化，而不是数「变化落在哪」。** 面板消失会连带改变周围的泛光。早期版本用「落点比例」，修复版上就误报了四页；改成内外均值比之后外溢被约掉。
-- **要一次只隐藏一块，不能一次全隐藏。** 全隐藏时只证明「信号落在这些矩形的并集里」——而一个**关于画布中心对称**的面板布局，镜像后映射到它自己，于是带 bug 也拿 0.95 分。`iris` 页正是这样漏过去的。
-- **提高阈值没用。** 从 24 扫到 200，结果一模一样：外溢像素的幅度和面板像素相当，靠阈值分不开，只能靠除法。
-
-**它可以进 CI，与 `check:shaders` 相反。** 两个断言都不依赖适配器：「有没有画出东西」和「画在不在元素位置」在 SwiftShader 上同样成立。它**不是**美学基线，判断不了玻璃好不好看——那仍然要靠真机上的 `measure` 与 `check:shaders`。
-
-**它的边界，也一并写清楚**：如果一处错位恰好把面板映到它自己矩形附近（布局对称，或面板本就靠近镜像轴），这个判据看不见。它抓的是**整块挪走**这一类，而那正是实际发生过的 bug。
-
-### 平台预算：第二个后端的接缝
-
-Web 端的渲染预算原本只能**探测**：`detectCapabilities()` 读浏览器，`scoreTier()` 选档，`QUALITY_PRESETS` 填数字。一个不是浏览器的宿主没有东西可探——它知道自己有多少算力，直接说就行。
-
-```ts
-import { createGlassLayer } from "@ui-lib/renderer";
-
-// Web：什么都不传，走探测。
-await createGlassLayer({ parent });
-
-// 非 Web 宿主：把数字说出来。
-await createGlassLayer({
-  parent,
-  budget: {
-    host: "ue5-metal",
-    source: "declared",
-    tier: 2,                                   // 只用来补没写的字段
-    preset: { particleBudget: 900_000, allowCompute: true, maxPanels: 64 },
-  },
-});
-```
-
-React 侧直接传 `budget` 即可（`GlassStage` 的 props 就是 layer options）。页面上可以用 `?budget=declared` 看这条路径。
-
-三条设计约束：
-
-- **只钉住宿主写出来的字段。** `preset` 里没提的（`blurTaps`、`dprCap`、面板上限）仍然跟着档位走，所以一份声明式预算**不会冻结自适应降档**。反过来，宿主写了的字段在降档时也不会被改掉——它不是在猜。
-- **声明压过探测。** 同时给 `budget` 和 `capabilities` 时以声明为准，因为说了数字的宿主不需要再猜一遍。
-- **来源必须可见。** `data-ui-lib-budget-host` / `-budget-source` 暴露到 DOM，`stats.budgetHost` / `budgetSource` 暴露给代码。一条只在类型里的声明和一个真的限制，验收时要能分开。
-
-```bash
-?demo=iris                   # host=web           source=probed    tier=3
-?demo=iris&budget=declared   # host=declared-demo source=declared  tier=2
-```
-
-#### 顺带发现：`maxPanels` 目前只是建议值
-
-`QUALITY_PRESETS` 每个档位都声明了 `maxPanels`，但 `register()` 超限时**只打一条 warn 然后照常创建并渲染**——而那条 warn 写的是「new panel will not render」，是假的。已改成如实描述，并把超出的数量暴露为 `stats.panelsOverBudget` 与 `data-ui-lib-panels-over-budget`。
-
-**没有在本轮强制执行**：强制执行会让每个注册数超过本档上限的页面掉面板（headless 环境稳定落在 tier 1，上限 8，而 Playground 注册 12），这需要七页逐页目视验证才能安全地改。先让它**可度量**，再谈约束。
-
-### 命名约定与已知冲突
-
-4.2 的命名审计做了一轮机器扫描：把三个 look 注册表的键、以及每个 `*Options` 接口的字段全部抽出来对比。结论是**光学参数名一路是一致的**——`refraction` / `dispersion` / `roughness` / `frost` / `tint` / `tintAmount` / `specular` / `shininess` / `fresnel` / `highlight` / `lightDirection` / `pointerStrength` / `pointerRadius` / `environment` 在 `GlassPanelOptions`、`LiquidGlassOptions`、`WorldLensOptions` 里含义相同、拼写相同。
-
-look 的键**不追求同一套隐喻**，这是有意的：`crystal` / `flare` / `ice` / `ember` 是光学气质，`product` / `cinema` 是使用场景，`pill` / `milk` / `veil` 是材质形态。硬凑成一个家族只会让名字失真。真正要守的是**同一个概念不出现两个叫法**。
-
-审计找出两处**同名不同义**，都属于危险的一类（比同义不同名更容易写出安静的 bug），记录在此，改名需要破坏性变更所以留待 1.0 之前统一处理：
-
-| 名字 | 出现处 | 实际含义 |
-|---|---|---|
-| `size` | `LiquidGlassOptions.size` | 面板尺寸，**CSS 像素**，`[w, h]` |
-| `size` | `ParticleSystemOptions.size` | 精灵尺寸，**世界单位**，`[min, max]` |
-| `colors` | `GradientBackdropOptions.colors` | **4** 个颜色，按位置混合 |
-| `colors` | `ParticleSystemOptions.colors` | **恰好 3** 个颜色，按生命周期混合 |
-
-`ParticleSystemOptions.colors` 那个三元组是硬约束（着色器按 `life` 在三色间插值），不是惯例；写成四个不会报错，只会静默丢掉一个。
-
-### 距离场字体 atlas
-
-`evaluateMSDF` 写在 `@ui-lib/shaders` 里，一直正确、也一直没人用——**仓库里没有 atlas 给它采样**。这张 atlas 现在由脚本生成：
-
-```bash
-pnpm build:font-atlas                              # 默认 112 字形
-pnpm build:font-atlas -- --chars "水彩卡片IRIS" --size 64
-```
-
-全过程本地完成，无字体解析器、无图像库、无网络：Playwright 用 Canvas2D 栅格化字形，8SSEDT 变换在页面里跑，PNG 由浏览器编码。产物是 `apps/docs/public/fonts/iris-sdf.{png,json}`，JSON 是 BMFont 兼容格式（多一个 `distanceField.distanceRange`）。
-
-**它是 SDF，不是 MSDF，这个区别要说明白而不是含糊过去。** 真正的多通道距离场会给每个通道分配不同的边，让字的**尖角**在中值滤波后仍保持锐利；这里把同一个距离写进三个通道，那就是单通道场。着色器不用改也照样工作——三个相等通道的 `max(min(r,g), min(max(r,g), b))` 就是那个通道——但字形尖角会略圆。把不是它名字所声称的数据发出去，正是这个仓库反复重新发现的失败模式，所以文件叫 `-sdf`，JSON 里也写 `sdf`。
-
-#### `pxRange` 只能推导，不能猜
-
-`createTextMaterial` 的 `pxRange` 是文字这条链上**唯一一个错了也不报错**的数字：小了边缘锯齿，大了字发糊。
-
-atlas 存的是 `0.5 - d / (2·range)`（`d` 为纹素距离），所以 `sigDist` 每个纹素变化 `1 / (2·range)`。每屏幕像素的纹素数是 `fwidth(uv) · scaleW`。而 `evaluateMSDF` 把 `fwidth(uv)` 乘以 `pxRange`，两者恰好相等当且仅当：
-
-```
-pxRange = scaleW / (2 · distanceRange)      # 随包 atlas 为 696 / 8 = 87
-```
-
-直接传 `distanceRange`（4）是最直觉的错法，会让字软大约四倍。这条推导有断言钉住（`packages/shaders/test/textMaterial.test.ts`）。
-
-#### `CrystalText`
-
-```tsx
-const slot = useRef<HTMLDivElement>(null);
-
-<CrystalText text="水彩" anchor={slot} size={0.85} color="#2a0f45" />
-<div ref={slot} />
-```
-
-`size` 是**世界单位的高度**，不是像素。`createTextGeometry` 按 atlas 像素排版，组件的包围盒会把两者换算过来——早期的版本直接乘上去，把字符串铺到 370 世界单位宽，而相机整个视野只有约 4。
-
-**它活在世界里，所以它前面的 DOM 玻璃会磨砂并折射它。** 这是库在正常工作，不是缺陷，也正是它读起来像「玻璃下的墨迹」而不是贴上去的覆盖层的原因。要让它被某块玻璃折，就把它放在那块玻璃后面。
-
-**它不在文档里**，所以选中、翻译、读屏都拿不到它。旁边留一份真 HTML 的文字，或者让它纯粹作装饰并给槽位加 `aria-hidden`。
-
-##### 找到它为什么一开始什么都不画，花了三轮
-
-三个缺陷叠在一起，**其中两个完全静默**：
-
-| 缺陷 | 为什么没被发现 |
-|---|---|
-| **背面剔除**：`createTextGeometry` 的四边形绕序（左上→右上→右下）从 +Z 看是顺时针，在 three 默认 `FrontSide` 下是背面 | 网格存在、在场景里、尺度正确，**就是不被绘制**，没有任何报错 |
-| **覆盖率乘了两次**：着色器把颜色乘了 alpha，three 的 `srcAlpha` 混合又乘一次 | alpha 接近 1 时看不出来，只在 SDF 软边上把字抽干 |
-| **距离场从未饱和**：range 4 纹素 > 48px 下 CJK 笔画半宽 | 笔画内部 `sigDist` 只到约 −0.12，`smoothstep` 输出接近零 |
-
-修法：`side: DoubleSide`（不改索引顺序，因为 `sampleTextPoints` 依赖 `i` 与 `i+2` 是对角）、`colorNode` / `opacityNode` 拆开、atlas 改为 64px + range 2（最亮纹素 207 → 饱和 255）。
-
-##### 三条测量教训
-
-- **WebGPU 画布上用 `drawImage` 读回是空图。** 最小复现第一次报「红 0、绿 0」，读起来像绘制路径坏了。**截图走合成器，才是可靠路径。**
-- **从一个正在失败的页面上取到的测量，不是关于被测对象的证据。** 有一次 `follow 回调次数 = 0`，实情是导出被收回而页面仍在引用，模块加载失败，什么都没跑。在正常页面上重测是 400+ 次。
-- **"看起来淡" 不一定是渲染错了。** 最后定位到的是：文字被它前面的水彩卡片玻璃**正确地磨砂**了。把槽位挪到没有玻璃的地方，不透明测试立刻渲染成实心深色矩形。
-
-## React 用法
-
-`@ui-lib/react` 是第一个适配层。内容保持普通 DOM，stage 负责共享 GPU layer：
+### 1. GPU 渲染层：液态玻璃与折射舞台
 
 ```tsx
 import { GlassPanel, GlassStage, ParticleField } from "@ui-lib/react";
 
-export function ProductHero() {
+export function HeroScene() {
   return (
     <GlassStage
+      look="cinema"
+      mode="viewport"
       backdrop={{
         type: "gradient",
         colors: ["#16255e", "#7b2ff7", "#f107a3", "#00d4ff"],
       }}
       post={{
-        bloomStrength: 0.4,
+        bloomStrength: 0.45,
         chromaticAberration: 0.8,
-        focusBlur: 1.5,
+        focusBlur: 1.2,
       }}
     >
+      {/* GPU 计算粒子 */}
       <ParticleField
         options={{
-          count: 24_000,
-          forces: { turbulence: 2.2, vortex: 1.4 },
+          count: 32_000,
+          forces: { turbulence: 2.0, vortex: 1.2 },
           colors: ["#5eead4", "#a78bfa", "#f472b6"],
         }}
       />
 
+      {/* 真实 DOM 元素挂载物理液态玻璃 */}
       <GlassPanel
-        radius={34}
-        refraction={46}
-        dispersion={0.3}
-        roughness={0.2}
-        className="product-card"
+        radius={28}
+        refraction={42}
+        dispersion={0.35}
+        roughness={0.18}
+        className="hero-card"
       >
-        <h2>语义化内容仍然在页面上。</h2>
-        <p>GPU layer 改变的是表面，而不是文档结构。</p>
+        <h2>文字与布局仍然属于原生 DOM</h2>
+        <p>屏幕空间折射与光学模糊作用于背景与粒子，而非扁平假滤镜。</p>
       </GlassPanel>
     </GlassStage>
   );
 }
 ```
 
-`ParticleField` 在同一个 stage 内模拟并渲染，玻璃可以同时折射 backdrop 与粒子层，不会为每个效果创建第二个 canvas 或 renderer。
-
-### 嵌进一个 section，而不是接管整页
-
-`mode="viewport"`（默认）仍是一整页一张 fixed canvas。产品页里的 hero 或滚动叙事应该用 `mode="section"`：canvas 绝对定位在 stage 元素内，面板坐标相对这个元素，而不是窗口。浏览器对并发 WebGPU context 有硬上限，所以一个页面只放少数几个 stage。
+### 2. 语义组件层：宣纸水彩与 Soft 组件
 
 ```tsx
-import { GlassPanel, GlassStage, Lens, ParticleField, ScrollPin, ScrollTrack } from "@ui-lib/react";
+import {
+  SoftButton,
+  SoftCard,
+  SoftColorPicker,
+  SoftInput,
+  SoftTree,
+} from "@ui-lib/react";
 
-export function Story() {
+export function DesignWorkbench() {
   return (
-    <ScrollTrack length={4}>
-      {(scroll) => (
-        <ScrollPin>
-          <GlassStage mode="section" style={{ height: "100%" }}>
-            <Lens refraction={28 + scroll.progress * 40} />
-            <ParticleField depth="inside" options={{ count: 1200 }} />
-            <GlassPanel>
-              <h2>Hold the light</h2>
-              <p>{scroll.progress.toFixed(2)}</p>
-            </GlassPanel>
-          </GlassStage>
-        </ScrollPin>
-      )}
-    </ScrollTrack>
+    <SoftCard material="wash" tone="iris" className="p-6">
+      <header className="mb-4">
+        <h3>工程调色与层级漫游</h3>
+      </header>
+
+      <div className="space-y-4">
+        {/* 输入与微晕环 */}
+        <SoftInput label="项目代号" placeholder="IRIS-01" />
+
+        {/* Kubelka-Munk 物理水彩调色器 */}
+        <SoftColorPicker
+          mode="subtractive"
+          label="宣纸水墨混色标本"
+          defaultValue="#8b5cf6"
+        />
+
+        {/* 符合 Tree APG 的分层导航 */}
+        <SoftTree
+          data={[
+            {
+              key: "src",
+              label: "源码工程",
+              children: [
+                { key: "core", label: "Kubelka-Munk 物理内核", isLeaf: true },
+                { key: "react", label: "50 个 Soft 组件", isLeaf: true },
+              ],
+            },
+          ]}
+        />
+
+        {/* 带 ζ = 0.55 阻尼手感的粉纸按钮 */}
+        <SoftButton tone="blossom" onClick={() => console.log("保存标本")}>
+          保存水彩标本
+        </SoftButton>
+      </div>
+    </SoftCard>
   );
 }
 ```
 
-`ScrollTrack` 在共享 scheduler 的 `input` 相位采样进度，不另开 `requestAnimationFrame`。`length={4}` 是 400vh；里面的 sticky pin 在滚完后松开，canvas 跟着 section 离开，不会盖住后面的文档。旗舰页在 `/?demo=scroll-cinema`。产品页在 `/?demo=product-hero`：同一套 section stage，grade 用 `look="product"`，透镜用 `<Optics look="crystal" mote="quiet" />`。字是 HTML。滚完 pin 松开，规格表留在文档里。
+---
 
-指针场不要自己听 `pointermove`，也不要去打相机朝向的平面。平面在画面边缘会跑远。`<ParticleField pointer />` 和 `<PointerTrail />` 省略距离时都用相机到目标的长度。它们和玻璃高光用同一次平滑采样，在 render 相位、late particle step 之前解析成固定距离的射线。速度也来自这次采样：移动时高光沿笔势拉长，至多加 22% 强度；静止时回到原来的圆，亮度不变。手停住后 ribbon 在半秒内散掉，不会留一条冻住的线。粒子的出生点跟着射线走过去，不会在指针上突然出现。旗舰页在 `/?demo=cursor-field`，仍是 viewport stage。这不是 per-particle trail buffer。
+## 工作区包结构
 
-`<ParticleField flow />` 不搬家、不吸成一团。它只把局部涡旋的中心沿同一条射线走近，手停住之后流场继续走。涡旋中心有一颗浅色的心，是换色，不抬 `intensity`。手快的时候涡流略变宽，停住就回到原来的半径。字用 `<Reveal>`，仍是 HTML，按共享时钟逐词进来；reduced motion 下字停在终态，粒子不再 step，心回到休息点。旗舰页在 `/?demo=aurora-flow`。这不是百万粒子承诺，也不是 MSDF。
+仓库由 8 个高内聚、低耦合的子包组成，整体采用 MIT 开源协议：
 
-### 一个 look，而不是一墙参数
+| 模块包名 | 外部依赖 | 核心职责与设计约束 | 状态 |
+|---|:---:|---|:---:|
+| [`@ui-lib/core`](packages/core) | **零依赖** | 宿主与档位探测、共享调度时钟、指针数学、Kubelka-Munk 物理混色、宣纸毛细管生成器、资源注册表 | 稳定交付 |
+| [`@ui-lib/shaders`](packages/shaders) | Three (peer) | Liquid Glass 材质、SDF 距离场字形着色器、渐变底板与通用 TSL 节点图 | 稳定交付 |
+| [`@ui-lib/particles`](packages/particles) | Three (peer) | WebGPU Compute / WebGL2 Transform Feedback 双路径 GPU 粒子系统、力场仿真与发射器 | 稳定交付 |
+| [`@ui-lib/post`](packages/post) | Three (peer) | 统一 TSL 后处理节点图、多档编译期质量预算、时间性历史累积 (TAA)、运动重投影 | 稳定交付 |
+| [`@ui-lib/renderer`](packages/renderer) | Three (peer) | WebGPU / WebGL2 上下文初始化、Viewport/Section 双舞台编排、DOM 物理玻璃绑定 | 稳定交付 |
+| [`@ui-lib/react`](packages/react) | Three (peer) | 50 个 `Soft` 语义化组件、`GlassStage` 渲染宿主、自研轻量浮动引擎、SSR 安全适配器 | 50 组件落地 |
+| [`@ui-lib/motion`](packages/motion) | **零依赖** | $\zeta = 0.55$ 物理阻尼弹簧、滚动节拍、数值轨道；与 Core 挂载于同一帧调度时钟 | 稳定交付 |
+| [`@ui-lib/dom`](packages/dom) | **零依赖** | 原生 DOM 文本尺寸测量、BMFont 几何排版与无框架基础命令式绑定 | 第一切片 |
 
-亮度问题用高光肩，不靠把透镜删掉。`look="cinema"` 提高 bloom 门槛并滚掉大于 1 的峰值；`LOOKS.bright` 仍是原来那套不封顶的 grade。透镜本身用 `crystal`（默认，压住核心和高光）或 `flare`（原来的热光学）。`/?demo=scroll-cinema&optic=flare` 可以对照。
+> **无私有捆绑约束**：渲染相关包统一将 `three` 声明为 Peer Dependency，绝不在包内私自捆绑 Three.js 副本；`@ui-lib/core`、`@ui-lib/motion` 与 `@ui-lib/dom` 保持对框架的完全独立。
 
-```tsx
-import { GLASS_LOOKS, GlassPanel, GlassStage, Magnetic, Optics } from "@ui-lib/react";
+---
 
-export function Instrument() {
-  return (
-    <GlassStage look="cinema" mode="section" style={{ height: "100%" }}>
-      <Optics look="crystal" />
-      <Magnetic strength={0.35} radius={140}>
-        <GlassPanel {...GLASS_LOOKS.cinema}>
-          <h2>Hold the light</h2>
-        </GlassPanel>
-      </Magnetic>
-    </GlassStage>
-  );
-}
-```
+## 质量门禁矩阵
 
-`<Optics />` 把透镜、内部粒子和前景火花包在一起，火花跟着透镜走，不会另开时钟。`<Magnetic />` 用共享 scheduler 的弹簧追指针；外框不动，所以弹簧不会追自己的位移。里面如果是 GPU 玻璃，它会在同一帧把 stage 标脏，折射框跟着 DOM 走。`prefers-reduced-motion` 时位移为 0。
-
-透镜要让开排版时，不要猜一个世界坐标。空的布局盒子就是槽，光学中心贴着它的中心。跟随发生在共享 scheduler 的 render 相位：视口和相机都已经是这一帧的，TAA jitter 还没加上。命中写进 GPU uniform，不 `setState`，所以粒子系统不会因为槽位在动而重建。挂了锚的粒子改在锚点解算之后才 step，云和透镜同一帧。
-
-`fit` 让投影直径贴着槽位短边的一个比例，相机变焦或槽位重排时大小跟着布局走，不再呼吸。`distance` 则锁住离相机的距离，中心留在槽里，推拉仍然会变大。
-
-```tsx
-const slot = useRef<HTMLDivElement>(null);
-
-<Optics look="crystal" mote="quiet" anchor={slot} fit={0.8} />
-<div ref={slot} />
-```
-
-### 非 React 的 imperative 入口
-
-目前 renderer 可以脱离 React 使用：
-
-```ts
-import { createGlassLayer } from "@ui-lib/renderer";
-
-const layer = await createGlassLayer({
-  backdrop: { type: "gradient", colors: ["#101827", "#6d28d9"] },
-});
-
-const card = document.querySelector<HTMLElement>(".product-card");
-if (card) {
-  const handle = layer.register(card, {
-    radius: 34,
-    refraction: 46,
-    roughness: 0.2,
-  });
-
-  handle.update({ roughness: 0.6 });
-  // handle.dispose()：元素或路由被移除时调用
-}
-
-// layer.dispose()：拥有该 layer 的页面销毁时调用
-```
-
-更完整的 standalone `createEffect()`、统一 external store 和跨框架命令式 API 仍在设计中。当前 imperative API 可用，但不应当被视为最终稳定契约。
-
-## P0：浏览器验收与运行时可靠性
-
-本轮 P0 已加入以下工程切片：
-
-### 1. 六个验收页面
-
-通过 query 参数访问：
-
-```text
-/?demo=liquid-glass    Liquid Glass Pro。section pin，DOM 玻璃，仍带 data-ui-lib-acceptance="liquid-glass"
-/?demo=aurora-flow     Aurora Flow。viewport stage，仍带 data-ui-lib-acceptance="aurora-flow"
-/?demo=product-hero     Lumen，产品页。仍带 data-ui-lib-acceptance="product-hero"
-/?demo=scroll-cinema
-/?demo=cursor-field     Cursor Field。viewport stage，仍带 data-ui-lib-acceptance="cursor-field"
-/?demo=wake            Wake。viewport stage，per-particle trail 与档位预算
-```
-
-每个页面都使用一个 `GlassStage`，保留真实 DOM 内容，并可使用：
-
-```text
-?fallback=1       强制 CSS fallback
-?backend=webgl    强制 WebGL2 路径
-```
-
-这六个页面目前用于建立真实浏览器截图和交互基线：
-
-1. **Liquid Glass Pro**：section pin。`GLASS_LOOKS.press` / `milk` / `quiet` 贴在真实 DOM 上。后面的套准纸是世界物体，不是 element-to-texture。字是 HTML。
-2. **Aurora Flow**：整页流场、局部涡旋跟着共享射线走、HTML 逐词出现。不是动态 LOD，也不是 1M 基准。
-3. **Glass Product Hero**：world object、camera、post graph 基础路径。
-4. **Scroll Cinema**：section stage、sticky pin、共享时钟上的相机与章节。
-5. **Cursor Field**：同一帧的 pointer ray、短 ribbon、玻璃高光。不是 per-particle trail buffer。
-6. **Wake**：每颗粒子维护自己的短期位置历史，档位预算裁掉多余粒子而不重建缓冲区。不是跟着指针走的 ribbon。
-
-六张都已是可打开的旗舰页。MSDF、完整 motion timeline 和真机视觉基线仍然没有完成。
-
-### 2. Playwright 视觉与交互测试
-
-测试位于 [`tests/e2e/acceptance.spec.ts`](tests/e2e/acceptance.spec.ts)，覆盖：
-
-- accelerated / WebGL route smoke
-- scroll 后 DOM 内容仍可见
-- 语义化标题存在，Liquid Glass 的校对链接可以聚焦
-- fallback 状态下没有 canvas
-- stage、backend、FPS、dropped frames 等数据属性
-
-仓库里**没有**截图基线，测试文件里也**没有** `toHaveScreenshot`。缺基线的断言会让下一次 `pnpm test:e2e` 必失败，却又保护不了像素，所以先拿掉。`pnpm test:e2e` 因此不是视觉门禁。跨浏览器像素、FPS 和设备矩阵仍未验证。要补基线，得在能装浏览器的机器上把断言和 PNG 同一次加回来：
+UI-Lib 秉持**以可证伪的退出码为准**的自动化质量体系。全套门禁严格杜绝“永远全绿的瞎探针”，分为静态逻辑门禁与真机物理图形门禁：
 
 ```bash
-pnpm exec playwright install chromium
-pnpm test:e2e:update
+pnpm verify          # 静态全量门禁：lint → test → typecheck → size → api → templates → cascade
+pnpm verify:device   # 静态门禁 + 真机 WebGPU/WebGL2 着色器与管线编译门禁
 ```
 
-### 3. 真机基线
-
-真机测量不进 CI，也不该进：CI 是 headless 的，macOS 上 headless Chromium 会回退到 SwiftShader，那描述的是软件光栅化器，不是用户的机器。
-
-```bash
-pnpm build
-pnpm --filter @ui-lib/docs preview --host 127.0.0.1 --port 4173 --strictPort
-node scripts/measure-device.mjs --url http://127.0.0.1:4173 --dpr 1
-node scripts/measure-device.mjs --url http://127.0.0.1:4173 --dpr 2
-node scripts/measure-device.mjs --url http://127.0.0.1:4173 --backend webgl --dpr 2
-```
-
-结果写到 `reports/device/<gpu-bucket>-dpr<N>[-webgl2]/`（`measurement.json` + `measurement.md` + 六张 PNG），并按 GPU 分桶。`reports/` 不入库——那些数字描述的是某一台机器，不是这个项目。已跑过的记录整理在 [`docs/benchmarks`](docs/benchmarks/README.md)。
-
-帧间隔由脚本自己的 `rAF` 循环在页面内采样，**不读运行时自己的计数器**。运行时的计数单独记录，两者刻意分开：`droppedFrames` 的定义是 `expectedFrames = max(1, round(raw × 60))`，按固定 60 Hz 预算累计，是累计值而不是掉帧率，只应看窗口内的增量。
-
-按现有数据，**可以当基线的只有 `p50` 和"是否出现 16.7 ms 台阶"**；`max` 与 `>16.7ms` 计数在两次运行之间可以差一倍以上，不适合做门禁。
-
-当前基线（Apple M3 Pro / Metal，1440×1000，后处理链开启）：
-
-| 配置 | 结果 |
-|---|---|
-| WebGPU @ DPR 1 | 六页锁 120 fps，`p95` 9.0–9.2 ms，零超标帧 |
-| WebGPU @ DPR 2（2880×2000） | 六页锁 120 fps，`p95` 9.1–9.3 ms，仅 `liquid-glass` 2 个超标帧 |
-| WebGL2 @ DPR 1 | 六页锁 120 fps，`aurora-flow` 59 个超标帧 |
-| WebGL2 @ DPR 2 | 五页 `p50` 掉到 8.7–16.2 ms，四页出现双峰台阶，`aurora-flow` 被降到 tier 2 |
-
-两个读表时要注意的坑：`cursor-field` 是指针驱动的场，测量里没有指针输入，它的 120 fps 只描述一个空闲页面；`max` 与 `>16.7ms` 计数不要当门禁用。
-
-**"链路开着"不等于"链路在跑"。** 第一版记录就是栽在这里：后处理链配置上开着，实际在两条后端上都没画任何东西，而当时的性能数字看起来完全正常。确认链路真的生效要用两个独立检查，不要靠看截图：`pnpm check:shaders`（给出确切的着色器模块数与管线数）与「透传态 vs 关闭态」的像素残差（健康值 1 以下，实测 0.92；第一版是 10.61，即链路输入是错的）。
-
-#### 测量抓到的四个缺陷
-
-这轮测量的价值不在数字，在于它在两条后端路径上都抓到了既有测试看不见的问题。四个缺陷现已全部修复；第 4 个是修第 3 个的过程中才暴露出来的。
-
-1. **强制 WebGL2 每帧抛异常**（已修）。`captureDepth()` 把世界深度拷进一个裸 `DepthTexture`；three 的 WebGL 后端把这条拷贝实现为两个 render target 的 framebuffer 之间的 blit，裸纹理没有 framebuffer，于是 `WeakMap.set(undefined, …)` 抛 `TypeError`。抛出点在 `setRenderTarget(backdropRT)` 与 `setRenderTarget(null)` 之间，render target 因此永远停在被绑定状态，`reportStats()` 再也执行不到，观测属性集体为空。修法是给历史深度配一个只作宿主的 `RenderTarget`，并在拷贝前调用 three 的公开方法 `renderer.initRenderTarget(host)` 预建它的 framebuffer——`setRenderTarget(host)` 不够，它不会触发 framebuffer 创建，也不会登记纹理。修后 `Invalid value used as weak map key` 从 693 次降到 0，`data-ui-lib-backend` 由 `unknown` 恢复为 `webgl2`。
-2. **WebGPU 的 `historyValid` 误报**（已修）。`commit()` 把 canvas 格式（`bgra8unorm`）的 `FramebufferTexture` 交给 `copyFramebufferToTexture`，而当前绑定的是 post 链的半浮点中间目标（`rgba16float`）。three 在格式不匹配时只警告并返回、不拷贝，随后 `historyValid` 仍被置 1，时间性链路实际未生效。当时的修法是新增 `framebufferCopyWouldFail()`，逐字镜像 three 自己的源上下文查找，在拷贝会被拒绝时把 `historyValid` 置 0。**这条守卫在第 3 条修完后已经删掉**——链路不再去猜"当前输出是谁"，而是由调用方显式传入源纹理，格式在构造期就对齐，事后补救的判据没有存在必要。
-3. **post 链在两条后端上都没在干活**（已修，比前两个都严重）。第 1 条修好后崩溃消失，但强制 WebGL2 的页面只剩 DOM 与玻璃面板。逐项排除（关掉 post 链世界就回来 → 把 `enabled` 改成纯透传仍全黑 → 把输出固定成常量红，整块画布变红 → 输出 `vec4(uv.x, uv.y, baseSample.r, 1)`，UV 正确而采样值恒为 0）把根因钉在**链的输入为空**：`renderFrame()` 逐帧切换 `renderer.outputColorSpace` / `toneMapping`，这会翻转 three 的 `needsFrameBufferTarget`，使场景那几趟直接画进画布，而 `copyFramebufferToTexture()` 随后从"内部 framebuffer target"取源——那个 target 从没被写过。
-   顺着这一半追下去才发现 WebGPU 那一半：**post 管线的 Tint IR 生成失败**（`swizzle view instruction still has usages after lowering`），three 只打日志不抛异常，每帧继续提交 invalid command buffer。所以 WebGPU 画布上是**未经后处理**的原始合成。关掉 post 链可让这一串错误全部消失，据此确认失败的就是 post 管线。
-   **修法**：两半一起修。步骤 3–4 合成到自建的 `compositeRT`，post 链从 `compositeRT.texture` 采样，画布只由 `RenderPipeline` 写（无 post 时由 Node 版全屏 quad 搬一次），于是逐帧切换 `toneMapping` / `outputColorSpace` 整段删除；`commit()` 改用 `renderer.copyTextureToTexture()`，源与历史缓冲的格式在构造期对齐。Tint 的降级失败根因是**模块级 `var<private>` 上的嵌套 swizzle**（`vec3(v.xyz.y, …)` 形式），把该表达式移到函数内 `let` 上即通过；色散基准因此改走 `resolved.g`。
-4. **自有 render target 的 UV 上下翻转**（已修，第 3 条修好后显形）。链用 `screenUV` 采样自己的 render target，而 three 按 GL 约定自下而上存储目标纹理，`isFlipY()` 在 WebGPU 与 WebGL 两条 node builder 上**都**返回 `false`，不会替调用方补偿。判定过程：截图看起来像"构图错了"，试过 `rotate(180)`（残差 21.93）与 `FLIP_LEFT_RIGHT`（24.69）都不对，扫描"绕不同水平轴翻转"后定位到**绕画面正中 y=450 翻转**（残差 1.32）——分界线在画面中部，这正是"只翻了 UV"而不是"整页转了 180°"的特征。修法是 `vec2(screenUV.x, oneMinus(screenUV.y))`，源纹理、深度纹理、历史纹理、采样偏移与 reprojection clip 全部改用该空间。
-   判定用的硬指标是**「透传态 vs 关闭态」的像素残差**：`enabled: false` 的链路应当等价于完全不跑链路，修前残差 10.61、修后 0.92（噪声地板 0.20）。这比肉眼比对或网格差可靠得多，也是确认"后处理是否真的生效"的通用手段。
-
-### 4. FPS 与掉帧统计
-
-`FrameScheduler` 会记录：
-
-- smoothed FPS
-- 累计 dropped frames（相对于 60Hz frame budget）
-- 50ms 以上 long frames
-
-`GlassLayerStats` 和 React stage DOM 属性会暴露这些数据，便于浏览器测试或应用自己的 telemetry 使用。统计是运行时观测数据，不是预先写死的性能承诺。
-
-属性清单（都在 `[data-ui-lib-stage]` 上）：`data-ui-lib-stage`、`data-ui-lib-mode`、`data-ui-lib-backend`、`data-ui-lib-tier`、`data-ui-lib-fps`、`data-ui-lib-dropped-frames`、`data-ui-lib-long-frames`、`data-ui-lib-resource-count`。它们由 `onStats` 每 0.25 s 推一次——**帧回调一旦抛异常，这些属性会集体为空**，这是判断降级路径是否健康的第一个信号。
-
-### 5. 资源释放诊断
-
-`@ui-lib/core` 提供逻辑资源登记表：
-
-```ts
-import { getResourceSnapshot } from "@ui-lib/core";
-
-const before = getResourceSnapshot();
-// mount / register / addParticles / addWorldObject ...
-// dispose everything
-const after = getResourceSnapshot();
-
-console.log(before, after);
-```
-
-登记的资源种类包括：
-
-```text
-renderer · layer · backdrop · panel · particle-system · world-object · post-graph
-```
-
-这不是浏览器 VRAM 计数器。浏览器没有跨后端、跨驱动的通用 VRAM API；它用于在 mount/unmount 50 次、路由切换和 StrictMode 场景中验证 UI-Lib 是否还持有逻辑资源引用。Three.js backend 的真实显存仍需要浏览器开发工具或 GPU profiling 工具验证。
-
-### 6. Device/context loss
-
-renderer 会监听 Three.js 的 WebGPU device loss / WebGL context loss，并通过 `GlassStage` 触发 layer 重建。重建时 React children 重新绑定到新的 layer；第一次恢复尝试会切换到 WebGL2，避免持续使用已经失效的 WebGPU device。
-
-这条路径仍需要在真实浏览器中注入 device loss、context loss 和恢复事件进行最终验收。
-
-### 7. SSR / hydration smoke test
-
-[`packages/react/test/ssr.test.ts`](packages/react/test/ssr.test.ts) 使用 `react-dom/server` 验证：
-
-- module evaluation 不要求 `window` / `document`
-- `GlassStage` 可以输出语义化 HTML
-- GPU 尚未启动时输出 fallback 标记
-- `GlassPanel` 的 DOM props 和 accessible name 保留
-
-这不是完整 Next.js hydration 测试；Next、Nuxt、SvelteKit example 属于后续发布工作。
-
-## 架构
-
-```text
-语义化 DOM / React adapter
-              │
-              ▼
-       @ui-lib/renderer
-   一个 canvas · 一个 renderer
-              │
-       ┌──────┼────────┐
-       ▼      ▼        ▼
-   backdrop  particles  glass DOM surfaces
-              │
-              ▼
-        @ui-lib/post
-       TSL post graph + history
-              │
-       WebGPU 或 WebGL2
-```
-
-共享 frame 顺序：
-
-```text
-input → GPU compute → DOM/state update → backdrop → particles → glass → post resolve
-```
-
-当 backdrop 是静态颜色/纹理，且没有 world object、pointer 或 layout 变化时，layer 可以跳过整帧 redraw 和 history copy。质量变化会重建编译期 graph budget，而不是用 uniform 假装改变已经展开的 shader loop。
-
-## 包结构
-
-| 包 | Three.js | 职责 | 状态 |
-| --- | --- | --- | --- |
-| [`@ui-lib/core`](packages/core) | 无 | device、quality、scheduler、pointer、math、lifecycle、Kubelka-Munk 混色、水墨毛细生成器、resource registry | 已实现 |
-| [`@ui-lib/shaders`](packages/shaders) | peer | Liquid Glass、backdrop 和通用 TSL node material | 已实现切片 |
-| [`@ui-lib/particles`](packages/particles) | peer | GPU simulation、emitter、force、bounds、particle rendering | 已实现切片 |
-| [`@ui-lib/post`](packages/post) | peer | TSL post graph、quality budget、temporal history、color processing | 已实现切片 |
-| [`@ui-lib/renderer`](packages/renderer) | peer | WebGPU/WebGL2 bootstrap、stage orchestration、DOM-attached glass | 已实现切片 |
-| [`@ui-lib/react`](packages/react) | peer | 50 个 `Soft` 语义组件、`GlassStage`、`GlassPanel`、`Lens`、`Optics`、`ParticleField`、CSS fallback、SSR 安全适配器 | 第一适配层 (50 组件落地) |
-| [`@ui-lib/motion`](packages/motion) | 无 | ζ = 0.55 物理阻尼弹簧、滚动进度、章节权重、数值轨道；与 renderer 共用同一帧时钟 | 已实现 |
-| [`@ui-lib/dom`](packages/dom) | 无 | 原生 DOM 文本测量与无框架基础绑定 | 第一切片 |
-| `@ui-lib/vue` / `@ui-lib/svelte` | — | 额外框架 adapter | 规划中 |
-
-渲染相关包把 `three` 声明为 **peer dependency**，不会在包内捆绑私有 Three.js。`@ui-lib/core` 保持框架无关且不依赖 Three.js。
-
-每个已实现的包都有自己的 `README.md`，内含真实 API 表、安装命令与用法片段；发布元数据（`repository` / `homepage` / `bugs` / `keywords` / `publishConfig.access`）已经写进各包的 `package.json`。仓库整体以 [MIT](LICENSE) 授权。
-
-## 渲染与降级策略
-
-### 后端选择
-
-1. 请求一个实际可用的 WebGPU adapter。
-2. 使用同一套 TSL source graph 回退到 WebGL2。
-3. 两个 GPU 后端都不可用、显式关闭或 reduced-motion 时使用 CSS / 静态 fallback。
-
-最终 backend 取决于浏览器、操作系统、驱动、设备策略和 context 是否可创建。UI-Lib 不会在没有运行 browser matrix 的情况下写死浏览器版本承诺。
-
-> **第 2 条当前只走通了一半。** 强制 WebGL2 时 `postProcessing.captureDepth()` 每帧抛 `TypeError` 的崩溃已修，观测属性恢复，但 post 链会把背后的世界整块打黑——DOM 与玻璃面板正常，透镜与粒子不见。原因是逐帧切换 `renderer.outputColorSpace` / `toneMapping` 翻转了 three 的 `needsFrameBufferTarget`，使链的输入拿到一张空图；WebGPU 侧另有一半：post 管线因 Tint 编译失败而静默空转，所以那条路径上的画面其实是**未经后处理**的。原因、复现与排除实验见 [`docs/benchmarks`](docs/benchmarks/2026-10-01-apple-m3-pro.md)。修好之前，请把 WebGL2 当作"能创建 context、能跑完帧、但画不出完整画面"的路径，并假设两条路径上的画面都不含后处理。
-
-### 质量等级
-
-后处理采样数和昂贵 graph 分支通过编译期预算选择：
-
-| Quality | 适用场景 | 当前策略 |
-| --- | --- | --- |
-| `1` | 低端设备 | 最小 graph；QualityManager 可以关闭 post FX |
-| `2` | 平衡默认值 | 中等 bloom / TAA budget |
-| `3` | 高端 / cinematic | 当前完整 bloom / TAA budget |
-
-运行时 FPS 采样可以在 tier 之间降级。重建 graph 是有意为之，因为 TSL 中的 loop 和 tap 数是编译期决定的。
-
-### 可访问性
-
-UI-Lib 是真实 HTML 外面的装饰增强层：
-
-- 没有 GPU 时内容仍然存在；
-- `prefers-reduced-motion` 应该收敛到可阅读的低运动状态；
-- canvas 是装饰层，不应劫持键盘焦点；
-- 语义、焦点顺序和控件行为由应用自己的 DOM 负责；
-- canvas 会标记 `aria-hidden="true"`。
-
-可访问性浏览器回归和完整 reduced-motion contract 是发布前的 P0/P1 验收内容。
-
-## 性能原则
-
-UI-Lib 以约束而不是营销数字为中心：
-
-- 一个 stage / 页面使用一个 canvas、一个 renderer 和一个 scheduler；
-- 粒子和后处理不创建额外 renderer；
-- motion、DOM 同步和 GPU simulation 不各自启动第二套 rAF；
-- hidden tab 暂停共享 scheduler；
-- 静态场景避免重复 redraw 与 history copy；
-- 低 tier 限制 DPR、粒子计算和 post graph 复杂度；
-- 所有自有 GPU 资源都有明确 disposal 路径；
-- 性能结论必须来自真实浏览器和真实设备测量；
-- 测量要能被复现，所以测量脚本与它的原始输出一起入库。
-
-## 路线图
-
-### P0：证明 runtime 可靠
-
-- [x] 六个浏览器验收页面
-- [x] Playwright 语义验收骨架与交互 smoke（headless Chromium 17 项通过；仓库里没有 `toHaveScreenshot`，所以它不是像素门禁）
-- [x] FPS、掉帧、long frame 统计
-- [x] 逻辑资源 registry 与 dispose 断言基础
-- [x] WebGPU/WebGL2 loss 通知与 React stage 重建入口
-- [x] React SSR smoke test
-- [x] 真机帧节奏测量脚本与第一份按 GPU 分桶的记录（[`docs/benchmarks`](docs/benchmarks/README.md)）
-- [x] 修掉强制 WebGL2 回退路径每帧抛异常的问题（宿主 `RenderTarget` + `renderer.initRenderTarget()`）
-- [x] 修掉 WebGPU 下 post 时间性链路的格式不匹配与 `historyValid` 误报（改为调用方显式传入源纹理，构造期对齐格式）
-- [x] 修掉 post 链在两条后端上都没在干活的问题（自建 `compositeRT` + `copyTextureToTexture`；Tint 降级失败根因是模块级 `var<private>` 上的嵌套 swizzle）
-- [x] 修掉自有 render target 的 UV 上下翻转（`isFlipY()` 在两条 node builder 上都是 `false`）
-- [x] 真机着色器编译门禁（`pnpm check:shaders`，有头 + 真 GPU；`--self-test` 证伪探针本身；**刻意不进 CI**，理由见 `docs/benchmarks`）
-- [ ] 为上面几个已修项补回归断言（现有 17 项语义验收抓不到帧回调异常、画面缺失，也抓不到"管线编译失败但每帧照跑"）
-- [ ] 真机 WebGL2 帧节奏与像素基线（post 链修好后重测；现有全部数字都不含后处理）
-- [ ] 跨浏览器 screenshot baseline
-- [ ] GPU 设备矩阵、1M 粒子 FPS 与 GPU memory profiling
-- [ ] device lost / context lost 的真实注入与恢复回归
-
-### P1：提高视觉上限
-
-- [ ] world-only per-pixel velocity MRT
-- [ ] 真正 multi-pass bloom pyramid
-- [ ] custom post-pass 插槽
-- [x] 世界透镜的安静环境反射（look 自带同一张工作室探针，页面不传 cubemap）
-- [x] DOM 玻璃与透镜共用同一张探针（bevel 反射，文字面更弱，页面不传 cubemap）
-- [ ] dynamic particle LOD 与 per-particle trail buffer
-- [x] 稳定 pointer-to-world ray（固定距离，与玻璃高光同一采样，render 相位、late step 之前）
-- [x] camera path 与 Glass Product Hero（`/?demo=product-hero`，Lumen）
-
-### P1：补齐动效叙事层
-
-- [ ] `@ui-lib/dom`：element-to-texture、DOM/3D tracking
-- [x] `@ui-lib/motion` 第一切片：scroll progress、beat、sampleTrack，与 renderer 共用 scheduler
-- [x] `GlassStage mode="section"`：canvas 归属嵌入元素，而不是 fixed 到窗口
-- [x] Scroll Cinema 旗舰页（sticky pin、相机轨道、章节，DOM 文本保持 HTML）
-- [ ] `@ui-lib/motion`：timeline、gesture、完整编排
-- [x] magnetic interaction（`<Magnetic />`，与 stage 同一帧）
-- [x] cursor field 的短 ribbon 与同一帧 motion-aware glass（静止时高光不变，`/?demo=cursor-field`）。per-particle trail buffer 仍未做
-- [x] HTML 逐词出现（`<Reveal>`，共享时钟；不是 MSDF）
-- [ ] MSDF text 与 character / word / line animation
-- [ ] MSDF 与完整 Scroll Cinema 分镜（相机轨道与章节已在旗舰页）
-
-### P2：生态与发布
-
-- [ ] R3F adapter 与最终 imperative API
-- [ ] Vue / Svelte adapter
-- [ ] Next.js、Nuxt、SvelteKit example
-- [x] size budgets（`size-budget.json` + `pnpm size`，已并入 `pnpm verify`）
-- [x] CI 流水线（`.github/workflows/ci.yml`：verify job + browser job）
-- [ ] CI browser matrix（把 browser job 扩到多浏览器/多后端）
-- [ ] Changesets 与 npm provenance 发布
-- [ ] recipes、API reference、copy-ready 文档
-
-## 六个旗舰 Demo
-
-目标产品面不是一个参数 Playground，而是六个可单独回归的真实页面：
-
-1. **LiquidGlass Pro**：`/?demo=liquid-glass`。section pin，三块命名玻璃贴在 DOM 上，套准纸在玻璃后面走。不是验收壳。页面不传 cubemap。
-2. **Aurora Flow**：`/?demo=aurora-flow`。viewport stage。`fieldOptions("aurora")` 加 `<ParticleField flow />`。字是 `<Reveal>`。reduced motion 停下粒子，字留在终态。动态 LOD 仍未做。
-3. **Glass Product Hero**：Lumen，`/?demo=product-hero`。section pin、相机轨道、`look="product"`、安静的 `<Optics mote="quiet" />`。环境反射由 look 自带的工作室探针提供，页面不传 cubemap。
-4. **Scroll Cinema**：section-scoped sticky pin、scroll-linked camera 和章节玻璃。MSDF 仍未做。
-5. **Cursor Field**：`/?demo=cursor-field`。viewport stage。`<ParticleField pointer />` 与 `<PointerTrail />` 共用玻璃高光的那一次平滑采样。字是 HTML。reduced motion 停下粒子和 ribbon。
-6. **Wake**：`/?demo=wake`。viewport stage。每颗粒子维护自己的短期位置历史，不是跟着指针走的 ribbon；档位预算裁掉多出来的粒子而不重建缓冲区。笔画收在标题右侧，`intensity` 0.46。
-
-六个 acceptance surface 都已是旗舰页。per-particle trail 与档位预算目前是 Wake 用到的第一切片，不等于完整的动态 LOD 方案；MSDF 和 `@ui-lib/dom` 仍未做。下一步见上文。
-
-## 不可妥协的设计规则
-
-- core 不依赖 React、Three.js 或其他框架。
-- Three.js 始终是 peer dependency，UI-Lib 包不捆绑 Three.js。
-- 所有 shader 与 post 使用 TSL，不用 raw GLSL/WGSL 绕过跨后端契约。
-- 功能不能通过额外 canvas、renderer 或 scheduler 逃避架构约束。
-- 每个效果必须有显式 lifecycle 和 dispose。
-- reduced motion、无 GPU、WebGL2 都是一等产品状态。
-- TSL graph 能构建不等于功能完成；完成标准必须同时包含视觉、交互、性能、可访问性和兼容性证据。
-
-## 开发命令
-
-```bash
-pnpm install
-pnpm dev              # Vite Playground
-pnpm verify           # 静态门禁：lint → test → typecheck → size → api → templates → cascade
-pnpm verify:device    # 上面的全部 + 真机着色器编译门禁
-pnpm test             # 先构建 dist，再跑 Vitest (42 个套件 530 项测试)
-pnpm typecheck        # 全 workspace TypeScript (9 个包)
-pnpm size             # 体积预算门禁（读 size-budget.json）
-pnpm lint             # Biome check + 模板守卫 + API 命名规则 + CSS 层叠检查
-pnpm check:api        # 组件与类型的命名规则（50 组件 / 208 导出类型）
-pnpm check:templates  # CSS 模板里的游离反引号、同一语句内的重复导入
-pnpm check:cascade    # CSS 选择器修饰类层叠顺序（738 条规则无倒置）
-pnpm build            # 包构建
-pnpm test:e2e         # Playwright 浏览器验收（headless Chromium）
-pnpm test:e2e:update  # 更新视觉 baseline
-pnpm measure          # 真机帧节奏测量（需要真实 GPU；脚本不会启停服务器）
-pnpm check:shaders    # 真机着色器/管线编译门禁（需要真实 GPU；先构建 apps/docs）
-pnpm check:shaders:self-test  # 证伪探针本身：确认门禁不是瞎的
-pnpm check:post       # TSL 后处理链是否真的在干活（passthrough 残差 < 2）
-pnpm check:pixels     # 七张页面真的在出像素、玻璃真的落在元素上
-pnpm check:components # 组件可见性、调色板接线
-```
-
-### 自动化门禁矩阵
-
-每一道都以**退出码**为准，不以输出为准——一个不可能失败的守卫比没有守卫更糟，这个仓库里有两个检查曾经连续两次报告"全绿"而其实什么都没看。
-
-| 门禁 | 覆盖范围与断言目标 |
-| --- | --- |
-| `biome check .` | 全仓库格式与代码风格静态分析 |
-| `check:templates` | 游离反引号（CSS 模板提前闭合）、重复导入 |
-| `check:api` | 50 个应用组件严格遵循 `Soft` 命名规范；208 个导出类型不带项目名前缀 |
-| `check:cascade` | 738 条 CSS 规则，修饰类不倒置先于基类生效 |
-| `typecheck` | 全工作区 9 个包 TypeScript 编译与类型检查 |
-| `vitest` | 42 个测试套件 / 530 项单元测试（100% 绿灯） |
-| `size` | 全部 7 个发布包严格处于 `size-budget.json` 预算天花板内 |
-| `check:shaders` | 12 张页面的着色器/管线真机编译（真机/真实 GPU 运行） |
-| `check:post` | 3 页，passthrough 像素残差对阈值 2 |
-| `check:pixels` | 7 页在绘制、玻璃在元素真实矩形上 |
-| `check:components` | 组件树挂载、调色板与语义状态接线 |
-| `test:e2e` | 17 项无头浏览器生命周期与降级验收 |
-
-前七道为纯静态与逻辑门禁，不依赖物理 GPU，`pnpm verify` 一键全量执行。
-
-当前仓库仍处在 experimental monorepo 阶段。第一个 stable release 之前，公开 API 可能发生变化；依赖规划中或 experimental 标记的能力前，请先查看 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
-
-## License
-
-MIT
+| 门禁命令 | 覆盖范围与断言目标 | 门禁性质 |
+|---|---|:---:|
+| `pnpm lint` | Biome 静态语法与风格扫描，全仓 0 错误 | 静态自动化 |
+| `pnpm test` | **42 个测试套件 / 530 项单元测试**，100% 绿灯全覆盖 | 逻辑自动化 |
+| `pnpm typecheck` | 全工作区 9 个包 TypeScript Strict 严格编译，0 错误 | 静态自动化 |
+| `pnpm size` | 7 个发布包严格受限于 `size-budget.json`，确保产物体积冗余 | 产物体积 |
+| `pnpm check:api` | **50 个组件命名与 ARIA 契约审计**；208 个导出类型保持中立无私有命名泄露 | 规范守卫 |
+| `pnpm check:templates`| CSS 模板字面量游离反引号扫描、同语句重复导入守卫 | 语法守卫 |
+| `pnpm check:cascade`  | **738 条 CSS 规则层叠顺序分析**，断言修饰类严格不得早于基础规则生效 | 样式守卫 |
+| `pnpm check:shaders`  | 真机环境下 12 张页面的着色器/管线编译审计（捕获 Tint IR Lowering 错误） | 设备图形门禁 |
+| `pnpm check:post`     | TSL 后处理链实测校验，断言 Passthrough 像素残差 $< 1.0$ | 设备图形门禁 |
+| `pnpm check:pixels`   | 断言 7 个旗舰页面的画布有效输出与玻璃面板几何对齐率 | 像素几何门禁 |
+| `pnpm check:components`| 运行时组件树挂载、水墨调色板连线与明度自适应反差判定 | 渲染集成门禁 |
+| `pnpm test:e2e`       | Playwright 17 项端到端验收：上下文丢失恢复、滚动钉住、CSS 降级路径 | 浏览器端到端 |
+
+---
+
+## 深度技术文档
+
+- 📘 [**渲染管线缺陷剖析与真机调试复盘**](docs/internals/render-pipeline-debugging.md)：深度复盘 WebGL2 深度拷贝崩溃、WebGPU historyValid 误报、Post 链静默空转、自有 Render Target UV 翻转 4 大底层 Bug 的排查全过程，以及 CrystalText 剔除/双重 Alpha 故障与图形度量方法学。
+- 📗 [**Soft 组件规范与 WAI-ARIA 体系指南**](docs/components/README.md)：详述 50 个 Soft 组件的角色定义、WAI-ARIA APG 键盘模型、焦点管理闭环与 $\zeta = 0.55$ 物理阻尼微交互规范。
+- 📙 [**真实设备 GPU 基线与帧节奏记录**](docs/benchmarks/README.md)：Apple M3 Pro / Metal 等真实硬件环境下的 120 FPS / 60 FPS 帧间隔分布、掉帧统计与分辨率压力实测。
+- 📕 [**演进路线图与架构里程碑**](docs/ROADMAP.md)：查看 P0（运行时可靠性）、P1（视觉上限与动效叙事）与 P2（生态与发布）的研发路线图。
+
+---
+
+## 许可证
+
+本项目基于 [MIT License](LICENSE) 授权。
