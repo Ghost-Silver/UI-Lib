@@ -8,6 +8,7 @@ import {
 	getScheduler,
 	mergeDefined,
 	onReducedMotionChange,
+	type PlatformBudget,
 	PointerTracker,
 	QualityManager,
 	type QualityTier,
@@ -27,10 +28,24 @@ import {
 	createWorldLensMaterial,
 	type LiquidGlassMaterial,
 	type SharedUniforms,
+	type Vec2Uniform,
 	type WorldLensMaterial,
 	type WorldLensOptions,
 } from "@ui-lib/shaders";
-import { uniform } from "three/tsl";
+import {
+	abs,
+	float,
+	length,
+	max,
+	min,
+	mix,
+	smoothstep,
+	texture,
+	uniform,
+	uv,
+	vec2,
+	vec3,
+} from "three/tsl";
 import {
 	ClampToEdgeWrapping,
 	DepthTexture,
@@ -39,6 +54,7 @@ import {
 	Matrix4,
 	Mesh,
 	MeshBasicMaterial,
+	MeshBasicNodeMaterial,
 	type Object3D,
 	OrthographicCamera,
 	PerspectiveCamera,
@@ -67,6 +83,13 @@ import { createRenderer, type UiRenderer } from "./createRenderer.js";
 import { stepDepthHistory } from "./depthHistory.js";
 import { stepSectionViewport } from "./sectionViewport.js";
 
+declare module "@ui-lib/shaders" {
+	interface SharedUniforms {
+		scroll?: Vec2Uniform;
+		sharedScroll?: Vec2Uniform;
+	}
+}
+
 /** Panel tuning knobs, all in **CSS pixels** — the layer scales them by DPR. */
 export interface GlassPanelOptions {
 	radius?: number;
@@ -92,6 +115,8 @@ export interface GlassPanelOptions {
 	opacity?: number;
 	pointerStrength?: number;
 	pointerRadius?: number;
+	/** Fluid ripple perturbation strength (0 = disabled, 1 = default). */
+	rippleStrength?: number;
 	/**
 	 * Mix of the shared studio probe. Looks set this. The face stays quiet;
 	 * the bevel carries the window. Pages do not pass a cubemap.
@@ -107,8 +132,8 @@ export const GLASS_PANEL_DEFAULTS: Required<GlassPanelOptions> = {
 	refraction: 42,
 	shift: [0, 0],
 	dispersion: 0.28,
-	roughness: 0.22,
-	frost: 22,
+	roughness: 0,
+	frost: 0,
 	tint: "#ffffff",
 	tintAmount: 0.06,
 	saturation: 1.12,
@@ -125,6 +150,7 @@ export const GLASS_PANEL_DEFAULTS: Required<GlassPanelOptions> = {
 	opacity: 1,
 	pointerStrength: 0.3,
 	pointerRadius: 320,
+	rippleStrength: 1,
 	environment: 0.28,
 	z: 0,
 };
@@ -133,6 +159,8 @@ export interface GlassPanelHandle extends Disposable {
 	readonly element: HTMLElement;
 	update(options: Partial<GlassPanelOptions>): void;
 	setVisible(visible: boolean): void;
+	/** Dispatch a dynamic fluid ripple wavelet at normalized UV coordinates (0..1). */
+	addRipple(u: number, v: number, amplitude?: number): void;
 	readonly visible: boolean;
 }
 
@@ -158,6 +186,13 @@ export interface GlassLayerOptions {
 	forceWebGL?: boolean;
 	tier?: QualityTier | "auto";
 	autoQuality?: boolean;
+	/**
+	 * A budget stated by the host instead of probed from the browser.
+	 *
+	 * This is the seam a non-web backend attaches to: state the numbers and the
+	 * whole layer behaves as if it had probed them. On the web, leave it out.
+	 */
+	budget?: PlatformBudget;
 	/** Track the pointer and feed it to materials as a specular bloom. */
 	pointer?: boolean;
 	/** Re-read element rects every frame instead of on layout/scroll changes. */
@@ -216,6 +251,22 @@ export interface GlassLayerStats {
 	particleActive: number;
 	/** Particles allocated across every attached system. */
 	particleAllocated: number;
+	/**
+	 * Allocated minus active: what the tier budget is holding back. A page that
+	 * asks for a million and gets twenty thousand should be able to say so
+	 * without reading two numbers and subtracting.
+	 */
+	particleDropped: number;
+	/** Id of the host whose budget is in force, e.g. `"web"` or `"ue5-metal"`. */
+	budgetHost: string;
+	/** Whether that budget was probed from a device or stated by the host. */
+	budgetSource: "probed" | "declared";
+	/**
+	 * Panels registered beyond the tier's `maxPanels`. The cap is advisory:
+	 * they render anyway, and this is how a page can tell that it is over
+	 * budget instead of inferring it from two other numbers.
+	 */
+	panelsOverBudget: number;
 	/** Logical owned-resource counts; this is not a VRAM estimate. */
 	resources: ResourceSnapshot;
 }
@@ -302,6 +353,7 @@ export class GlassLayer implements Disposable {
 	private readonly sharedCameraUp = uniform(new Vector3(0, 1, 0));
 	private readonly sharedCameraBack = uniform(new Vector3(0, 0, 1));
 	private readonly sharedCameraFov = uniform(52);
+	private readonly sharedScroll = uniform(new Vector2());
 	private readonly shared: SharedUniforms;
 
 	private readonly glassScene = new Scene();
@@ -331,13 +383,30 @@ export class GlassLayer implements Disposable {
 	private readonly worldPosition = new Vector3();
 	private readonly projectedWorldPosition = new Vector3();
 	private readonly panels = new Set<Panel>();
+	private overBudgetPanels = 0;
 	private readonly resizeObserver: ResizeObserver;
 
 	private backdrop: BackdropInstance;
 	private backdropResource: ResourceHandle | null = null;
 	private readonly backdropQuad: ReturnType<typeof createFullscreenQuad>;
-	/** Background renders into this off-screen target; glass samples it directly. */
-	private readonly backdropRT = new WebGLRenderTarget(1, 1);
+	/** Raw watercolor backdrop + motes before intermediate frosted glass pass. */
+	private readonly rawBackdropRT = new WebGLRenderTarget(1, 1, {
+		depthBuffer: true,
+		stencilBuffer: false,
+	});
+	/** Frosted blur radius in device pixels. */
+	private readonly frostedRadius = uniform(10.0);
+	/** Frosted ground viewport inset in device pixels (~16px CSS scaled by DPR). */
+	private readonly groundInset = uniform(16.0);
+	/** Frosted ground corner radius in device pixels (~28px CSS scaled by DPR). */
+	private readonly groundRadius = uniform(28.0);
+	private readonly frostedScene = new Scene();
+	private readonly frostedQuad: ReturnType<typeof createFullscreenQuad>;
+	/** Frosted intermediate backdrop target; glass panels and composite sample this directly. */
+	private readonly backdropRT = new WebGLRenderTarget(1, 1, {
+		depthBuffer: false,
+		stencilBuffer: false,
+	});
 	/** Perspective depth of that target. The canvas depth is only the present quad. */
 	private readonly worldDepth = new DepthTexture(1, 1);
 	/**
@@ -419,6 +488,7 @@ export class GlassLayer implements Disposable {
 			tier: options.tier ?? "auto",
 			auto: options.autoQuality ?? true,
 			capabilities: ui.capabilities,
+			budget: options.budget,
 			onChange: (settings, previous) => {
 				// Blur tap count is baked into the shader graph, so a tier change
 				// rebuilds the materials with the new budget.
@@ -444,7 +514,13 @@ export class GlassLayer implements Disposable {
 			cameraUp: this.sharedCameraUp,
 			cameraBack: this.sharedCameraBack,
 			cameraFov: this.sharedCameraFov,
+			scroll: this.sharedScroll,
+			sharedScroll: this.sharedScroll,
 		};
+
+		if (typeof window !== "undefined") {
+			this.sharedScroll.value.set(window.scrollX ?? 0, window.scrollY ?? 0);
+		}
 
 		this.backdrop = createBackdrop(options.backdrop ?? DEFAULT_BACKDROP, this.shared);
 		this.backdropResource = resourceRegistry.track("backdrop");
@@ -459,16 +535,86 @@ export class GlassLayer implements Disposable {
 		);
 		this.presentScene.add(this.presentQuad.mesh);
 		this.worldDepth.name = "ui-lib:world-depth";
-		this.backdropRT.depthTexture = this.worldDepth;
+		this.rawBackdropRT.depthTexture = this.worldDepth;
+		this.rawBackdropRT.texture.name = "ui-lib:raw-backdrop";
+		this.rawBackdropRT.texture.wrapS = ClampToEdgeWrapping;
+		this.rawBackdropRT.texture.wrapT = ClampToEdgeWrapping;
+		this.rawBackdropRT.texture.magFilter = LinearFilter;
+		this.rawBackdropRT.texture.minFilter = LinearFilter;
+		this.rawBackdropRT.texture.generateMipmaps = false;
+
+		this.backdropRT.texture.name = "ui-lib:frosted-backdrop";
+		this.backdropRT.texture.wrapS = ClampToEdgeWrapping;
+		this.backdropRT.texture.wrapT = ClampToEdgeWrapping;
+		this.backdropRT.texture.magFilter = LinearFilter;
+		this.backdropRT.texture.minFilter = LinearFilter;
+		this.backdropRT.texture.generateMipmaps = false;
+
+		// Ground panel SDF computation (16px inset, 28px radius)
+		const p = uv().sub(0.5).mul(this.sharedResolution);
+		const half = this.sharedResolution.mul(0.5);
+		const groundHalf = half.sub(this.groundInset);
+		const groundInner = groundHalf.sub(this.groundRadius);
+		const q = abs(p).sub(groundInner);
+		const outer = max(q.x, q.y);
+		const dist = length(max(q, vec2(0)))
+			.add(min(outer, float(0)))
+			.sub(this.groundRadius);
+
+		// Antialiased mask for the frosted ground panel (1.0 inside, 0.0 outside)
+		const groundMask = smoothstep(float(1.0), float(-1.0), dist);
+
+		// 8-tap golden-angle disc kernel for frosted blur on the ground panel
+		const FROST_TAPS = 8;
+		const GOLDEN_ANGLE = 2.399963229728653;
+		let blurNode = texture(
+			this.rawBackdropRT.texture,
+			uv().add(
+				vec2(
+					Math.cos(0 * GOLDEN_ANGLE) * Math.sqrt((0 + 0.5) / FROST_TAPS),
+					Math.sin(0 * GOLDEN_ANGLE) * Math.sqrt((0 + 0.5) / FROST_TAPS),
+				)
+					.mul(this.frostedRadius)
+					.div(this.sharedResolution),
+			),
+		).rgb;
+		for (let i = 1; i < FROST_TAPS; i++) {
+			const angle = i * GOLDEN_ANGLE;
+			const radius = Math.sqrt((i + 0.5) / FROST_TAPS);
+			const dir = vec2(Math.cos(angle) * radius, Math.sin(angle) * radius);
+			blurNode = blurNode.add(
+				texture(
+					this.rawBackdropRT.texture,
+					uv().add(dir.mul(this.frostedRadius).div(this.sharedResolution)),
+				).rgb,
+			);
+		}
+		const frostedColor = blurNode.div(float(FROST_TAPS)).add(vec3(0.035));
+		// Delicate specular highlight sheen on the outer rim
+		const borderSheen = smoothstep(float(2.0), float(0.0), abs(dist)).mul(float(0.18));
+		const groundComposite = frostedColor.add(borderSheen);
+
+		const rawColor = texture(this.rawBackdropRT.texture, uv()).rgb;
+		const blendedBackdrop = mix(rawColor, groundComposite, groundMask);
+
+		const frostedMaterial = new MeshBasicNodeMaterial();
+		frostedMaterial.colorNode = blendedBackdrop;
+		frostedMaterial.depthTest = false;
+		frostedMaterial.depthWrite = false;
+		frostedMaterial.toneMapped = false;
+		this.frostedQuad = createFullscreenQuad(frostedMaterial);
+		this.silenceDepth(frostedMaterial);
+		this.frostedScene.add(this.frostedQuad.mesh);
+
 		this.refractionRT.texture.name = "ui-lib:refraction-source";
 		this.refractionRT.texture.wrapS = ClampToEdgeWrapping;
 		this.refractionRT.texture.wrapT = ClampToEdgeWrapping;
 		this.refractionRT.texture.magFilter = LinearFilter;
 		this.refractionRT.texture.minFilter = LinearFilter;
 		this.refractionRT.texture.generateMipmaps = false;
-		this.refractionRT.texture.colorSpace = this.backdropRT.texture.colorSpace;
+		this.refractionRT.texture.colorSpace = this.rawBackdropRT.texture.colorSpace;
 		const blitMaterial = new MeshBasicMaterial({
-			map: this.backdropRT.texture,
+			map: this.rawBackdropRT.texture,
 			toneMapped: false,
 		});
 		this.refractionBlit = createFullscreenQuad(blitMaterial);
@@ -477,6 +623,7 @@ export class GlassLayer implements Disposable {
 		// The gradient quad must not fill the depth buffer, or every fragment
 		// looks like world geometry and camera reprojection smears the glass.
 		this.silenceDepth(this.backdropQuad.mesh.material);
+		this.silenceDepth(this.frostedQuad.mesh.material);
 		this.silenceDepth(this.compositeQuad.mesh.material);
 		this.silenceDepth(this.presentQuad.mesh.material);
 		this.setPostProcessing(options.post ?? {});
@@ -498,10 +645,18 @@ export class GlassLayer implements Disposable {
 		if (options.alwaysSyncLayout !== true) {
 			this.resizeObserver.observe(this.boundsElement ?? document.documentElement);
 		}
-		this.disposer.listen(window, "scroll", () => this.markDirty(), {
-			passive: true,
-			capture: true,
-		});
+		this.disposer.listen(
+			window,
+			"scroll",
+			() => {
+				this.sharedScroll.value.set(window.scrollX ?? 0, window.scrollY ?? 0);
+				this.markDirty();
+			},
+			{
+				passive: true,
+				capture: true,
+			},
+		);
 		this.disposer.listen(window, "resize", () => this.markDirty(), { passive: true });
 
 		if (options.pointer !== false) {
@@ -537,6 +692,12 @@ export class GlassLayer implements Disposable {
 		this.disposer.add(() => this.backdrop.dispose());
 		this.disposer.add(() => this.backdropResource?.dispose());
 		this.disposer.add(() => this.backdropQuad.dispose());
+		this.disposer.add(() => this.rawBackdropRT.dispose());
+		this.disposer.add(() => this.frostedQuad.dispose());
+		this.disposer.add(() => {
+			const material = this.frostedQuad.mesh.material;
+			if (!Array.isArray(material)) material.dispose();
+		});
 		this.disposer.add(() => this.backdropRT.dispose());
 		this.disposer.add(() => this.worldDepth.dispose());
 		this.disposer.add(() => this.refractionRT.dispose());
@@ -663,6 +824,10 @@ export class GlassLayer implements Disposable {
 			reducedMotion: this.reducedMotion,
 			particleActive: this.particleActiveTotal(),
 			particleAllocated: this.particleAllocatedTotal(),
+			particleDropped: this.particleAllocatedTotal() - this.particleActiveTotal(),
+			budgetHost: this.quality.budgetHost,
+			budgetSource: this.quality.budgetSource,
+			panelsOverBudget: this.overBudgetPanels,
 			resources: getResourceSnapshot(),
 		};
 	}
@@ -944,14 +1109,21 @@ export class GlassLayer implements Disposable {
 
 	register(element: HTMLElement, options: Partial<GlassPanelOptions> = {}): GlassPanelHandle {
 		const max = this.quality.settings.maxPanels;
-		if (this.panels.size >= max) {
+		if (this.panels.size >= max && this.overBudgetPanels === 0) {
+			// Reported, not refused. The cap is advisory today: enforcing it
+			// would drop panels on every page that registers more than its tier
+			// allows, and that needs a visual pass on all seven before it is a
+			// safe change. What it must not do is lie — the previous message
+			// promised the panel would not render, and then rendered it.
 			console.warn(
-				`[ui-lib] panel budget exhausted (${max} at tier ${this.quality.tier}); new panel will not render.`,
+				`[ui-lib] panel budget exceeded (${max} at tier ${this.quality.tier}); ` +
+					`panels past the budget still render. See stats.panelsOverBudget.`,
 			);
 		}
 
 		const panel = this.createPanel(element, mergeDefined(GLASS_PANEL_DEFAULTS, options));
 		this.panels.add(panel);
+		if (this.panels.size > max) this.overBudgetPanels += 1;
 		this.resizeObserver.observe(element);
 		this.markDirty();
 
@@ -967,6 +1139,10 @@ export class GlassLayer implements Disposable {
 			},
 			setVisible: (visible) => {
 				panel.userVisible = visible;
+				this.markDirty();
+			},
+			addRipple: (u: number, v: number, amplitude?: number) => {
+				panel.material.addRipple(u, v, amplitude, this.sharedTime.value);
 				this.markDirty();
 			},
 			dispose: () => {
@@ -1212,6 +1388,7 @@ export class GlassLayer implements Disposable {
 				opacity: options.opacity,
 				pointerStrength: options.pointerStrength,
 				pointerRadius: options.pointerRadius,
+				rippleStrength: options.rippleStrength,
 				environment: options.environment,
 				blurTaps: this.quality.settings.blurTaps,
 			},
@@ -1249,6 +1426,7 @@ export class GlassLayer implements Disposable {
 		u.opacity.value = panel.options.opacity;
 		u.pointerStrength.value = panel.options.pointerStrength;
 		u.pointerRadius.value = panel.options.pointerRadius;
+		u.rippleStrength.value = panel.options.rippleStrength;
 		u.environment.value = clamp01(panel.options.environment);
 	}
 
@@ -1310,6 +1488,11 @@ export class GlassLayer implements Disposable {
 		const bufferWidth = Math.max(1, Math.round(width * dpr));
 		const bufferHeight = Math.max(1, Math.round(height * dpr));
 		this.sharedResolution.value.set(bufferWidth, bufferHeight);
+		const isMobile = width < 768;
+		this.frostedRadius.value = 10.0 * dpr;
+		this.groundInset.value = (isMobile ? 8.0 : 16.0) * dpr;
+		this.groundRadius.value = (isMobile ? 18.0 : 28.0) * dpr;
+		this.rawBackdropRT.setSize(bufferWidth, bufferHeight);
 		this.backdropRT.setSize(bufferWidth, bufferHeight);
 		this.refractionRT.setSize(bufferWidth, bufferHeight);
 		this.compositeRT.setSize(bufferWidth, bufferHeight);
@@ -1331,6 +1514,48 @@ export class GlassLayer implements Disposable {
 		if (imageBackdrop.viewportAspect) imageBackdrop.viewportAspect.value = width / height;
 
 		this.dirty = true;
+	}
+
+	/**
+	 * Whether anything the panels are positioned against has moved since the last
+	 * frame. See the call site for why this exists rather than a listener.
+	 *
+	 * `scrollX`/`scrollY` alone would miss a panel moving inside a scrolling
+	 * container, so the check also walks the panels and compares their viewport
+	 * boxes. It is a few `getBoundingClientRect` calls per frame, all of which force
+	 * a style read the renderer is doing anyway.
+	 */
+	private lastScroll = { x: 0, y: 0, boxes: [] as number[] };
+
+	/** The shared scroll uniform, tracking window scroll coordinates. */
+	get scrollUniform() {
+		return this.sharedScroll;
+	}
+
+	private scrollChanged(): boolean {
+		const boxes: number[] = [];
+		let moved = window.scrollX !== this.lastScroll.x || window.scrollY !== this.lastScroll.y;
+		if (moved) {
+			this.sharedScroll.value.set(window.scrollX, window.scrollY);
+		}
+		let i = 0;
+		for (const panel of this.panels) {
+			const rect = panel.element.getBoundingClientRect();
+			boxes.push(rect.top, rect.left);
+			if (
+				!moved &&
+				(Math.abs((this.lastScroll.boxes[i] ?? rect.top) - rect.top) > 0.5 ||
+					Math.abs((this.lastScroll.boxes[i + 1] ?? rect.left) - rect.left) > 0.5)
+			) {
+				moved = true;
+			}
+			i += 2;
+		}
+		// A panel added or removed changes the array length, which is itself a
+		// reason to relayout.
+		if (boxes.length !== this.lastScroll.boxes.length) moved = true;
+		this.lastScroll = { x: window.scrollX, y: window.scrollY, boxes };
+		return moved;
 	}
 
 	private syncLayout(): void {
@@ -1365,17 +1590,28 @@ export class GlassLayer implements Disposable {
 			const pw = w * dpr;
 			const ph = h * dpr;
 			panel.mesh.scale.set(pw, ph, 1);
+			// Screen y grows downward, world y grows upward. The composite is
+			// presented without a V flip, so the conversion is `world = screen
+			// - centre`: a panel whose element sits at y = 841 has to be placed
+			// at +341, not -341. Getting this sign wrong leaves every pane
+			// mirrored about the canvas centre — a 39px chip 700px from its
+			// own text, and the LGP panes floating above their labels.
 			panel.mesh.position.set(
 				(localLeft + w / 2) * dpr - halfW,
-				halfH - (localTop + h / 2) * dpr,
+				(localTop + h / 2) * dpr - halfH,
 				panel.options.z,
 			);
 
+			const shortEdge = Math.max(1, Math.min(pw, ph) / dpr);
+			const thicknessScale = shortEdge / 200;
 			const u = panel.material.uniforms;
 			u.size.value.set(pw, ph);
 			u.radius.value = Math.min(panel.options.radius * dpr, Math.min(pw, ph) / 2);
-			u.bevel.value = Math.min(panel.options.bevel * dpr, Math.min(pw, ph) / 2);
-			u.refraction.value = panel.options.refraction * dpr;
+			u.bevel.value = Math.min(
+				panel.options.bevel * thicknessScale * dpr,
+				Math.min(pw, ph) / 2,
+			);
+			u.refraction.value = panel.options.refraction * thicknessScale * dpr;
 			u.frost.value = panel.options.frost * dpr;
 			u.pointerRadius.value = panel.options.pointerRadius * dpr;
 		}
@@ -1435,6 +1671,30 @@ export class GlassLayer implements Disposable {
 		// Same smoothed pointer the highlight just wrote. Before the skip, so a
 		// trail mesh is current if we draw, and before late particle steps.
 		this.syncPointerFollowers(info.dt);
+		/*
+		 * **Scrolling does not mark the layout dirty, and that was a real bug.**
+		 *
+		 * `syncLayout` reads every panel's `getBoundingClientRect()` and writes it
+		 * into the shader, so it is always *correct when it runs*. The problem was
+		 * that nothing made it run: the two signals that set `dirty` are a
+		 * `ResizeObserver` on the document and an explicit `markDirty`, and **a
+		 * scroll changes position without changing size**, so neither fired.
+		 *
+		 * The symptom, reported from a real session: *"scrolling to the bottom and
+		 * past it shows a beautiful piece of glass for a moment, and when the
+		 * rubber-band snaps back it is gone."* That is exactly what a stale panel
+		 * box looks like — the shader draws the glass where the element used to be,
+		 * so it only crosses the element's real position while the page is moving
+		 * under it, and disappears the moment the scroll settles.
+		 *
+		 * Checked every frame rather than listened for, because the events that move
+		 * a panel without resizing it are many — scroll, a transform on an ancestor,
+		 * a `sticky` crossing its threshold, an accordion above it opening,
+		 * `field-sizing` growing a textarea above it — and a listener list is a list
+		 * of the ones somebody thought of. A comparison is one number.
+		 */
+		if (this.scrollChanged()) this.dirty = true;
+
 		const layoutWasDirty = this.dirty;
 		if (this.dirty) {
 			this.syncLayout();
@@ -1638,10 +1898,9 @@ export class GlassLayer implements Disposable {
 		// three's own output pass when it is not. Nothing here has to flip
 		// `toneMapping` / `outputColorSpace` per frame.
 		//
-		// 1. Backdrop + world objects render into a dedicated off-screen target.
-		//    Glass samples this target directly (never the live framebuffer), so
+		// 1. Raw backdrop + world objects render into a dedicated off-screen target (rawBackdropRT).
 		//    WebGPU sees no read-after-write and no MSAA sample-count clash.
-		renderer.setRenderTarget(this.backdropRT);
+		renderer.setRenderTarget(this.rawBackdropRT);
 		renderer.clear(true, true, false);
 		renderer.render(this.backdropScene, this.backdropQuad.camera);
 
@@ -1694,7 +1953,7 @@ export class GlassLayer implements Disposable {
 				// here is a second full-target write that the quad replaces.
 				renderer.render(this.refractionScene, this.refractionBlit.camera);
 				if (hasInside) renderer.render(this.insideScene, this.particleCamera);
-				renderer.setRenderTarget(this.backdropRT);
+				renderer.setRenderTarget(this.rawBackdropRT);
 				if (hasLens) renderer.render(this.lensScene, this.particleCamera);
 				else if (hasInside) renderer.render(this.insideScene, this.particleCamera);
 			}
@@ -1703,11 +1962,16 @@ export class GlassLayer implements Disposable {
 		}
 		renderer.setRenderTarget(null);
 
-		// 3. Screen base = the rendered backdrop (also the glass refraction
-		//    source) + the glass panels, composited into a target we own. The
-		//    canvas is not readable, so the composite has to live in a texture
-		//    for the post chain to sample it and for the temporal history to be
-		//    copied out of it.
+		// 2.5 Middle subtle frosted glass pass (~2.0px radius, 6-tap disc)
+		//     Samples rawBackdropRT and writes subtle frosted backdrop into backdropRT.
+		//     Whole canvas and foreground glass cards sample this frosted backdrop.
+		renderer.setRenderTarget(this.backdropRT);
+		renderer.clear(true, false, false);
+		renderer.render(this.frostedScene, this.frostedQuad.camera);
+		renderer.setRenderTarget(null);
+
+		// 3. Screen base = the rendered backdrop (carrying watercolor + subtle frost)
+		//    + the glass panels, composited into a target we own.
 		renderer.setRenderTarget(this.compositeRT);
 		renderer.clear(true, true, false);
 		renderer.render(this.compositeScene, this.compositeQuad.camera);
@@ -1732,7 +1996,7 @@ export class GlassLayer implements Disposable {
 			// copy. The target is bound first so the world pass has stored
 			// its depth attachment. Skip the copy when this frame drew none.
 			if (depth.captureDepth) {
-				renderer.setRenderTarget(this.backdropRT);
+				renderer.setRenderTarget(this.rawBackdropRT);
 				this.postProcessing?.captureDepth(renderer);
 				renderer.setRenderTarget(null);
 			}

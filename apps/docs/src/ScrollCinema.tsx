@@ -7,7 +7,6 @@ import {
 	GlassStage,
 	type LensLookName,
 	Magnetic,
-	Optics,
 	SCROLL_CINEMA_BEATS,
 	SCROLL_CINEMA_FADE,
 	ScrollPin,
@@ -18,6 +17,7 @@ import {
 	useReducedMotion,
 	useScrollTrackHandle,
 } from "@ui-lib/react";
+import { Optics } from "@ui-lib/react/gpu";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect, useRef } from "react";
 import { Group } from "three/webgpu";

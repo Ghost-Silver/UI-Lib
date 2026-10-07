@@ -5,6 +5,7 @@ import {
 	fieldOptions,
 	GLASS_LOOKS,
 	LENS_LOOKS,
+	resolveGlassPreset,
 	resolveLensLook,
 } from "../src/looks.js";
 import { magneticOffset } from "../src/magneticMath.js";
@@ -97,6 +98,39 @@ describe("optics looks", () => {
 		expect(GLASS_LOOKS.milk.environment).toBeLessThan(GLASS_LOOKS.press.environment);
 		expect(GLASS_LOOKS.press.environment).toBeLessThanOrEqual(1);
 		expect(GLASS_LOOKS.milk.environment).toBeGreaterThan(0);
+	});
+
+	it("resolves glass presets and scales thickness proportionally", () => {
+		const crystal = resolveGlassPreset("apple-crystal");
+		expect(crystal.specular).toBe(0.88);
+		expect(crystal.edgeGlow).toBe(0.62);
+		expect(crystal.bevel).toBe(16);
+		expect(crystal.refraction).toBe(28);
+
+		// Alias works identically
+		expect(resolveGlassPreset("crystal")).toEqual(crystal);
+
+		// Thickness scaling: 42mm (1.5x reference 28mm)
+		const thick = resolveGlassPreset({ preset: "apple-crystal", thickness: 42 });
+		expect(thick.bevel).toBe(Math.round(16 * 1.5));
+		expect(thick.refraction).toBe(Math.round(28 * 1.5));
+
+		// Custom override takes precedence over scaled preset
+		const overridden = resolveGlassPreset({
+			preset: "apple-crystal",
+			thickness: 42,
+			overrides: { bevel: 50, specular: 0.99 },
+		});
+		expect(overridden.bevel).toBe(50);
+		expect(overridden.specular).toBe(0.99);
+		expect(overridden.refraction).toBe(Math.round(28 * 1.5));
+
+		// Capsule and Frosted presets
+		const pill = resolveGlassPreset("capsule");
+		expect(pill.radius).toBe(999);
+		const frosted = resolveGlassPreset("frosted-dock");
+		expect(frosted.roughness).toBe(0.35);
+		expect(frosted.frost).toBe(28);
 	});
 });
 
