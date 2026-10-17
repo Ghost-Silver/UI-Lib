@@ -20,6 +20,17 @@ export interface BMFont {
 	};
 	info: {
 		size: number;
+		face?: string;
+		padding?: number;
+	};
+	/**
+	 * Present on distance-field atlases. `distanceRange` is how many texels
+	 * either side of the edge the stored 0..1 range covers, and it is what the
+	 * anti-aliasing width is derived from — see `createTextMaterial`.
+	 */
+	distanceField?: {
+		fieldType: string;
+		distanceRange: number;
 	};
 	chars: BMFontChar[];
 }
@@ -37,7 +48,8 @@ export function createTextGeometry(text: string, font: BMFont) {
 	let cursorY = 0;
 
 	for (let i = 0; i < chars.length; i++) {
-		const charCode = chars[i].charCodeAt(0);
+		const charCode = chars[i]?.charCodeAt(0);
+		if (charCode === undefined) continue;
 		if (charCode === 10) {
 			// newline
 			cursorX = 0;
@@ -157,8 +169,11 @@ export function sampleTextPoints(
 	const centerY = overallMinY + height * 0.5;
 
 	for (let i = 0; i < rawPoints.length; i += 3) {
-		rawPoints[i] = (rawPoints[i] - centerX) * scaleX;
-		rawPoints[i + 1] = (rawPoints[i + 1] - centerY) * scaleY;
+		const x = rawPoints[i];
+		const y = rawPoints[i + 1];
+		if (x === undefined || y === undefined) continue;
+		rawPoints[i] = (x - centerX) * scaleX;
+		rawPoints[i + 1] = (y - centerY) * scaleY;
 	}
 
 	return new Float32Array(rawPoints);

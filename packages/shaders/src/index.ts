@@ -34,6 +34,10 @@ export {
 	STUDIO_ENVIRONMENT_SIZE,
 	studioEnvironment,
 } from "./studioEnvironment.js";
+export type { BMFont, BMFontChar } from "./text/layout.js";
+export { createTextGeometry, sampleTextPoints } from "./text/layout.js";
 export { evaluateMSDF } from "./text/msdf.js";
+export type { TextAtlas, TextMaterialOptions } from "./text/textMaterial.js";
+export { createTextMaterial, textPxRange } from "./text/textMaterial.js";
 export type { WorldLensMaterial, WorldLensOptions, WorldLensUniforms } from "./worldLens.js";
 export { createWorldLensMaterial, WORLD_LENS_DEFAULTS } from "./worldLens.js";

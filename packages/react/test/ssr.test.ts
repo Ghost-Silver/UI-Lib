@@ -1,16 +1,11 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-	GlassPanel,
-	GlassStage,
-	Lens,
-	Magnetic,
-	Optics,
-	ParticleField,
-	PointerTrail,
-	Reveal,
-} from "../src/index.js";
+// The GPU components live behind their own entry — see `src/gpu.ts` for why the
+// line is drawn where it is. A test importing them from the main entry would be
+// asserting an export that deliberately does not exist there.
+import { Lens, Optics, PointerTrail } from "../src/gpu.js";
+import { GlassPanel, GlassStage, Magnetic, ParticleField, Reveal } from "../src/index.js";
 
 describe("React adapter SSR", () => {
 	it("renders semantic fallback markup without touching the DOM", () => {

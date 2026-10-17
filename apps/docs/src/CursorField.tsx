@@ -5,8 +5,8 @@ import {
 	GlassStage,
 	Magnetic,
 	ParticleField,
-	PointerTrail,
 } from "@ui-lib/react";
+import { PointerTrail } from "@ui-lib/react/gpu";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect } from "react";
 

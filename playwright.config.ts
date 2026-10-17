@@ -19,9 +19,20 @@ export default defineConfig({
 	timeout: 90_000,
 	globalTimeout: process.env.CI ? 8 * 60_000 : 0,
 	retries: process.env.CI ? 1 : 0,
-	// One worker on CI: every page allocates its own GPU context, and the
-	// renderer already notes that concurrent contexts are capped.
-	workers: process.env.CI ? 1 : undefined,
+	/*
+	 * One worker on CI, and a ceiling locally too.
+	 *
+	 * Every page allocates its own GPU context and the renderer notes that
+	 * concurrent contexts are capped, so an unbounded local run competes with
+	 * itself. Measured: with three other browser gates running, one run lost
+	 * `aurora-flow`, `wake` and `iris` to 90-second timeouts with every one of
+	 * them green on an immediate rerun at two workers.
+	 *
+	 * A gate that fails because of what else was running is worse than a slow
+	 * one — it teaches people to rerun instead of to read. Two is enough to keep
+	 * the suite under a couple of minutes and few enough that the contexts fit.
+	 */
+	workers: process.env.CI ? 1 : 2,
 	reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "list",
 	use: {
 		baseURL: "http://127.0.0.1:5173",

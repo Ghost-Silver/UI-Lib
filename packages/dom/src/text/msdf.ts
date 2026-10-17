@@ -1,52 +1,48 @@
 import type { ParticleSystemOptions } from "@ui-lib/particles";
-import { magicText } from "../magic.js";
-import { type BMFont, createTextGeometry, sampleTextPoints } from "./layout.js";
 
 export interface MagicTextParticleOptions {
 	text: string;
-	fontUrl: string; // JSON atlas
+	/** URL of a BMFont JSON atlas. There is no atlas in this repository. */
+	fontUrl: string;
 	particleOptions?: ParticleSystemOptions;
 	density?: number;
 }
 
 /**
- * Parses an MSDF font, maps the text glyphs, and hooks it to the particle engine.
- * Particles will swarm and snap to the text boundary box natively, scaled to the HTML element.
+ * Not implemented. Throws, deliberately, rather than pretending.
+ *
+ * The previous body passed `attractorCloud` and `attractorMode: "cloud"` to
+ * `magicText`. Neither option exists in `@ui-lib/particles`, and the comment
+ * claiming they had been "monkeypatched dynamically" pointed at a monkeypatch
+ * that was never written. The call therefore succeeded and produced nothing
+ * text-shaped at all — a silent no-op wearing the name of a feature.
+ *
+ * `attractorCloud` escaped the type checker because it sat behind a spread,
+ * and a spread suppresses excess-property checking. `attractorMode` was caught,
+ * and the error was silenced with `@ts-expect-error` — the one place a type
+ * error was telling the truth.
+ *
+ * What implementing it would take, so the next attempt starts in the right
+ * place: `ParticleEmitterOptions.shape` has no cloud case, and
+ * `ParticleForceOptions` attracts every particle to a single point rather than
+ * to a per-particle target. Shaping particles to glyphs needs a buffer of
+ * points indexed by particle id, plus a WebGL2 path that has no storage
+ * buffers. That touches the compute graph on both backends and has to be
+ * verified on a real GPU, so it is a change of its own rather than a quiet
+ * edit here.
+ *
+ * Use `magicText` for particles anchored to an element, or the exports of
+ * `./layout.js` to build and sample the text geometry yourself.
  */
 export async function magicParticleText(
-	element: HTMLElement,
-	options: MagicTextParticleOptions,
-) {
-	const fontRes = await fetch(options.fontUrl);
-	const fontJson = (await fontRes.json()) as BMFont;
-
-	// Generate text quads
-	const geometry = createTextGeometry(options.text, fontJson);
-
-	// Sample attractors over the text surface, bounding box is normalized to [-0.5, 0.5]
-	const pointsCloud = sampleTextPoints(geometry, options.density || 0.1);
-
-	// Approximate physical element scale. A full implementation would actively resize this array on ResizeObserver.
-	const rect = element.getBoundingClientRect();
-	// Magic scale approximation for viewport projection size
-	const scaleX = rect.width / 100;
-	const scaleY = rect.height / 100;
-
-	const scaledCloud = new Float32Array(pointsCloud.length);
-	for (let i = 0; i < pointsCloud.length; i += 3) {
-		scaledCloud[i] = (pointsCloud[i] as number) * scaleX;
-		scaledCloud[i + 1] = (pointsCloud[i + 1] as number) * scaleY;
-		scaledCloud[i + 2] = pointsCloud[i + 2] as number;
-	}
-
-	// Hand over to the primary particle magic wrapper
-	return magicText(element, {
-		...options.particleOptions,
-		attractorCloud: scaledCloud,
-		forces: {
-			...options.particleOptions?.forces,
-			// @ts-expect-error - Adding attractorMode which we monkeypatched dynamically into particle options
-			attractorMode: "cloud",
-		},
-	});
+	_element: HTMLElement,
+	_options: MagicTextParticleOptions,
+): Promise<never> {
+	throw new Error(
+		"[ui-lib] magicParticleText is not implemented: the particle system has no " +
+			"cloud emitter, so nothing here can shape particles to text. It used to " +
+			"resolve and do nothing. Use magicText(element, options) for particles " +
+			"anchored to an element, or createTextGeometry/sampleTextPoints from " +
+			"@ui-lib/dom to build the point cloud yourself.",
+	);
 }

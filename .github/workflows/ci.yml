@@ -56,8 +56,20 @@ jobs:
     name: browser acceptance (chromium)
     runs-on: ubuntu-latest
     # The suite has its own 8-minute global ceiling; this is the backstop for
-    # a wedged browser that refuses to shut down.
-    timeout-minutes: 15
+    # a wedged browser that refuses to shut down. The pixel gates below add to
+    # the wall clock and are slower here than anywhere else, because this runs
+    # a software rasteriser.
+    timeout-minutes: 30
+
+    # This runner has no GPU. Two things follow, and both are stated rather
+    # than guessed: shader compilation is slow enough to need the generous
+    # timeouts the gates now use, and there is no parallelism to exploit, so
+    # the gates run one page at a time. Running them concurrently on one CPU
+    # only made every page time out — which is how this job failed the first
+    # time it ever ran.
+    env:
+      UI_LIB_PIXEL_CONCURRENCY: 1
+      UI_LIB_KIT_CONCURRENCY: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -107,6 +119,30 @@ jobs:
       - name: Acceptance suite
         run: pnpm test:e2e
 
+      # `check:shaders` is deliberately absent from this job, but its siblings
+      # are not. The structural questions these ask — did anything reach the
+      # canvas, did the glass land on its element, is every component visible,
+      # is the post chain reading the composite — are not adapter specific, so
+      # a software rasteriser answers them honestly. What still needs a real
+      # GPU is how it looks, and that stays out.
+      - name: Pixel gate — prove the probe can fail
+        run: pnpm check:pixels:self-test
+
+      - name: Pixel gate — canvas is drawing, glass is on its element
+        run: pnpm check:pixels
+
+      - name: Component gate — prove the probe can fail
+        run: pnpm check:components:self-test
+
+      - name: Component gate — every component visible, every palette wired
+        run: pnpm check:components
+
+      - name: Post gate — prove the probe can fail
+        run: pnpm check:post:self-test
+
+      - name: Post gate — the chain reads the composite
+        run: pnpm check:post
+
       # A browser that wedges leaves no console output. The HTML report and
       # any retained traces are the only evidence, so always collect them.
       - name: Upload Playwright report
@@ -122,11 +158,14 @@ jobs:
 
 # What this workflow deliberately does NOT gate on:
 #
-#   * Real-GPU pixels. The acceptance spec is semantic — there is no
-#     `toHaveScreenshot` anywhere in the repo — so it proves the DOM, the
-#     fallback route and the lifecycle contract, not what Metal or a discrete
-#     GPU actually draws. Screenshot baselines need a GPU-bucketed matrix and
-#     are tracked in docs/ROADMAP.md under P0.
+#   * How any of it looks. `pnpm check:pixels` runs here and does look at the
+#     canvas, but only for two structural facts: that the frame is not flat,
+#     and that hiding a glass element changes the pixels inside that element's
+#     rectangle. It is not an aesthetic baseline and cannot tell whether the
+#     glass is beautiful. Stored screenshot references would be device-specific
+#     and would rot on every driver update, so there is no `toHaveScreenshot`
+#     anywhere in the repo; a GPU-bucketed matrix is still tracked in
+#     docs/ROADMAP.md under P0.
 #   * FPS, dropped frames and VRAM. Those need real devices.
 #
 #   * Shader and render-pipeline compilation. `pnpm check:shaders` covers that,

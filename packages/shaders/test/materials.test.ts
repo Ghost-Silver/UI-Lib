@@ -70,6 +70,32 @@ describe("createLiquidGlassMaterial", () => {
 		room.dispose();
 	});
 
+	it("dispatches and cycles dynamic fluid ripple wavelet pulses", () => {
+		const material = createLiquidGlassMaterial({ rippleStrength: 0.8 });
+		expect(material.uniforms.rippleStrength.value).toBe(0.8);
+		expect(material.uniforms.ripple0.value.w).toBe(0);
+
+		material.addRipple(0.4, 0.6, 1.5, 2.0);
+		expect(material.uniforms.ripple0.value.x).toBeCloseTo(0.4);
+		expect(material.uniforms.ripple0.value.y).toBeCloseTo(0.6);
+		expect(material.uniforms.ripple0.value.z).toBe(2.0);
+		expect(material.uniforms.ripple0.value.w).toBe(1.5);
+
+		// Cycling through ripple slots:
+		material.addRipple(0.5, 0.5, 1.0, 2.1);
+		material.addRipple(0.6, 0.4, 0.8, 2.2);
+		material.addRipple(0.7, 0.3, 0.6, 2.3);
+		expect(material.uniforms.ripple3.value.w).toBe(0.6);
+
+		// Fifth ripple wraps around to slot 0:
+		material.addRipple(0.1, 0.2, 2.0, 2.4);
+		expect(material.uniforms.ripple0.value.x).toBeCloseTo(0.1);
+		expect(material.uniforms.ripple0.value.w).toBe(2.0);
+
+		material.update({ rippleStrength: 1.4 });
+		expect(material.uniforms.rippleStrength.value).toBe(1.4);
+	});
+
 	it("shares time/resolution uniforms across materials", () => {
 		const a = createLiquidGlassMaterial();
 		const b = createLiquidGlassMaterial(

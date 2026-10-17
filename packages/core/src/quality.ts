@@ -1,4 +1,5 @@
 import type { DeviceCapabilities } from "./device.js";
+import { mergeDefined } from "./mergeDefined.js";
 
 /** 0 = no GPU (pure CSS/DOM fallback), 3 = desktop-class discrete/integrated GPU. */
 export type QualityTier = 0 | 1 | 2 | 3;
@@ -20,6 +21,54 @@ export interface QualitySettings {
 }
 
 export type QualityPreset = Omit<QualitySettings, "tier">;
+
+/**
+ * A host's declared rendering budget.
+ *
+ * On the web the budget is *probed*: `detectCapabilities()` reads the browser,
+ * `scoreTier()` picks a rung, `QUALITY_PRESETS` fills in the numbers. A host
+ * that is not a browser has nothing to probe — a UE5 shell knows its own
+ * numbers and can simply state them. Both arrive here and everything below is
+ * identical, which is the whole point of the seam.
+ *
+ * `host` is free-form and only ever used for reporting; nothing branches on it.
+ */
+export interface PlatformBudget {
+	/** Stable id for the host that produced this budget, e.g. `"ue5-metal"`. */
+	readonly host: string;
+	/**
+	 * Where the numbers came from. `"probed"` means a device probe produced
+	 * them, `"declared"` means a host stated them. Reported so a gate can tell
+	 * a measured limit from an asserted one.
+	 */
+	readonly source: "probed" | "declared";
+	/** Any subset of the preset. Omitted fields fall back to the tier's. */
+	readonly preset?: Partial<QualityPreset>;
+	/**
+	 * The rung to start and cap at, used only to fill omitted preset fields.
+	 * Defaults to `2`.
+	 */
+	readonly tier?: QualityTier;
+}
+
+/**
+ * Fold a declared budget onto a preset.
+ *
+ * Deliberately total: an omitted field is inherited, never `undefined`, so a
+ * host that only cares about particle count does not have to restate the DPR
+ * cap. Runs through the same `mergeDefined` rule as every other option object
+ * in the library.
+ */
+export function resolveBudget(budget: PlatformBudget): QualitySettings {
+	const tier = budget.tier ?? 2;
+	return {
+		tier,
+		...mergeDefined<QualityPreset, Partial<QualityPreset>>(
+			QUALITY_PRESETS[tier],
+			budget.preset ?? {},
+		),
+	};
+}
 
 export const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
 	// No usable GPU: everything degrades to CSS.
@@ -81,6 +130,14 @@ export interface QualityManagerOptions {
 	/** Enable runtime downgrade/upgrade based on measured FPS. Default `true`. */
 	auto?: boolean;
 	capabilities?: DeviceCapabilities;
+	/**
+	 * A budget stated by the host rather than probed from a browser.
+	 *
+	 * Takes precedence over `tier` and `capabilities`: a host that knows its
+	 * own numbers is not guessing, and it is the only way a non-web backend can
+	 * describe itself. Leave it out on the web and the probe is used.
+	 */
+	budget?: PlatformBudget;
 	onChange?: (settings: QualitySettings, previous: QualityTier) => void;
 }
 
@@ -96,7 +153,12 @@ const FPS_GOOD = 57;
  */
 export class QualityManager {
 	readonly maxTier: QualityTier;
+	/** Where the budget came from, and which host stated it. */
+	readonly budgetHost: string;
+	readonly budgetSource: "probed" | "declared";
 	private tierValue: QualityTier;
+	/** Only the fields the host was explicit about; everything else follows the rung. */
+	private readonly declaredPreset?: Partial<QualityPreset>;
 	private readonly auto: boolean;
 	private readonly onChange?: (s: QualitySettings, prev: QualityTier) => void;
 
@@ -113,7 +175,24 @@ export class QualityManager {
 
 		const requested = options.tier ?? "auto";
 		const scored = caps ? scoreTier(caps) : 2;
+
+		if (options.budget) {
+			// A stated budget wins outright: the host is not guessing, and the
+			// tier below only exists to fill in what it left out.
+			const resolved = resolveBudget(options.budget);
+			this.declaredPreset = options.budget.preset;
+			this.budgetHost = options.budget.host;
+			this.budgetSource = options.budget.source;
+			this.maxTier = resolved.tier;
+			this.tierValue = resolved.tier;
+			this.auto = false;
+			this.onChange = options.onChange;
+			return;
+		}
+
 		const initial = requested === "auto" ? scored : requested;
+		this.budgetHost = "web";
+		this.budgetSource = "probed";
 		this.maxTier = requested === "auto" ? scored : requested;
 		this.tierValue = initial;
 	}
@@ -123,7 +202,15 @@ export class QualityManager {
 	}
 
 	get settings(): QualitySettings {
-		return { tier: this.tierValue, ...QUALITY_PRESETS[this.tierValue] };
+		const preset = QUALITY_PRESETS[this.tierValue];
+		if (!this.declaredPreset) return { tier: this.tierValue, ...preset };
+		// Only the fields the host actually stated are pinned. Everything else —
+		// blur taps, DPR cap, the panel ceiling — still follows the rung, so a
+		// declared budget does not freeze the adaptive walk.
+		return {
+			tier: this.tierValue,
+			...mergeDefined<QualityPreset, Partial<QualityPreset>>(preset, this.declaredPreset),
+		};
 	}
 
 	setTier(tier: QualityTier): void {

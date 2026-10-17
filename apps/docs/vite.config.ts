@@ -37,15 +37,28 @@ export default defineConfig({
 	resolve: {
 		// Workspace sources, so the playground hot-reloads library changes without
 		// a build step in between.
-		alias: {
-			"@ui-lib/particles": r("../../packages/particles/src/index.ts"),
-			"@ui-lib/post": r("../../packages/post/src/index.ts"),
-			"@ui-lib/react": r("../../packages/react/src/index.ts"),
-			"@ui-lib/renderer": r("../../packages/renderer/src/index.ts"),
-			"@ui-lib/shaders": r("../../packages/shaders/src/index.ts"),
-			"@ui-lib/core": r("../../packages/core/src/index.ts"),
-			"@ui-lib/motion": r("../../packages/motion/src/index.ts"),
-		},
+		/*
+		 * An **array**, not an object, and that is the whole point.
+		 *
+		 * Vite matches object aliases by longest prefix, but the subpath
+		 * `@ui-lib/react/gpu` and the bare `@ui-lib/react` share that prefix, and an
+		 * object gives no control over which wins — measured, the bare specifier won
+		 * and every GPU import resolved to the main entry, which no longer exports
+		 * those components. The page died with "does not provide an export named
+		 * PointerTrail" and then with a 500 from the import analysis.
+		 *
+		 * An array is ordered, so the longer specifier can be listed first.
+		 */
+		alias: [
+			{ find: "@ui-lib/react/gpu", replacement: r("../../packages/react/src/gpu.ts") },
+			{ find: "@ui-lib/particles", replacement: r("../../packages/particles/src/index.ts") },
+			{ find: "@ui-lib/post", replacement: r("../../packages/post/src/index.ts") },
+			{ find: "@ui-lib/react", replacement: r("../../packages/react/src/index.ts") },
+			{ find: "@ui-lib/renderer", replacement: r("../../packages/renderer/src/index.ts") },
+			{ find: "@ui-lib/shaders", replacement: r("../../packages/shaders/src/index.ts") },
+			{ find: "@ui-lib/core", replacement: r("../../packages/core/src/index.ts") },
+			{ find: "@ui-lib/motion", replacement: r("../../packages/motion/src/index.ts") },
+		],
 		dedupe: ["three", "react", "react-dom"],
 	},
 	server: {

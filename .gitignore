@@ -24,3 +24,12 @@ reports/
 # pnpm leaves zero-byte `_tmp_<pid>_<hash>` markers at the workspace root when a
 # recursive run is interrupted. They are not part of the project.
 _tmp_*
+
+# Gate and server output. `nohup node scripts/check-*.mjs > x.log` is how every
+# round of this work has been inspected, and twice a stray one has been
+# committed because it was written into the repo root rather than /tmp.
+*.log
+
+# Multi-agent teamwork artifacts
+.agents/
+

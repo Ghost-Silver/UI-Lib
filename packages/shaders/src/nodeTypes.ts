@@ -1,5 +1,5 @@
 import { uniform } from "three/tsl";
-import { Color, Vector2, Vector3 } from "three/webgpu";
+import { Color, Vector2, Vector3, Vector4 } from "three/webgpu";
 
 /**
  * Structural types for the TSL uniform nodes we hand around between packages.
@@ -12,11 +12,13 @@ import { Color, Vector2, Vector3 } from "three/webgpu";
 const _float = uniform(0);
 const _vec2 = uniform(new Vector2());
 const _vec3 = uniform(new Vector3());
+const _vec4 = uniform(new Vector4());
 const _color = uniform(new Color());
 
 export type FloatUniform = typeof _float;
 export type Vec2Uniform = typeof _vec2;
 export type Vec3Uniform = typeof _vec3;
+export type Vec4Uniform = typeof _vec4;
 export type ColorUniform = typeof _color;
 
 /**

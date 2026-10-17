@@ -1,3 +1,4 @@
+import { IRIS, IRIS_GLASS_LOOKS } from "@ui-lib/core";
 import { type ParticleSystemOptions, WAKE_FIELD } from "@ui-lib/particles";
 import type { GlassPanelOptions } from "@ui-lib/renderer";
 
@@ -129,13 +130,99 @@ export function resolveLensLook(
 	return { ...LENS_LOOKS[look], ...definedPatch(patch) };
 }
 
-export type FieldLookName = "mote" | "spark" | "quiet" | "cursor" | "aurora" | "wake";
-
 /**
  * Particle clouds that belong with a lens. Counts stay high enough to read as
  * a field; intensity is what the grade is allowed to turn down.
  */
+/**
+ * Particle clouds in the IRIS palette.
+ *
+ * They live here rather than in `core` beside `IRIS_GLASS_LOOKS` because a
+ * field look has to be checked against `ParticleSystemOptions` with contextual
+ * typing, and that type belongs to `@ui-lib/particles`. `core` has no
+ * dependencies at all by design, and a spread loses the context that keeps a
+ * tuple a tuple — `life: [9, 18]` widens to `number[]` and stops matching.
+ *
+ * These exist because the world layer is most convincing where a pane is in
+ * front of it, and a glass card has nothing to bend over a flat wash. A slow
+ * halo gives the refraction something to move.
+ */
+export type IrisFieldLookName = "halo" | "petal";
+
+const IRIS_FIELD_LOOKS = {
+	/** Slow motes for a pane to bend. Sparse on purpose: anything fast enough
+	    to notice is fast enough to fight the text on the same panel. */
+	halo: {
+		// 260 was the first count and it was invisible: a quarter of the motes
+		// landed outside the card and the rest were too small to read as
+		// anything but sensor noise. Count, size and radius all went up
+		// together — one of the three alone changes nothing.
+		count: 1_800,
+		// 4.2 units was a 300px sphere with 1100 motes in it, which reads as
+		// scattered debris. A tighter emitter and more of them is a cloud.
+		emitter: { shape: "sphere", radius: 2.6, speed: 0.13, spread: 0.95 },
+		// `attractor` near zero on purpose. With `anchor`, the attractor and the
+		// emitter are the same point, so a strong pull collects the entire cloud
+		// onto it — nine hundred motes rendered as one dot. The swirl is what
+		// makes a cloud; the attractor only decides where it sits.
+		forces: {
+			turbulence: 0.42,
+			vortex: 0.5,
+			drag: 0.16,
+			attractor: 0.06,
+			attractorRadius: 1.6,
+		},
+		// Deep rungs, not the pale ones. The first pass used `blossom[300]` and
+		// `iris[500]` on a pale pink card, which is a pastel on a pastel: the
+		// motes were there and could not be seen. Contrast on a light ground
+		// comes from the colour being deeper, not from adding glow — additive
+		// blending on white only makes more white.
+		colors: [IRIS.iris[700], IRIS.blossom[500], IRIS.mist[700]] as [string, string, string],
+		size: [0.16, 0.42] as [number, number],
+		intensity: 1.3,
+		opacity: 0.85,
+		life: [9, 18] as [number, number],
+	},
+	/** The same field with more life in it, for open ground. */
+	petal: {
+		// A wide, slow emitter spreads a few hundred motes so thin that the
+		// field reads as sensor noise. Concentration is what makes a cloud:
+		// a smaller sphere, more of them, and each one large enough to see.
+		count: 1_600,
+		emitter: { shape: "sphere", radius: 3.4, speed: 0.14, spread: 0.8 },
+		forces: {
+			turbulence: 0.5,
+			vortex: 0.46,
+			drag: 0.14,
+			attractor: 0.05,
+			attractorRadius: 1.8,
+		},
+		colors: [IRIS.blossom[500], IRIS.iris[700], IRIS.mist[700]] as [string, string, string],
+		size: [0.13, 0.36] as [number, number],
+		intensity: 1.4,
+		opacity: 0.85,
+		life: [8, 16] as [number, number],
+	},
+} satisfies Record<string, ParticleSystemOptions>;
+
+export type FieldLookName =
+	| "mote"
+	| "spark"
+	| "quiet"
+	| "cursor"
+	| "aurora"
+	| "wake"
+	| IrisFieldLookName;
+
+/**
+ * Fields are checked against `ParticleSystemOptions` directly rather than
+ * through `as const`, unlike the glass and lens registries. `as const` makes
+ * every array a readonly tuple, and `colors` is a tuple the shader depends on
+ * being exactly three, so the readonly form stops satisfying the type and the
+ * whole registry fails to compile.
+ */
 export const FIELD_LOOKS: Record<FieldLookName, ParticleSystemOptions> = {
+	...IRIS_FIELD_LOOKS,
 	mote: {
 		count: 1_400,
 		emitter: { shape: "sphere", radius: 0.7, speed: 0.1, spread: 0.85 },
@@ -260,17 +347,92 @@ export function fieldOptions(
 	};
 }
 
-/** DOM glass that can sit on a product page without a wall of props. */
+/**
+ * DOM glass that can sit on a product page without a wall of props.
+ *
+ * Parameters are calibrated against a 200px reference card (`Math.min(w, h) = 200`).
+ * At runtime, `bevel` and `refraction` auto-scale proportionally by
+ * `Math.max(1, Math.min(width, height)) / 200` to maintain consistent relative glass
+ * thickness across chips and large hero panels alike.
+ */
 export const GLASS_LOOKS = {
+	/*
+	 * A slab of glass rather than a pane of it.
+	 *
+	 * Every look this library had kept `bevel` between 14 and 22 and `refraction`
+	 * between 14 and 36 — thin glass, all of it, and measured across the looks the
+	 * difference between the thickest and the thinnest was a few pixels of edge.
+	 * **The feedback that produced this was "液态玻璃一定要特别特别厚"**, and the
+	 * reason the library did not have that is that "thick" is not one parameter: it
+	 * is a large bevel relative to the element, strong enough refraction to bend
+	 * what is behind it, and enough dispersion that the bend separates into colour.
+	 *
+	 * Numbers chosen against the geometry rather than by eye. `bevel: 78` on a
+	 * 200px card means the bevel occupies nearly two fifths of it, which is what a
+	 * slab of glass looks like from an angle — the flat window in the middle is the
+	 * smaller part. `refraction: 96` is large enough that a pigment field behind it
+	 * visibly moves rather than merely softening.
+	 *
+	 * `frost` is low on purpose. Thick glass is not frosted glass: a frosted slab
+	 * hides what is behind it, and the whole point of a slab is that you can see
+	 * through two centimetres of it and watch the edges bend.
+	 *
+	 * ## The bevel came down and the radius went up, and that is a correction
+	 *
+	 * The three were first built by making each one "more" than the last, which is
+	 * the wrong axis. The brief describes three *shapes* rather than three amounts:
+	 * a **plump spherical bubble**, a **flatter but still heavy pane**, and the
+	 * **most substantial block with the most complex refraction**. Those order by
+	 * radius — 96, 20, 34 — not by bevel.
+	 *
+	 * `bevel: 78` on the slab was also rejected on sight: **"方一点，不要太立体"**,
+	 * and a bevel that wide is exactly what makes a panel look moulded rather than
+	 * cut. Thickness is carried by `refraction` and `dispersion` — how far the
+	 * image behind moves and how far it separates into colour — and those are
+	 * unchanged at 96 and 0.34.
+	 */
+	slab: {
+		radius: 34,
+		bevel: 46,
+		refraction: 96,
+		dispersion: 0.34,
+		roughness: 0,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.42,
+	},
+	/* A pane: real refraction, a modest edge, and a flat interior. The everyday
+	   glass for a card that has to stay readable. */
+	pane: {
+		radius: 20,
+		bevel: 30,
+		refraction: 52,
+		dispersion: 0.24,
+		roughness: 0,
+		frost: 0,
+		specular: 0.75,
+		edgeGlow: 0.36,
+	},
+	/* Droplets: a wide soft edge, clear water drop curve. */
+	dew: {
+		radius: 28,
+		bevel: 40,
+		refraction: 38,
+		dispersion: 0.16,
+		roughness: 0,
+		frost: 0,
+		specular: 0.82,
+		edgeGlow: 0.48,
+	},
 	product: {
 		radius: 28,
 		bevel: 22,
 		refraction: 36,
 		dispersion: 0.22,
-		roughness: 0.2,
-		frost: 16,
-		specular: 0.45,
-		edgeGlow: 0.28,
+		roughness: 0,
+		frost: 0,
+		specular: 0.68,
+		edgeGlow: 0.38,
 		tintAmount: 0.05,
 		pointerStrength: 0.4,
 		pointerRadius: 280,
@@ -281,8 +443,8 @@ export const GLASS_LOOKS = {
 		bevel: 22,
 		refraction: 32,
 		dispersion: 0.2,
-		roughness: 0.18,
-		frost: 10,
+		roughness: 0,
+		frost: 0,
 		specular: 0.5,
 		edgeGlow: 0.34,
 		tintAmount: 0.04,
@@ -391,6 +553,137 @@ export const GLASS_LOOKS = {
 		pointerRadius: 200,
 		environment: 0.22,
 	},
+	/* Apple visionOS Signature Liquid Glass Presets */
+	/** Crystal: thick Apple visionOS liquid glass card with dual-lobe specular & C2 continuous capsule. */
+	"apple-crystal": {
+		radius: 40,
+		bevel: 16,
+		refraction: 28,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	/** Floating navigation stadium capsule with gleaming top crest. */
+	"apple-pill": {
+		radius: 999,
+		bevel: 14,
+		refraction: 24,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	/** Frosted visionOS control center / dock pane with soft blur and low specular. */
+	"frosted-dock": {
+		radius: 32,
+		bevel: 18,
+		refraction: 18,
+		dispersion: 0.12,
+		roughness: 0.35,
+		frost: 28,
+		specular: 0.42,
+		edgeGlow: 0.28,
+		tint: "#ffffff",
+		tintAmount: 0.04,
+		saturation: 1.12,
+	},
+	// Semantic aliases
+	crystal: {
+		radius: 40,
+		bevel: 16,
+		refraction: 28,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	capsule: {
+		radius: 999,
+		bevel: 14,
+		refraction: 24,
+		dispersion: 0.22,
+		roughness: 0.02,
+		frost: 0,
+		specular: 0.88,
+		edgeGlow: 0.62,
+		tint: "#ffffff",
+		tintAmount: 0.02,
+		saturation: 1.18,
+	},
+	frosted: {
+		radius: 32,
+		bevel: 18,
+		refraction: 18,
+		dispersion: 0.12,
+		roughness: 0.35,
+		frost: 28,
+		specular: 0.42,
+		edgeGlow: 0.28,
+		tint: "#ffffff",
+		tintAmount: 0.04,
+		saturation: 1.12,
+	},
+	/* The IRIS looks are defined in @ui-lib/core so @ui-lib/dom can share
+	   them without depending on this package. */
+	...IRIS_GLASS_LOOKS,
 } as const satisfies Record<string, GlassPanelOptions>;
 
 export type GlassLookName = keyof typeof GLASS_LOOKS;
+export type GlassPresetName = GlassLookName;
+
+export interface ResolveGlassOptions {
+	preset?: GlassPresetName;
+	look?: GlassLookName;
+	/**
+	 * Thickness in millimeters (standard reference is 28mm).
+	 * Scales bevel and refraction proportionally relative to 28mm.
+	 */
+	thickness?: number;
+	overrides?: Partial<GlassPanelOptions>;
+}
+
+/**
+ * Resolves a high-level glass preset with optional thickness scaling and property overrides.
+ */
+export function resolveGlassPreset(
+	presetOrOptions: GlassPresetName | ResolveGlassOptions = "apple-crystal",
+	overrides: Partial<GlassPanelOptions> = {},
+): GlassPanelOptions {
+	const opts: ResolveGlassOptions =
+		typeof presetOrOptions === "string"
+			? { preset: presetOrOptions, overrides }
+			: { ...presetOrOptions, overrides: { ...presetOrOptions.overrides, ...overrides } };
+
+	const key = (opts.preset ?? opts.look ?? "apple-crystal") as GlassLookName;
+	const base = GLASS_LOOKS[key] ?? GLASS_LOOKS["apple-crystal"];
+	const merged: GlassPanelOptions = { ...base, ...definedPatch(opts.overrides ?? {}) };
+
+	if (
+		typeof opts.thickness === "number" &&
+		Number.isFinite(opts.thickness) &&
+		opts.thickness > 0
+	) {
+		const scale = opts.thickness / 28;
+		if (opts.overrides?.bevel === undefined && base.bevel !== undefined) {
+			merged.bevel = Math.round(base.bevel * scale);
+		}
+		if (opts.overrides?.refraction === undefined && base.refraction !== undefined) {
+			merged.refraction = Math.round(base.refraction * scale);
+		}
+	}
+
+	return merged;
+}

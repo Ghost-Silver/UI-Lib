@@ -6,6 +6,16 @@
  * deterministic lifecycle.
  */
 
+export type { Srgb } from "./colour.js";
+export {
+	inSrgbGamut,
+	linearToSrgb255,
+	oklabToLinearSrgb,
+	oklchToOklab,
+	oklchToSrgb,
+	parseColour,
+	parseOklch,
+} from "./colour.js";
 export type { DeviceCapabilities, GpuBackend } from "./device.js";
 export {
 	detectCapabilities,
@@ -13,6 +23,30 @@ export {
 	hasDom,
 	onReducedMotionChange,
 } from "./device.js";
+export type {
+	GlassLookName,
+	IrisGlassLookName,
+	IrisTone,
+	IrisToneRoles,
+	Tone,
+	ToneRoles,
+} from "./iris.js";
+export { IRIS, IRIS_GLASS_LOOKS, IRIS_TONES, irisTone, TONE_LABELS, TONES } from "./iris.js";
+export type { KubelkaMunkPigment, ProcessPigmentName } from "./kubelkaMunk.js";
+export {
+	interpolatePigments,
+	mixIrisTones,
+	mixMultiPigments,
+	mixMultiPigmentsToCss,
+	mixPigments,
+	mixToCss,
+	PROCESS_PIGMENTS,
+	parseHex,
+	pigmentFromColour,
+	pigmentFromHex,
+	reflectanceFromKS,
+	toneToPigment,
+} from "./kubelkaMunk.js";
 export type { Disposable, Teardown } from "./lifecycle.js";
 export { Disposer, nextFrame } from "./lifecycle.js";
 export type { EasingName, SpringOptions } from "./math.js";
@@ -32,15 +66,27 @@ export {
 	wrap,
 } from "./math.js";
 export { mergeDefined } from "./mergeDefined.js";
+export type { MotionPresetName, MotionSpec, SpringDriver } from "./motion.js";
+export {
+	createSpring,
+	driveSpring,
+	MOTION_PRESETS,
+	overshoots,
+	SPEC_DAMPING_WINDOW,
+	settleTime,
+	specToSpring,
+	springToSpec,
+} from "./motion.js";
 export type { PointerState, PointerTrackerOptions } from "./pointer.js";
 export { PointerTracker } from "./pointer.js";
 export type {
+	PlatformBudget,
 	QualityManagerOptions,
 	QualityPreset,
 	QualitySettings,
 	QualityTier,
 } from "./quality.js";
-export { QUALITY_PRESETS, QualityManager, scoreTier } from "./quality.js";
+export { QUALITY_PRESETS, QualityManager, resolveBudget, scoreTier } from "./quality.js";
 export type {
 	ResourceHandle,
 	ResourceKind,
@@ -49,3 +95,17 @@ export type {
 export { getResourceSnapshot, ResourceRegistry, resourceRegistry } from "./resource.js";
 export type { FrameCallback, FrameInfo, TaskPriorityName } from "./scheduler.js";
 export { disposeScheduler, FrameScheduler, getScheduler, TASK_PRIORITY } from "./scheduler.js";
+export type { ThemeMode, ThemeTokens } from "./themes.js";
+export {
+	isThemeMode,
+	THEME_MODES,
+	THEMES,
+	themeToCustomProperties,
+	themeVariable,
+} from "./themes.js";
+export type { TiltOptions } from "./tilt.js";
+export { TILT_LIMIT_DEGREES, Tilt } from "./tilt.js";
+export type { WashOptions, WashResult, WashState } from "./wash.js";
+export { createWash, describeWash, paperNoise } from "./wash.js";
+export type { WashCanvasOptions } from "./washCanvas.js";
+export { washToCanvas } from "./washCanvas.js";

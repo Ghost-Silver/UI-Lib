@@ -4,7 +4,6 @@ import {
 	GlassPanel,
 	GlassStage,
 	Magnetic,
-	Optics,
 	ScrollPin,
 	type ScrollState,
 	ScrollTrack,
@@ -12,6 +11,7 @@ import {
 	useGlassStage,
 	useReducedMotion,
 } from "@ui-lib/react";
+import { Optics } from "@ui-lib/react/gpu";
 import type { BackdropSpec, PostProcessingOptions } from "@ui-lib/renderer";
 import { useEffect, useRef } from "react";
 import { texture } from "three/tsl";

@@ -20,7 +20,7 @@ const activeSystems: ParticleSystem[] = [];
  * Applies a Liquid Glass effect to an existing DOM element.
  *
  * Will automatically initialize the global UI-Lib glass layer if one doesn't exist,
- * allowing multiple `makeItGlass` calls to transparently share one WebGPU canvas.
+ * so every `createEffect` call on a page transparently shares one canvas.
  */
 export async function createEffect(
 	element: HTMLElement,
